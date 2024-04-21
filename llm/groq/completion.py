@@ -16,8 +16,9 @@ def groq_config_generator(**kwargs):
             "top_p": kwargs.get("top_p", 1.0),
             "stream": kwargs.get("stream", False),
         },
+        "model_client_cls": "GroqClient",
     }
-    return config
+    return [config]
 
 class GroqClient:
     '''符合 Autogen 规范的Groq Completion Client.'''
@@ -32,7 +33,7 @@ class GroqClient:
         self.top_p = get_config_param.get("top_p",1.0)
         self.stream = get_config_param.get("stream",False)
 
-    def create(self,**config):
+    def create(self,config:dict) -> dict:
         '''
         创建一个会话
         
@@ -51,7 +52,7 @@ class GroqClient:
         )
         return response
     
-    def message_retreival(self,response):
+    def message_retrieval(self,response):
         '''从响应中提取消息'''
         choices = response.choices
         return [choice.message.content for choice in choices]
@@ -64,7 +65,7 @@ class GroqClient:
         return response.cost
     
     @staticmethod
-    def get_use(response):
+    def get_usage(response):
         # returns a dict of prompt_tokens, completion_tokens, total_tokens, cost, model
         # if usage needs to be tracked, else None
         return {}
@@ -76,7 +77,7 @@ class GroqCompletionClient(GroqClient):
 
     def create_completion(self, **config):
         # 先获得父类的 create 输出
-        output = super().create(**config)
+        output = super().create(config)
         # 然后从输出中提取消息，放进 Namespace
         response = output.choices[0].message.content
         cost = 0
