@@ -7,33 +7,14 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from aoai.completion import AzureOpenAICompletionClient
-from ollama.completion import OllamaCompletionClient,get_ollama_model_list
+from llm.aoai.completion import AzureOpenAICompletionClient
+from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
+from llm.groq.completion import GroqCompletionClient
 from copy import deepcopy
 
 
 st.title("RAGenT")
  
-# style = """
-# <style>
-# .memo-box {
-#     border: 1px solid #ccc;
-#     padding: 10px;
-#     margin-bottom: 20px;
-# }
-# .tag {
-#     font-size: 12px;
-#     color: #888;
-# }
-# </style>
-# """
-# html = """
-# <div class="memo-box">
-#     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-#     <span class="tag">#tag</span>
-# </div>
-# """
-# st.components.v1.html(style + html)
 
 # Initialize chat history
 if "chat_history" not in st.session_state:
@@ -57,45 +38,42 @@ def model_selector(model_type):
            return model_list
         except:
             return ["qwen:7b-chat"]
+    elif model_type == "Groq":
+        return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
     else:
         return None
 
 
+with st.sidebar:
+    select_box0 = st.selectbox(
+        label="Model type",
+        options=["OpenAI","Ollama","Groq"],
+        key="model_type",
+        # on_change=lambda: model_selector(st.session_state["model_type"])
+    )
 
-select_box0 = st.sidebar.selectbox(
-    label="Model type",
-    options=["OpenAI","Ollama"],
-    key="model_type",
-    # on_change=lambda: model_selector(st.session_state["model_type"])
-)
+    select_box1 = st.selectbox(
+        label="Model",
+        options=model_selector(st.session_state["model_type"]),
+        key="model"
+    )
 
-select_box1 = st.sidebar.selectbox(
-    label="Model",
-    options=model_selector(st.session_state["model_type"]),
-    key="model"
-)
+    # 添加一个按键来清空聊天历史
+    clear_button = st.button("清空聊天记录")
+    if clear_button:
+        st.session_state.chat_history = []
+        write_chat_history(st.session_state.chat_history)
 
-if_agent_mode = st.sidebar.checkbox("Agent Mode", key="if_agent_mode")
-if if_agent_mode:
-    st.sidebar.write("Agent Mode is on")
-
-# 添加一个按键来清空聊天历史
-
-clear_button = st.sidebar.button("清空聊天记录")
-if clear_button:
-    st.session_state.chat_history = []
-    write_chat_history(st.session_state.chat_history)
-
-# 添加一个按键来导出易于阅读的聊天历史到本地文件夹中
-export_button = st.sidebar.button("导出聊天记录")
-if export_button:
-    # 将聊天历史导出为Markdown
-    chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
-    # st.markdown(chat_history)
-    # 将Markdown保存到本地文件夹中
-    with open("chat_history.md", "w") as f:
-        f.write(chat_history)
-    st.success("Chat history exported to chat_history.md")
+    # 添加一个按键来导出易于阅读的聊天历史到本地文件夹中
+    export_button = st.button("导出聊天记录")
+    if export_button:
+        # 将聊天历史导出为Markdown
+        chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
+        # st.markdown(chat_history)
+        # 将Markdown保存到本地文件夹中
+        with open("chat_history.md", "w") as f:
+            f.write(chat_history)
+        st.success("Chat history exported to chat_history.md")
 
 
 # Set OpenAI API key from Streamlit secrets
@@ -129,6 +107,13 @@ if st.session_state["model_type"] == "OpenAI":
     client = AzureOpenAICompletionClient()
 elif st.session_state["model_type"] == "Ollama":
     client = OllamaCompletionClient()
+elif st.session_state["model_type"] == "Groq":
+    client = GroqCompletionClient(
+        config={
+            'model': st.session_state["model"],
+            'api_key': os.getenv('GROQ_API_KEY'),
+        }
+    )
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -144,12 +129,14 @@ if prompt := st.chat_input("What is up?"):
         with st.spinner("Thinking..."):
             raw_response = client.create_completion(
                 model=st.session_state["model"],
-                chat_history=st.session_state.chat_history
+                messages=st.session_state.chat_history
             )
             # 根据 Client 的不同，解析方法有小不同
             if isinstance(client, AzureOpenAICompletionClient):
                 response = client.client.extract_text_or_completion_object(raw_response)[0]
             elif isinstance(client, OllamaCompletionClient):
+                response = client.extract_text_or_completion_object(raw_response)[0]
+            elif isinstance(client, GroqCompletionClient):
                 response = client.extract_text_or_completion_object(raw_response)[0]
 
         st.write(response)

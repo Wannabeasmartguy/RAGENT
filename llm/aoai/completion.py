@@ -1,7 +1,7 @@
 import autogen
 
 from typing import List, Dict, Union, Literal
-from aoai.Agent.Agent import *
+from llm.aoai.Agent.Agent import *
 from autogen.oai import OpenAIWrapper
 from autogen.oai.openai_utils import config_list_from_dotenv
 
@@ -27,7 +27,7 @@ class AzureOpenAICompletionClient:
         '''client: 使用 Autogen 的 OpenAI 包装器的客户端'''
         
     def create_completion(self, 
-                          chat_history: List[Dict[str, str]],
+                          messages: List[Dict[str, str]],
                           model: str):
         '''
         创建补全
@@ -45,7 +45,7 @@ class AzureOpenAICompletionClient:
             # 暂时没有 system prompt
             messages=[
                 {"role": m["role"], "content": m["content"]}
-                for m in chat_history
+                for m in messages
             ],
             stream=True
         )

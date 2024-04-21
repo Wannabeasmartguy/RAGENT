@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-from aoai.tools.tools import *
+from llm.aoai.tools.tools import *
 
 load_dotenv()
 

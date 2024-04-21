@@ -25,3 +25,4 @@ html2text==2024.2.26
 streamlit==1.33.0
 pyautogen==0.2.26
 trafilatura==1.8.1
+groq==0.5.0

@@ -88,7 +88,7 @@ class OllamaCompletionClient:
         self.cost:float = 0
 
     def create_completion(self,
-            chat_history:list,
+            messages:list,
             model:str,
             **option_kwargs
         ):
@@ -108,13 +108,13 @@ class OllamaCompletionClient:
 
         data = {
             "model": model,
-            "messages": chat_history,
+            "messages": messages,
             "stream": False, # 流式输出则注释掉此行
             "options": kwargs
         }
 
         try:
-            response = requests.post(chat_url, json=data, stream=True, timeout=10)
+            response = requests.post(chat_url, json=data, stream=True, timeout=120)
             response_ollama = OllamaResponse(response.json())
         except:
             response = {
