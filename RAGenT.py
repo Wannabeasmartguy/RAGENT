@@ -9,7 +9,7 @@ load_dotenv()
 
 from llm.aoai.completion import AzureOpenAICompletionClient
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
-from llm.groq.completion import GroqCompletionClient
+from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from copy import deepcopy
 
 
@@ -76,43 +76,35 @@ with st.sidebar:
         st.success("Chat history exported to chat_history.md")
 
 
-# Set OpenAI API key from Streamlit secrets
-# client = AzureOpenAI(
-#   azure_endpoint = os.getenv('AZURE_OAI_ENDPOINT'), 
-#   api_key = os.getenv('AZURE_OAI_KEY'),  
-#   api_version = os.getenv('API_VERSION')
-# )
-
-
 # load config list from .env file
-config_list = config_list_from_dotenv(
-    dotenv_file_path=".env",
-    model_api_key_map={
-        "gpt-4":{
-            "api_key_env_var":"AZURE_OAI_KEY",
-            "api_type": "API_TYPE",
-            "base_url": "AZURE_OAI_ENDPOINT",
-            "api_version": "API_VERSION",
-        },
-        "gpt-3.5-turbo":{
-            "api_key_env_var":"AZURE_OAI_KEY",
-            "api_type": "API_TYPE",
-            "base_url": "AZURE_OAI_ENDPOINT",
-            "api_version": "API_VERSION",
-        }
-    }
-)
+# config_list = config_list_from_dotenv(
+#     dotenv_file_path=".env",
+#     model_api_key_map={
+#         "gpt-4":{
+#             "api_key_env_var":"AZURE_OAI_KEY",
+#             "api_type": "API_TYPE",
+#             "base_url": "AZURE_OAI_ENDPOINT",
+#             "api_version": "API_VERSION",
+#         },
+#         "gpt-3.5-turbo":{
+#             "api_key_env_var":"AZURE_OAI_KEY",
+#             "api_type": "API_TYPE",
+#             "base_url": "AZURE_OAI_ENDPOINT",
+#             "api_version": "API_VERSION",
+#         }
+#     }
+# )
 
 if st.session_state["model_type"] == "OpenAI":
     client = AzureOpenAICompletionClient()
 elif st.session_state["model_type"] == "Ollama":
     client = OllamaCompletionClient()
 elif st.session_state["model_type"] == "Groq":
+    config_list = groq_config_generator(
+        model = st.session_state["model"]
+    )
     client = GroqCompletionClient(
-        config={
-            'model': st.session_state["model"],
-            'api_key': os.getenv('GROQ_API_KEY'),
-        }
+        config=config_list[0]
     )
 
 # Accept user input

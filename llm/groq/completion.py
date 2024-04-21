@@ -10,7 +10,7 @@ def groq_config_generator(**kwargs):
     '''生成符合 Autogen 规范的Groq Completion Client配置'''
     config = {
         "model": kwargs.get("model", "llama3-8b-8192"),
-        "api_key": os.getenv("GROQ_API_KEY",default=kwargs["api_key"]),
+        "api_key": os.getenv("GROQ_API_KEY",default=kwargs.get("api_key","nogroqkey")),
         "params": {
             "temperature": kwargs.get("temperature", 0.5),
             "top_p": kwargs.get("top_p", 1.0),
