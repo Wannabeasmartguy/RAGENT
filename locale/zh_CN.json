@@ -1,0 +1,8 @@
+{
+    "Chat type": "聊天类型",
+    "Model type": "模型类型",
+    "Model": "模型",
+    "History length": "历史对话消息数",
+    "Clear chat history": "清空聊天记录",
+    "Export chat history": "导出聊天记录"
+}

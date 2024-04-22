@@ -13,7 +13,24 @@ load_dotenv()
 from llm.aoai.completion import AzureOpenAICompletionClient
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
+from configs.basic_config import I18nAuto
 from copy import deepcopy
+
+
+# i18n = I18nAuto(language="en-US")
+i18n = I18nAuto()
+
+VERSION = "0.0.1"
+st.set_page_config(
+    page_title="RAGenT",
+    page_icon=os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png"),
+    initial_sidebar_state="expanded",
+    menu_items={
+            'Get Help': 'https://github.com/Wannabeasmartguy/RAGenT',
+            'Report a bug': "https://github.com/Wannabeasmartguy/RAGenT/issues",
+            'About': f"""欢迎使用 RAGenT WebUI {VERSION}！"""
+        }    
+)
 
 
 st.title("RAGenT")
@@ -53,21 +70,26 @@ with st.sidebar:
     image_array = np.array(image)
     st.image(logo_path)
 
+    chat_type = st.selectbox(
+        label=i18n("Chat type"),
+        options=["LLM Chat","Agent Chat"],
+        key="chat_type"
+    )
     select_box0 = st.selectbox(
-        label="Model type",
+        label=i18n("Model type"),
         options=["OpenAI","Ollama","Groq"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
 
     select_box1 = st.selectbox(
-        label="Model",
+        label=i18n("Model"),
         options=model_selector(st.session_state["model_type"]),
         key="model"
     )
 
     history_length = st.number_input(
-        label="历史对话消息数",
+        label=i18n("History length"),
         min_value=1,
         value=16,
         step=1,
@@ -77,13 +99,17 @@ with st.sidebar:
     max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
     # 添加一个按键来清空聊天历史
-    clear_button = st.button("清空聊天记录")
+    clear_button = st.button(
+        label=i18n("Clear chat history")
+    )
     if clear_button:
         st.session_state.chat_history = []
         write_chat_history(st.session_state.chat_history)
 
     # 添加一个按键来导出易于阅读的聊天历史到本地文件夹中
-    export_button = st.button("导出聊天记录")
+    export_button = st.button(
+        label=i18n("Export chat history")
+    )
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
