@@ -66,10 +66,11 @@ def model_selector(model_type):
 
 with st.sidebar:
     logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
-    image = Image.open(logo_path)
-    image_array = np.array(image)
     st.image(logo_path)
 
+    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("pages/1_🤖AgentChat_Setting.py", label="🤖 AgentChat Setting")
+    st.page_link("pages/2_📖Knowledge_Base_Setting.py", label="📖 Knowledge_Base_Setting")
     chat_type = st.selectbox(
         label=i18n("Chat type"),
         options=["LLM Chat","Agent Chat"],
@@ -98,18 +99,12 @@ with st.sidebar:
     # 根据历史对话消息数，创建 MessageHistoryLimiter 
     max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
-    # 添加一个按键来清空聊天历史
-    clear_button = st.button(
-        label=i18n("Clear chat history")
-    )
+    cols = st.columns(2)
+    export_button = cols[0].button(label=i18n("Export chat history"))
+    clear_button = cols[1].button(label=i18n("Clear chat history"))
     if clear_button:
         st.session_state.chat_history = []
         write_chat_history(st.session_state.chat_history)
-
-    # 添加一个按键来导出易于阅读的聊天历史到本地文件夹中
-    export_button = st.button(
-        label=i18n("Export chat history")
-    )
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
@@ -117,8 +112,14 @@ with st.sidebar:
         # 将Markdown保存到本地文件夹中
         with open("chat_history.md", "w") as f:
             f.write(chat_history)
-        st.success("Chat history exported to chat_history.md")
+        st.toast(body="Chat history exported to chat_history.md",icon="🎉")
 
+    st.write("---")
+
+    saved_dialog = st.selectbox(
+        label=i18n("Saved dialog"),
+        options=["None"],
+    )
 
 # load config list from .env file
 # config_list = config_list_from_dotenv(
