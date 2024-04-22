@@ -1,7 +1,10 @@
 import streamlit as st
 import autogen
+import numpy as np
+from PIL import Image
 
 from autogen.oai.openai_utils import config_list_from_dotenv
+from autogen.agentchat.contrib.capabilities import transforms
 
 import os
 from dotenv import load_dotenv
@@ -45,6 +48,11 @@ def model_selector(model_type):
 
 
 with st.sidebar:
+    logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
+    image = Image.open(logo_path)
+    image_array = np.array(image)
+    st.image(logo_path)
+
     select_box0 = st.selectbox(
         label="Model type",
         options=["OpenAI","Ollama","Groq"],
@@ -57,6 +65,16 @@ with st.sidebar:
         options=model_selector(st.session_state["model_type"]),
         key="model"
     )
+
+    history_length = st.number_input(
+        label="历史对话消息数",
+        min_value=1,
+        value=16,
+        step=1,
+        key="history_length"
+    )
+    # 根据历史对话消息数，创建 MessageHistoryLimiter 
+    max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
     # 添加一个按键来清空聊天历史
     clear_button = st.button("清空聊天记录")
@@ -119,9 +137,10 @@ if prompt := st.chat_input("What is up?"):
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
+            processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
             raw_response = client.create_completion(
                 model=st.session_state["model"],
-                messages=st.session_state.chat_history
+                messages=processed_messages
             )
             # 根据 Client 的不同，解析方法有小不同
             if isinstance(client, AzureOpenAICompletionClient):
