@@ -69,13 +69,7 @@ with st.sidebar:
     st.image(logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
-    st.page_link("pages/1_🤖AgentChat_Setting.py", label="🤖 AgentChat Setting")
-    st.page_link("pages/2_📖Knowledge_Base_Setting.py", label="📖 Knowledge_Base_Setting")
-    chat_type = st.selectbox(
-        label=i18n("Chat type"),
-        options=["LLM Chat","Agent Chat"],
-        key="chat_type"
-    )
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     select_box0 = st.selectbox(
         label=i18n("Model type"),
         options=["OpenAI","Ollama","Groq"],

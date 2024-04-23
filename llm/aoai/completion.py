@@ -14,6 +14,31 @@ from autogen.oai.openai_utils import config_list_from_dotenv
 #                        api_version=os.getenv('API_VERSION'),
 #                        api_type=os.getenv('API_TYPE'))
 
+def aoai_config_generator(**kwargs):
+    '''
+    生成符合 Autogen 规范的Groq Completion Client配置
+
+    Args:
+        kwargs (dict): 配置参数
+            model (str): 模型名称
+            api_key (str): API Key
+            base_url (str): 模型终结点
+            api_type (str): 默认为 "azure"
+            api_version (str): API Version, 默认为 "2024-02-15-preview"
+        
+    Returns:
+        config (list): 配置列表
+    '''
+    config = {
+        "model": kwargs.get("model", "gpt-3.5-turbo"),
+        "api_key": os.getenv("AZURE_OAI_KEY",default=kwargs.get("api_key","noaoaikey")),
+        "base_url": os.getenv("AZURE_OAI_ENDPOINT",default=kwargs.get("base_url","noaoaiendpoint")),
+        "api_type": os.getenv("API_TYPE",default=kwargs.get("api_type","azure")),
+        "api_version": os.getenv("API_VERSION",default=kwargs.get("api_version","2024-02-15-preview")),
+    }
+    return [config]
+
+
 class AzureOpenAICompletionClient:
     '''用于生成 Azure OpenAI 聊天补全的基本类'''
     def __init__(self):
