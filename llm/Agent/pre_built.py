@@ -3,11 +3,12 @@ import os
 from typing import List,Union
 from pathlib import Path
 
-from autogen import AssistantAgent, UserProxyAgent, config_list_from_json
+from autogen import AssistantAgent, UserProxyAgent
 from autogen.cache import Cache
 from autogen.coding import DockerCommandLineCodeExecutor, LocalCommandLineCodeExecutor
 from autogen.agentchat.contrib.capabilities import transform_messages, transforms
 
+from llm.groq.completion import GroqClient
 
 def reflection_agent_with_nested_chat(
         config_list: List[dict],
@@ -28,6 +29,7 @@ def reflection_agent_with_nested_chat(
     '''
     max_tokens = kwargs.get("max_tokens", None)
     max_tokens_per_message = kwargs.get("max_tokens_per_message", None)
+    # 如果config_list中有键值对 "model_client_cls": "GroqClient" ，则需要对除了 user_agent 外所有 Agent 进行注册
     context_handling = transform_messages.TransformMessages(
         transforms=[
             transforms.MessageHistoryLimiter(max_messages=max_message),
@@ -85,16 +87,7 @@ def reflection_agent_with_nested_chat(
         trigger=writing_assistant,
         # position=4,
     )
-
-    # Use Cache.disk to cache the generated responses.
-    # This is useful when the same request to the LLM is made multiple times.
-    with Cache.disk(cache_seed=42) as cache:
-        result = user_proxy.initiate_chat(
-            writing_assistant,
-            message="Write an engaging blogpost on the recent updates in AI. "
-            "The blogpost should be engaging and understandable for general audience. "
-            "Should have more than 3 paragraphes but no longer than 1000 words.",
-            max_turns=2,
-            cache=cache,
-        )
-        return result
+    if config_list[0].get("model_client_cls", None) == "GroqClient":
+        writing_assistant.register_model_client(model_client_cls=GroqClient)
+        reflection_assistant.register_model_client(model_client_cls=GroqClient)
+    return user_proxy, writing_assistant, reflection_assistant

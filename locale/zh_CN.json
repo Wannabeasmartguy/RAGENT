@@ -5,5 +5,9 @@
     "History length": "历史对话消息数",
     "Clear chat history": "清空记录",
     "Export chat history": "导出记录",
-    "Saved dialog": "已保存对话"
+    "Saved dialog": "已保存对话",
+    "Sub pages": "子页面",
+    "⚙️ AgentChat Setting": "⚙️ AgentChat 设置",
+    "📖 Knowledge Base Setting":"📖 知识库设置",
+    "Agent type": "Agent 类型"
 }

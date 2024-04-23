@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import locale
+import streamlit as st
 
 class I18nAuto:
     def __init__(self,**kwargs):
@@ -33,3 +34,20 @@ class I18nAuto:
             return self.language_map[key]
         else:
             return key
+        
+def set_pages_configs_in_common(
+        title,
+        version:str="0.0.1",
+        page_icon_path=os.path.dirname(__file__),
+        init_sidebar_state="expanded"
+    ):
+    st.set_page_config(
+        page_title=title,
+        page_icon=page_icon_path,
+        initial_sidebar_state=init_sidebar_state,
+        menu_items={
+                'Get Help': 'https://github.com/Wannabeasmartguy/RAGenT',
+                'Report a bug': "https://github.com/Wannabeasmartguy/RAGenT/issues",
+                'About': f"""欢迎使用 RAGenT WebUI {version}！"""
+            }    
+    )

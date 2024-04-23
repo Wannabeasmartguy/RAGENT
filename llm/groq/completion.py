@@ -7,7 +7,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def groq_config_generator(**kwargs):
-    '''生成符合 Autogen 规范的Groq Completion Client配置'''
+    '''
+    生成符合 Autogen 规范的Groq Completion Client配置
+
+    Args:
+        kwargs (dict): 配置参数
+            model (str): 模型名称
+            api_key (str): API Key
+            temperature (float): 温度
+            top_p (float): Top P
+            stream (bool): 是否流式输出
+        
+    Returns:
+        config (list): 配置列表
+    '''
     config = {
         "model": kwargs.get("model", "llama3-8b-8192"),
         "api_key": os.getenv("GROQ_API_KEY",default=kwargs.get("api_key","nogroqkey")),

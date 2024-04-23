@@ -13,7 +13,7 @@ load_dotenv()
 from llm.aoai.completion import AzureOpenAICompletionClient
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
-from configs.basic_config import I18nAuto
+from configs.basic_config import I18nAuto,set_pages_configs_in_common
 from copy import deepcopy
 
 
@@ -21,17 +21,12 @@ from copy import deepcopy
 i18n = I18nAuto()
 
 VERSION = "0.0.1"
-st.set_page_config(
-    page_title="RAGenT",
-    page_icon=os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png"),
-    initial_sidebar_state="expanded",
-    menu_items={
-            'Get Help': 'https://github.com/Wannabeasmartguy/RAGenT',
-            'Report a bug': "https://github.com/Wannabeasmartguy/RAGenT/issues",
-            'About': f"""欢迎使用 RAGenT WebUI {VERSION}！"""
-        }    
+logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
+set_pages_configs_in_common(
+    version=VERSION,
+    title="RAGenT",
+    page_icon_path=logo_path
 )
-
 
 st.title("RAGenT")
  
@@ -65,7 +60,6 @@ def model_selector(model_type):
 
 
 with st.sidebar:
-    logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
     st.image(logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")

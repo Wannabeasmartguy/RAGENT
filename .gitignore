@@ -5,6 +5,7 @@ __pycache__/
 
 # Test notebook
 test.ipynb
+chat_history.md
 
 # C extensions
 *.so
