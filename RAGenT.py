@@ -1,7 +1,5 @@
 import streamlit as st
 import autogen
-import numpy as np
-from PIL import Image
 
 from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
