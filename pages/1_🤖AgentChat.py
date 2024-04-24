@@ -7,6 +7,8 @@ from llm.groq.completion import groq_config_generator
 from llm.fake.completion import fake_agent_chat_completion
 from utils.basic_utils import split_list_by_key_value
 
+from autogen.cache import Cache
+
 from typing import List
 
 i18n = I18nAuto()
@@ -48,7 +50,7 @@ def display_agent_thoughts(thoughts_in_chat_history:List[dict],
     Args:
         thoughts_in_chat_history (List[dict]): A list of dictionaries, each representing a message in the chat history.
     '''
-    with st.container(height=500,border=True):
+    with st.container(border=True):
         # 按顺序展示字典中有"if_thought"字段的内容
         counter = 0
         splitter_counter = 0
@@ -145,10 +147,10 @@ with st.sidebar:
     if clear_button:
         st.session_state.agent_chat_history_displayed = []
         st.session_state.agent_chat_history_total = []
-        write_agent_chat_history(st.session_state.agent_chat_history_total)
+        initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
     if export_button:
         # 将聊天历史导出为Markdown
-        chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.agent_chat_history_displayed])
+        chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.agent_chat_history_total])
         # st.markdown(chat_history)
 
         # 将Markdown保存到本地文件夹中
@@ -156,12 +158,12 @@ with st.sidebar:
         filename = "Agent_chat_history.md"
         i = 1
         while os.path.exists(filename):
-            filename = f"{filename}{i}"
+            filename = f"{i}_{filename}"
             i += 1
             
         with open(filename, "w") as f:
             f.write(chat_history)
-        st.toast(body=i18n("Chat history exported to {filename}"),icon="🎉")
+        st.toast(body=i18n(f"Chat history exported to {filename}"),icon="🎉")
 
 
 # 根据选择的模型和类型，生成相应的 config_list
@@ -187,14 +189,14 @@ if prompt := st.chat_input("What is up?"):
         # This is useful when the same request to the LLM is made multiple times.
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                # with Cache.disk(cache_seed=42) as cache:
-                #     result = user_proxy.initiate_chat(
-                #         writing_assistant,
-                #         message=prompt,
-                #         max_turns=2,
-                #         cache=cache,
-                #     )
-                result = fake_agent_chat_completion(prompt)
+                with Cache.disk(cache_seed=42) as cache:
+                    result = user_proxy.initiate_chat(
+                        writing_assistant,
+                        message=prompt,
+                        max_turns=2,
+                        cache=cache,
+                    )
+                # result = fake_agent_chat_completion(prompt)
             # result 是一个 list[dict]，取出并保存
             result_chat_his = result.chat_history
             # 为其中每一个字典添加一个 "if_thought" 字段，用于判断是否是thought
