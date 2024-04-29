@@ -11,6 +11,7 @@ load_dotenv()
 from llm.aoai.completion import AzureOpenAICompletionClient
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
+from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common
 from copy import deepcopy
 
@@ -53,6 +54,8 @@ def model_selector(model_type):
             return ["qwen:7b-chat"]
     elif model_type == "Groq":
         return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
+    elif model_type == "Llamafile":
+        return ["Noneed"]
     else:
         return None
 
@@ -64,7 +67,7 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["OpenAI","Ollama","Groq"],
+        options=["OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
@@ -74,6 +77,14 @@ with st.sidebar:
         options=model_selector(st.session_state["model_type"]),
         key="model"
     )
+
+    if select_box0 == "Llamafile":
+        with st.expander(label=i18n("Llamafile config")):
+            llamafile_endpoint = st.text_input(
+                label=i18n("Llamafile endpoint"),
+                value="http://127.0.0.1:8080/v1",
+                key="llamafile_endpoint"
+            )
 
     history_length = st.number_input(
         label=i18n("History length"),
@@ -137,6 +148,11 @@ elif st.session_state["model_type"] == "Groq":
     client = GroqCompletionClient(
         config=config_list[0]
     )
+elif st.session_state["model_type"] == "Llamafile":
+    config_list = llamafile_config_generator(base_url=st.session_state["llamafile_endpoint"])
+    client = LlamafileCompletionClient(
+        config=config_list[0]
+    )
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -162,6 +178,10 @@ if prompt := st.chat_input("What is up?"):
                 response = client.extract_text_or_completion_object(raw_response)[0]
             elif isinstance(client, GroqCompletionClient):
                 response = client.extract_text_or_completion_object(raw_response)[0]
+            elif isinstance(client, LlamafileCompletionClient):
+                response = client.extract_text_or_completion_object(raw_response)[0]
+            else:
+                raise NotImplementedError("Unsupported client type")
 
         st.write(response)
         st.write(f"response cost: ${raw_response.cost}")
