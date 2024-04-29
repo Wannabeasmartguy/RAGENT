@@ -3,12 +3,20 @@ import json
 
 from typing import Literal
 
+import streamlit as st
+
 from huggingface_hub import snapshot_download
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
 )
 from langchain_openai.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores import chroma
+
+from utils.text_splitter.text_splitter_utils import simplify_filename
+
+from configs.basic_config import I18nAuto
+
+i18n = I18nAuto()
 
 
 def create_vectorstore(persist_vec_path:str,
@@ -38,8 +46,13 @@ def create_vectorstore(persist_vec_path:str,
             except:
                 # 如果 embedding model 的前三个字母是 bge ,则在 repo_id 前加上 BAAI/
                 if embedding_model[:3] == 'bge':
-                    snapshot_download(repo_id="BAAI/"+embedding_model,
-                                      local_dir=local_embedding_model)
+                    st.toast("Downloading embedding model, please wait...")
+                    try:
+                        snapshot_download(repo_id="BAAI/"+embedding_model,
+                                        local_dir=local_embedding_model)
+                        st.toast("Download complete.")
+                    except:
+                        st.toast("Download failed, please check your network connection and try again.")
                     embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model)
 
         # global vectorstore
@@ -128,3 +141,112 @@ class SubKnowledgeBase(KnowledgeBase):
         self.knowledge_base_name = knowledge_base_name
         self.embedding_model_type,self.embedding_model = self.get_embedding_model(knowledge_base_name)
         self.persist_vec_path = self.get_persist_vec_path(knowledge_base_name)
+        self.vectorstore = self.vectorstore_init_create(persist_vec_path=self.persist_vec_path,
+                                                        embedding_model_type=self.embedding_model_type,
+                                                        local_embedding_model=self.embedding_model)
+    
+    def reinitialize(self,knowledge_base_name):
+        '''重新初始化，以重载json中内容'''
+        self.__init__(knowledge_base_name=knowledge_base_name)
+
+    def vectorstore_init_create(self,persist_vec_path, 
+                                embedding_model_type,
+                                local_embedding_model):
+        '''
+        Generic Vectorstore Creation Functions
+
+        Args:
+            persist_vec_path: chroma persist path.
+            embedding_model_type: `OpenAI` or `Hugging Face(local)`
+            local_embedding_model: If `embedding_model_type` == `OpenAI`, there's only one model, here will give a specific embedding model. 
+            progress: create gradio progress bar.
+        '''
+        local_embedding_model_path = os.path.join("embedding model/",local_embedding_model)
+        if embedding_model_type == 'Hugging Face(local)':
+            try:
+                embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model_path)
+                vectorstore = chroma.Chroma(
+                    persist_directory=persist_vec_path, embedding_function=embeddings
+                )
+            except:
+                st.toast("Downloading embedding model...")
+                if local_embedding_model[:3] == 'bge':
+                    snapshot_download(repo_id="BAAI/"+local_embedding_model,
+                                        local_dir=local_embedding_model_path)
+                    st.toast("Download complete.")
+                    embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model_path)
+                    vectorstore = chroma.Chroma(persist_directory=persist_vec_path,
+                                                embedding_function=embeddings)
+                    
+        elif embedding_model_type == 'OpenAI':
+            vectorstore = chroma.Chroma(persist_directory=persist_vec_path, 
+                                embedding_function=AzureOpenAIEmbeddings(
+                                openai_api_type=os.getenv('API_TYPE'),
+                                azure_endpoint=os.getenv('AZURE_OAI_ENDPOINT'),
+                                openai_api_key=os.getenv('AZURE_OAI_KEY'),
+                                openai_api_version=os.getenv('API_VERSION'),
+                                azure_deployment="text-embedding-ada-002",
+                                ))
+        return vectorstore
+
+
+    def add_file_in_vectorstore(
+            self,
+            split_docs:list,
+            file_obj,   # get it from 'file' (gr.file)
+        ):
+        '''
+        Add file to vectorstore.
+        '''
+        if file_obj == None:
+            raise "You haven't chosen a file yet."
+
+        if isinstance(file_obj, list):
+            self.vectorstore.add_documents(documents=split_docs)
+
+
+    def delete_flie_in_vectorstore(self,files_samename:str):
+        '''
+        Get the file's ids first, then delete by vector IDs.
+        '''
+        # Specify the target file
+        try:
+            metadata = self.vectorstore.get()
+        except NameError as n:
+            raise 'Vectorstore is not initialized.'
+
+        # Initialize an empty list to store the ids
+        ids_for_target_file = []
+
+        # Loop over the metadata
+        for i in range(len(metadata['metadatas'])):
+            # Check if the source matches the target file
+            # We only compare the last part of the path (the actual file name)
+            if metadata['metadatas'][i]['source'].split('/')[-1].split('\\')[-1] == files_samename:
+                # If it matches, add the corresponding id to the list
+                ids_for_target_file.append(metadata['ids'][i])
+
+        # print("IDs for target file:", ids_for_target_file)
+        try:
+            self.vectorstore.delete(ids=ids_for_target_file)
+        except ValueError as v:
+            raise 'File does not exist in vectorstore.'
+        return
+    
+    @property
+    def load_file_names(self):
+        try:
+            vct_store = self.vectorstore.get()
+            unique_sources = set(vct_store['metadatas'][i]['source'] for i in range(len(vct_store['metadatas'])))
+
+            # Merge duplicate sources
+            merged_sources = ', '.join(unique_sources)
+
+            # Extract actual file names
+            file_names = [source.split('/')[-1].split('\\')[-1] for source in unique_sources]
+
+            print(i18n("Successfully load kowledge base."))
+            return file_names
+        except IndexError:
+            print(i18n('No file in vectorstore.'))
+        return []

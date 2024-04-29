@@ -37,6 +37,9 @@ kb_choose = st.selectbox(label=i18n("Knowledge Base Choose"),
                          key="kb_choose")
 kb = SubKnowledgeBase(kb_choose)
 
+reinitialize_kb_button = st.button(label=i18n("Reinitialize Knowledge Base"),
+                                   on_click=kb.reinitialize(kb_choose))
+
 
 st.write("## Choose files you want to embed")
 
@@ -80,9 +83,11 @@ if file_upload:
             file_name = file.name
             # 获取文件类型，以在创建临时文件时使用正确的后缀
             file_suffix = Path(file.name).suffix
+            # 获取文件名，不包含后缀
+            file_name_without_suffix = Path(file.name).stem
 
             # delete 设置为 False,才能在解除绑定后使用 temp_file 进行分割
-            with tempfile.NamedTemporaryFile(suffix=file_suffix,delete=False) as temp_file:
+            with tempfile.NamedTemporaryFile(prefix=file_name_without_suffix + "__",suffix=file_suffix,delete=False) as temp_file:
                 # stringio = StringIO(file.getvalue().decode())
                 temp_file.write(file.getvalue())
                 temp_file.seek(0)
@@ -113,6 +118,15 @@ else:
     st.session_state.pages = []
 
 
+if embed_button:
+    if len(st.session_state.pages) == 0:
+        st.warning(i18n("Please upload and split files first"))
+    else:
+        with st.spinner():
+            kb.add_file_in_vectorstore(split_docs=st.session_state.pages, file_obj=file_upload)
+        st.toast("Embedding completed!")
+
+
 st.write("---")
 st.write(f"知识库 `{kb_choose}` 中的文件：")
 
@@ -120,12 +134,12 @@ column1, column2 = st.columns([0.7,0.3])
 with column1:
     file_names_inchroma = st.selectbox(label=i18n("Files in Knowledge Base"),
                                        label_visibility="collapsed",
-                                       options=load_vectorstore(persist_vec_path=kb.persist_vec_path,
-                                                                embedding_model_type=kb.embedding_model_type,
-                                                                embedding_model=kb.embedding_model))
+                                       options=kb.load_file_names)
 with column2:
     get_knowledge_base_info_button = st.button(label=i18n("Get Knowledge Base info"))
 
+delete_file_button = st.button(label=i18n("Delete the File"),
+                               use_container_width=True)
 
 if get_knowledge_base_info_button:
     chroma_info_html = get_chroma_file_info(persist_path=kb.persist_vec_path,
@@ -133,3 +147,7 @@ if get_knowledge_base_info_button:
                     advance_info=False)
     components.html(chroma_info_html,
                     height=800)
+
+if delete_file_button:
+    kb.delete_flie_in_vectorstore(files_samename=file_names_inchroma)
+    st.rerun()

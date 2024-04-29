@@ -25,16 +25,10 @@ def choose_text_splitter(file_path,
         for file in file_path_list:
             # 根据扩展名判断文件类型
             file_ext = os.path.splitext(file)[1]
-            if file_ext == '.pdf':
+            if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
                 text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-                split_docs = text_splitter.split_documents(document)
-                splitted_docs.extend(split_docs)
-            elif file_ext =='.md':
-                loader = UnstructuredMarkdownLoader(file_path.name)
-                document = loader.load()
-                text_splitter = MarkdownTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             else:
@@ -66,3 +60,23 @@ def choose_text_splitter(file_path,
             split_docs = text_splitter.split_documents(document)
 
         return split_docs
+    
+
+def simplify_filename(original_name):
+    """
+    Simplify a given filename by removing additional characters and keeping the base name and extension.
+
+    Parameters:
+    - original_name (str): The original name of the file.
+
+    Returns:
+    - new_name (str): The simplified name of the file.
+    """
+    # Split the original name by '__' and take the first part
+    base_name = original_name.split('__')[0]
+    # Extract the extension
+    extension = original_name.split('.')[-1]
+    # Construct the new file name
+    new_name = f"{base_name}.{extension}"
+    
+    return new_name

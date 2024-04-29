@@ -15,56 +15,6 @@ from configs.basic_config import I18nAuto
 
 i18n = I18nAuto()
 
-def load_vectorstore(persist_vec_path:str,
-                     embedding_model_type:Literal['OpenAI','Hugging Face(local)'],
-                     embedding_model:str):
-    '''
-    Load vectorstore, and trun the files' name to dataframe.
-    '''
-    embedding_model_path = 'embedding model/'+embedding_model
-
-    if persist_vec_path:
-        if embedding_model_type == 'OpenAI':
-            vectorstore = chroma.Chroma(persist_directory=persist_vec_path, 
-                                embedding_function=AzureOpenAIEmbeddings(
-                                                openai_api_type=os.getenv('API_TYPE'),
-                                                azure_endpoint=os.getenv('AZURE_OAI_ENDPOINT'),
-                                                openai_api_key=os.getenv('AZURE_OAI_KEY'),
-                                                openai_api_version=os.getenv('API_VERSION'),
-                                                azure_deployment="text-embedding-ada-002",
-                                        ))
-        elif embedding_model_type == 'Hugging Face(local)':
-            try:
-                embeddings = SentenceTransformerEmbeddings(model_name=embedding_model_path)
-                vectorstore = chroma.Chroma(persist_directory=persist_vec_path,
-                                            embedding_function=embeddings)
-            except:
-                if embedding_model[:3] == 'bge':
-                    snapshot_download(repo_id="BAAI/"+embedding_model,
-                                      local_dir=embedding_model_path)
-                    embeddings = SentenceTransformerEmbeddings(model_name=embedding_model_path)
-                    vectorstore = chroma.Chroma(persist_directory=persist_vec_path,
-                                                embedding_function=embeddings)
-
-    else:
-        raise i18n("You didn't provide an absolute path to the knowledge base")
-
-    try:
-        vct_store = vectorstore.get()
-        unique_sources = set(vct_store['metadatas'][i]['source'] for i in range(len(vct_store['metadatas'])))
-
-        # Merge duplicate sources
-        merged_sources = ', '.join(unique_sources)
-
-        # Extract actual file names
-        file_names = [source.split('/')[-1].split('\\')[-1] for source in unique_sources]
-
-        df = pd.DataFrame(file_names, columns=['文件名称'])
-        print(i18n("Successfully load kowledge base."))
-        return file_names
-    except IndexError:
-        print(i18n('No file in vectorstore.'))
-        return []
 
 def combine_lists_to_dicts(docs, ids, metas):
     """
