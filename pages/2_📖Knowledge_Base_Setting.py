@@ -6,13 +6,28 @@ import os
 import tempfile
 
 from configs.basic_config import I18nAuto
-from configs.knowledge_base_config import KnowledgeBase, SubKnowledgeBase
+from configs.knowledge_base_config import KnowledgeBase, SubKnowledgeBase, create_vectorstore
 from utils.chroma_utils import *
 from utils.text_splitter.text_splitter_utils import *
 
 
 i18n = I18nAuto()
 kbs = KnowledgeBase()
+openai_embedding_model = ["text-embedding-ada-002"]
+local_embedding_model = ['bge-base-zh-v1.5','bge-base-en-v1.5',
+                         'bge-large-zh-v1.5','bge-large-en-v1.5']
+
+def embed_model_selector(embed_model_type):
+    if embed_model_type == "OpenAI":
+        return ["text-embedding-ada-002"]
+    elif embed_model_type == "Hugging Face(local)":
+        return ['bge-base-zh-v1.5','bge-base-en-v1.5',
+                'bge-large-zh-v1.5','bge-large-en-v1.5']
+    else:
+        return None
+
+if "embed_model_type" not in st.session_state:
+    st.session_state.embed_model_type = "Hugging Face(local)"
 
 if "pages" not in st.session_state:
     st.session_state.pages = []
@@ -30,6 +45,15 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.write("---")
 
+    embed_model_type_selectbox = st.selectbox(label=i18n("Embed Model Type"),
+                                              options=["OpenAI", "Hugging Face(local)"],
+                                              key="embed_model_type")
+    embed_model_selectbox = st.selectbox(label=i18n("Embed Model"),
+                                         options=embed_model_selector(st.session_state.embed_model_type),
+                                         key="embed_model")
+    # create_kb_button = st.button(label=i18n("Create Knowledge Base"),
+    #                                on_click=create_vectorstore(embed_model_selectbox))
+    
 
 kb_choose = st.selectbox(label=i18n("Knowledge Base Choose"), 
                          #  label_visibility="collapsed",
