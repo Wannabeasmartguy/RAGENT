@@ -4,6 +4,7 @@ from configs.basic_config import I18nAuto, set_pages_configs_in_common
 from llm.Agent.pre_built import reflection_agent_with_nested_chat
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_config_generator
+from llm.llamafile.completion import llamafile_config_generator
 from llm.fake.completion import fake_agent_chat_completion
 from utils.basic_utils import split_list_by_key_value
 
@@ -11,6 +12,7 @@ from autogen.cache import Cache
 
 from typing import List
 
+# i18n = I18nAuto(language="en-US")
 i18n = I18nAuto()
 
 # Initialize chat history, to avoid error when reloading the page
@@ -88,10 +90,6 @@ def initialize_agent_chat_history(chat_history:List[dict],
             st.markdown(message["content"])
 
 
-st.write("目前，RAGenT的两种对话模式是共用session.state的；边栏的“历史消息对话数”控制的是Agent自行对话时的对话记忆长度。")
-# write_agent_chat_history(st.session_state.agent_chat_history_total)
-# 原始的展示聊天历史
-# st.write(st.session_state.agent_chat_history_total)
 initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
 
 
@@ -100,6 +98,8 @@ def model_selector(model_type):
         return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
     elif model_type == "Groq":
         return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
+    elif model_type == "Llamafile":
+        return ["Noneed"]
     else:
         return None
     
@@ -122,7 +122,7 @@ with st.sidebar:
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["OpenAI","Groq"],
+        options=["OpenAI","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
@@ -171,6 +171,8 @@ if st.session_state["model_type"] == "OpenAI":
     config_list = aoai_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Groq":
     config_list = groq_config_generator(model=st.session_state["model"])
+elif st.session_state["model_type"] == "Llamafile":
+    config_list = llamafile_config_generator(model=st.session_state["model"])
 
 if agent_type == "Reflection":
     user_proxy, writing_assistant, reflection_assistant = reflection_agent_with_nested_chat(config_list=config_list,max_message=history_length)

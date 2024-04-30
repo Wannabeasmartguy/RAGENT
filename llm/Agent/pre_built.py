@@ -9,6 +9,7 @@ from autogen.coding import DockerCommandLineCodeExecutor, LocalCommandLineCodeEx
 from autogen.agentchat.contrib.capabilities import transform_messages, transforms
 
 from llm.groq.completion import GroqClient
+from llm.llamafile.completion import LlamafileClient
 
 def reflection_agent_with_nested_chat(
         config_list: List[dict],
@@ -90,4 +91,8 @@ def reflection_agent_with_nested_chat(
     if config_list[0].get("model_client_cls", None) == "GroqClient":
         writing_assistant.register_model_client(model_client_cls=GroqClient)
         reflection_assistant.register_model_client(model_client_cls=GroqClient)
+    if config_list[0].get("model_client_cls", None) == "LlamafileClient":
+        writing_assistant.register_model_client(model_client_cls=LlamafileClient)
+        reflection_assistant.register_model_client(model_client_cls=LlamafileClient)
+
     return user_proxy, writing_assistant, reflection_assistant

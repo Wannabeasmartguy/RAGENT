@@ -27,5 +27,7 @@
     "Files in Knowledge Base": "Files in Knowledge Base",
     "Get Knowledge Base info": "Get Knowledge Base info",
     "Delete the File": "Delete the File",
-    "“Knowledge Base path” is empty, Please enter the path": "“Knowledge Base path” is empty, Please enter the path"
+    "“Knowledge Base path” is empty, Please enter the path": "“Knowledge Base path” is empty, Please enter the path",
+    "Llamafile config": "Llamafile config",
+    "Llamafile endpoint": "Llamafile endpoint"
 }

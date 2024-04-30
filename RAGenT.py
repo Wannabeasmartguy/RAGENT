@@ -167,23 +167,32 @@ if prompt := st.chat_input("What is up?"):
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
-            raw_response = client.create_completion(
-                model=st.session_state["model"],
-                messages=processed_messages
-            )
-            # 根据 Client 的不同，解析方法有小不同
-            if isinstance(client, AzureOpenAICompletionClient):
-                response = client.client.extract_text_or_completion_object(raw_response)[0]
-            elif isinstance(client, OllamaCompletionClient):
-                response = client.extract_text_or_completion_object(raw_response)[0]
-            elif isinstance(client, GroqCompletionClient):
-                response = client.extract_text_or_completion_object(raw_response)[0]
-            elif isinstance(client, LlamafileCompletionClient):
-                response = client.extract_text_or_completion_object(raw_response)[0]
+            if not config_list[0].get("params",{}).get("stream",False):
+                raw_response = client.create_completion(
+                    model=st.session_state["model"],
+                    messages=processed_messages
+                )
+                # 根据 Client 的不同，解析方法有小不同
+                if isinstance(client, AzureOpenAICompletionClient):
+                    response = client.client.extract_text_or_completion_object(raw_response)[0]
+                elif isinstance(client, OllamaCompletionClient):
+                    response = client.extract_text_or_completion_object(raw_response)[0]
+                elif isinstance(client, GroqCompletionClient):
+                    response = client.extract_text_or_completion_object(raw_response)[0]
+                elif isinstance(client, LlamafileCompletionClient):
+                    response = client.extract_text_or_completion_object(raw_response)[0]
+                else:
+                    raise NotImplementedError("Unsupported client type")
             else:
-                raise NotImplementedError("Unsupported client type")
+                response = client.create_completion_stream(
+                    model=st.session_state["model"],
+                    messages=processed_messages
+                )
+                # st.write_stream(response)
 
-        st.write(response)
-        st.write(f"response cost: ${raw_response.cost}")
+        if not config_list[0].get("params",{}).get("stream",False):
+            st.write(response)
+            st.write(f"response cost: ${raw_response.cost}")
+            
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 

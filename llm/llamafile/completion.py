@@ -31,9 +31,6 @@ def llamafile_config_generator(**kwargs):
     return [config]
 
 
-    from types import SimpleNamespace
-
-
 class LlamafileClient:
     '''符合 Autogen 规范的Groq Completion Client.'''
     def __init__(self,config: dict):
@@ -99,6 +96,21 @@ class LlamafileCompletionClient(LlamafileClient):
         response = output.choices[0].message.content
         cost = 0
         return SimpleNamespace(response=response, cost=cost)
+    
+    def create_completion_stream(self, **config):
+        # 先获得父类的 create 输出
+        output = super().create(config)
+        # 然后从输出中提取消息，放进 Namespace
+        if config.get("stream",False):
+            cost = 0
+            response_text = ""
+            for chunk in output:
+                if chunk is not None:
+                    response = chunk.choices[0].delta.content
+                    # yield SimpleNamespace(response=response, cost=cost)
+                    if response is not None:
+                        response_text += response
+                        yield response_text
     
     def extract_text_or_completion_object(self, response:SimpleNamespace):
         '''
