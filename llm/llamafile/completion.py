@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 def llamafile_config_generator(**kwargs):
     '''
-    生成符合 Autogen 规范的Groq Completion Client配置
+    生成符合 Autogen 规范的llamafile Completion Client配置
 
     Args:
         kwargs (dict): 配置参数
@@ -32,9 +32,8 @@ def llamafile_config_generator(**kwargs):
 
 
 class LlamafileClient:
-    '''符合 Autogen 规范的Groq Completion Client.'''
+    '''符合 Autogen 规范的 llamafile Completion Client .'''
     def __init__(self,config: dict):
-        # print(f"GroqCompletionClient config: {config}")
         self.model = "noneed"
         self.client = OpenAI(
             base_url=config.get("base_url","http://127.0.0.1:8080/v1"),
@@ -85,7 +84,7 @@ class LlamafileClient:
         return {}
     
 class LlamafileCompletionClient(LlamafileClient):
-    '''专门用于Groq的Completion Client'''
+    '''专门用于 llamafile 的 Completion Client. '''
     def __init__(self,config):
         super().__init__(config)
 
