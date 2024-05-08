@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from llm.aoai.completion import AzureOpenAICompletionClient
+from llm.aoai.completion import AzureOpenAICompletionClient,aoai_config_generator
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
@@ -138,6 +138,7 @@ with st.sidebar:
 # )
 
 if st.session_state["model_type"] == "OpenAI":
+    config_list = aoai_config_generator()
     client = AzureOpenAICompletionClient()
 elif st.session_state["model_type"] == "Ollama":
     client = OllamaCompletionClient()

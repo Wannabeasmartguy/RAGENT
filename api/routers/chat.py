@@ -51,9 +51,12 @@ async def create_completion(
     # 如果 Source 在 sources 中为 "sdk" 或 "request_oai"，则使用 OpenAI SDK 进行处理
     # 如果 Source 在 sources 中为 "request_raw"，则使用 Request 进行处理
 
-    # return llm_config
-    if support_sources["sources"][source] == "sdk" or support_sources["sources"][source] == "request_oai":
-        client = OpenAIWrapper(**llm_config.dict())
+    if support_sources["sources"][source] == "sdk":
+        # 只有 aoai 才有 api_version 和 api_type，必须增加单独的判断
+        client = OpenAIWrapper(
+            **llm_config.dict(exclude_unset=True)
+        )
+
         if llm_params:
             response = client.create(
                 messages = messages,
@@ -65,8 +68,9 @@ async def create_completion(
         else:
             response = client.create(
                 messages = messages,
-                model=llm_config.model,
+                model = llm_config.model,
             )
+
         return response
     
-    # elif support_sources["sources"][source] == "request_raw":
+    # elif support_sources["sources"][source] == "request":
