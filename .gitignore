@@ -12,6 +12,7 @@ chat_history.md
 embedding model
 embedding_config.json
 knowledge base
+knowledgebase
 
 # C extensions
 *.so

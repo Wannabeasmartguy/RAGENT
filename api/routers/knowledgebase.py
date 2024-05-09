@@ -20,7 +20,7 @@ from huggingface_hub import snapshot_download
 from typing import List, Dict, Literal
 
 
-KNOWLEDGE_BASE_PATH = r"D:\Python Code\Github\GPT-Gradio-Agent\knowledge base\test_vec_local"
+KNOWLEDGE_BASE_PATH = "./knowledgebase"
 
 
 router = APIRouter(

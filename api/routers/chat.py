@@ -8,7 +8,7 @@ from autogen.oai import OpenAIWrapper
 
 from typing import List, Dict, Literal
 
-from ..dependence import return_supported_sources
+from ..dependency import return_supported_sources
 
 
 router = APIRouter(
@@ -24,6 +24,9 @@ class LLMConfig(BaseModel):
     api_key: str
     api_type: str | None
     api_version: str | None
+    
+    class Config:
+        extra = "ignore"
 
 class LLMParams(BaseModel):
     temperature: float | None
@@ -39,7 +42,7 @@ async def get_supported_sources(support_sources: dict = Depends(return_supported
 
 @router.post("/openai-like-chat/{source}")
 async def create_completion(
-    source: Literal["sdk", "request"], 
+    source: str, 
     llm_config: LLMConfig,
     llm_params: LLMParams | None ,
     messages: List[dict],
@@ -49,7 +52,7 @@ async def create_completion(
     创建一个 LLM 模型，并使用该模型生成一个响应。
     
     Args:
-        source (str):  LLM 源支持的请求类型，可以是 "sdk" 或 "request"。
+        source (str):  支持的 LLM 推理源，保存于 dependence.py 中。
         llm_config (LLMConfig): LLM 模型的配置信息。
         llm_params (LLMParams, optional): LLM 模型的参数信息，包括 temperature、top_p 和 max_tokens。
         messages (List[dict]): 完整的对话消息列表。

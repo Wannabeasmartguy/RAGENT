@@ -1,5 +1,6 @@
 import streamlit as st
 import autogen
+import asyncio
 
 from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
@@ -7,6 +8,8 @@ from autogen.agentchat.contrib.capabilities import transforms
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+from api.dependency import APIRequestHandler,SUPPORTED_SOURCES
 
 from llm.aoai.completion import AzureOpenAICompletionClient,aoai_config_generator
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
@@ -18,6 +21,9 @@ from copy import deepcopy
 
 # i18n = I18nAuto(language="en-US")
 i18n = I18nAuto()
+
+requesthandler = APIRequestHandler("localhost", 8000)
+
 
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
@@ -44,7 +50,7 @@ write_chat_history(st.session_state.chat_history)
             
 
 def model_selector(model_type):
-    if model_type == "OpenAI":
+    if model_type == "OpenAI" or "AOAI":
         return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
     elif model_type == "Ollama":
         try:
@@ -67,7 +73,7 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["OpenAI","Ollama","Groq","Llamafile"],
+        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
@@ -136,24 +142,18 @@ with st.sidebar:
 #         }
 #     }
 # )
-
 if st.session_state["model_type"] == "OpenAI":
+    pass
+if st.session_state["model_type"] == "AOAI":
     config_list = aoai_config_generator()
-    client = AzureOpenAICompletionClient()
 elif st.session_state["model_type"] == "Ollama":
-    client = OllamaCompletionClient()
+    pass
 elif st.session_state["model_type"] == "Groq":
     config_list = groq_config_generator(
         model = st.session_state["model"]
     )
-    client = GroqCompletionClient(
-        config=config_list[0]
-    )
 elif st.session_state["model_type"] == "Llamafile":
     config_list = llamafile_config_generator(base_url=st.session_state["llamafile_endpoint"])
-    client = LlamafileCompletionClient(
-        config=config_list[0]
-    )
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -167,33 +167,52 @@ if prompt := st.chat_input("What is up?"):
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
+            # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
+
+            # 非流式调用
             if not config_list[0].get("params",{}).get("stream",False):
-                raw_response = client.create_completion(
-                    model=st.session_state["model"],
-                    messages=processed_messages
+
+                # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
+                # 一般都是在的
+                if st.session_state["model_type"].lower() in SUPPORTED_SOURCES["sources"]:
+                    
+                    # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
+                    if SUPPORTED_SOURCES["sources"][st.session_state["model_type"].lower()] == "sdk":
+                        path = "/chat/openai-like-chat/openai"
+
+                    # 否则，走 request 或另行定义的 SDK （如 Groq）
+                    else:
+                        # path = "/chat/openai-like-chat/xxxx"
+                        pass
+
+                response = requesthandler.post(
+                    path,
+                    data={
+                        "llm_config": config_list[0],
+                        "llm_params": {
+                            "temperature": 0,
+                            "top_p": 0.1,
+                            "max_tokens": 4096
+                        },
+                        "messages": processed_messages
+                    }
                 )
-                # 根据 Client 的不同，解析方法有小不同
-                if isinstance(client, AzureOpenAICompletionClient):
-                    response = client.client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, OllamaCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, GroqCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, LlamafileCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
-                else:
-                    raise NotImplementedError("Unsupported client type")
+
+            # TODO：流式调用
             else:
-                response = client.create_completion_stream(
-                    model=st.session_state["model"],
-                    messages=processed_messages
-                )
+                # response = client.create_completion_stream(
+                #     model=st.session_state["model"],
+                #     messages=processed_messages
+                # )
+                pass
                 # st.write_stream(response)
 
         if not config_list[0].get("params",{}).get("stream",False):
-            st.write(response)
-            st.write(f"response cost: ${raw_response.cost}")
+            response_content = response["choices"][0]["message"]["content"]
+            st.write(response_content)
+            cost = response["cost"]
+            st.write(f"response cost: ${cost}")
             
-    st.session_state.chat_history.append({"role": "assistant", "content": response})
+    st.session_state.chat_history.append({"role": "assistant", "content": response_content})
 
