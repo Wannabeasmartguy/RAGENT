@@ -6,7 +6,7 @@ import openai
 
 from autogen.oai import OpenAIWrapper
 
-from typing import List, Dict
+from typing import List, Dict, Literal
 
 from ..dependence import return_supported_sources
 
@@ -31,25 +31,39 @@ class LLMParams(BaseModel):
     max_tokens: int | None = 4096
 
 
-@router.get("/openai_like_chat/supported_sources")
+@router.get("/openai-like-chat/supported-sources")
 async def get_supported_sources(support_sources: dict = Depends(return_supported_sources)):
+    '''获取支持的 LLM 源'''
     return support_sources
     
 
-@router.post("/openai_like_chat/{source}")
+@router.post("/openai-like-chat/{source}")
 async def create_completion(
-    source: str, 
+    source: Literal["sdk", "request"], 
     llm_config: LLMConfig,
     llm_params: LLMParams | None ,
     messages: List[dict],
     support_sources: dict = Depends(return_supported_sources),
 ) -> Dict:
+    '''
+    创建一个 LLM 模型，并使用该模型生成一个响应。
+    
+    Args:
+        source (str):  LLM 源支持的请求类型，可以是 "sdk" 或 "request"。
+        llm_config (LLMConfig): LLM 模型的配置信息。
+        llm_params (LLMParams, optional): LLM 模型的参数信息，包括 temperature、top_p 和 max_tokens。
+        messages (List[dict]): 完整的对话消息列表。
+        support_sources (dict): 支持的 LLM 源列表。
+        
+    Returns:
+        Dict: 生成的响应。
+    '''
     if source not in support_sources["sources"]:
         raise HTTPException(status_code=404, detail="Source not found")
     
     # 根据 source 选择不同的处理逻辑
-    # 如果 Source 在 sources 中为 "sdk" 或 "request_oai"，则使用 OpenAI SDK 进行处理
-    # 如果 Source 在 sources 中为 "request_raw"，则使用 Request 进行处理
+    # 如果 Source 在 sources 中为 "sdk"，则使用 OpenAI SDK 进行处理
+    # 如果 Source 在 sources 中为 "request"，则使用 Request 进行处理
 
     if support_sources["sources"][source] == "sdk":
         # 只有 aoai 才有 api_version 和 api_type，必须增加单独的判断
