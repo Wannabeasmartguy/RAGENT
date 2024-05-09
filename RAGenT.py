@@ -176,7 +176,7 @@ if prompt := st.chat_input("What is up?"):
                 # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
                 # 一般都是在的
                 if st.session_state["model_type"].lower() in SUPPORTED_SOURCES["sources"]:
-                    
+
                     # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
                     if SUPPORTED_SOURCES["sources"][st.session_state["model_type"].lower()] == "sdk":
                         path = "/chat/openai-like-chat/openai"
@@ -190,11 +190,14 @@ if prompt := st.chat_input("What is up?"):
                     path,
                     data={
                         "llm_config": config_list[0],
-                        "llm_params": {
-                            "temperature": 0,
-                            "top_p": 0.1,
-                            "max_tokens": 4096
-                        },
+                        "llm_params": config_list[0].get(
+                            "params",
+                            {
+                                "temperature": 0.5,
+                                "top_p": 0.1,
+                                "max_tokens": 4096
+                            }
+                        ),
                         "messages": processed_messages
                     }
                 )

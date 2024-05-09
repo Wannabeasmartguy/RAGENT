@@ -35,6 +35,11 @@ def aoai_config_generator(**kwargs):
         "base_url": os.getenv("AZURE_OAI_ENDPOINT",default=kwargs.get("base_url","noaoaiendpoint")),
         "api_type": os.getenv("API_TYPE",default=kwargs.get("api_type","azure")),
         "api_version": os.getenv("API_VERSION",default=kwargs.get("api_version","2024-02-15-preview")),
+        "params": {
+            "temperature": kwargs.get("temperature", 0.5),
+            "top_p": kwargs.get("top_p", 1.0),
+            "stream": kwargs.get("stream", False),
+        }
     }
     return [config]
 
