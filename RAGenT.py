@@ -50,7 +50,7 @@ write_chat_history(st.session_state.chat_history)
             
 
 def model_selector(model_type):
-    if model_type == "OpenAI" or "AOAI":
+    if model_type == "OpenAI" or model_type == "AOAI":
         return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
     elif model_type == "Ollama":
         try:
