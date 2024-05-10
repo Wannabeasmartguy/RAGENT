@@ -20,14 +20,14 @@ local_embedding_model = ['bge-base-zh-v1.5','bge-base-en-v1.5',
 def embed_model_selector(embed_model_type):
     if embed_model_type == "OpenAI":
         return ["text-embedding-ada-002"]
-    elif embed_model_type == "Hugging Face(local)":
+    elif embed_model_type == "huggingface":
         return ['bge-base-zh-v1.5','bge-base-en-v1.5',
                 'bge-large-zh-v1.5','bge-large-en-v1.5']
     else:
         return None
 
 if "embed_model_type" not in st.session_state:
-    st.session_state.embed_model_type = "Hugging Face(local)"
+    st.session_state.embed_model_type = "huggingface"
 
 if "pages" not in st.session_state:
     st.session_state.pages = []
@@ -46,7 +46,7 @@ with st.sidebar:
     st.write("---")
 
     embed_model_type_selectbox = st.selectbox(label=i18n("Embed Model Type"),
-                                              options=["OpenAI", "Hugging Face(local)"],
+                                              options=["OpenAI", "huggingface"],
                                               key="embed_model_type")
     embed_model_selectbox = st.selectbox(label=i18n("Embed Model"),
                                          options=embed_model_selector(st.session_state.embed_model_type),

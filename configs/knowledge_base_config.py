@@ -20,7 +20,7 @@ i18n = I18nAuto()
 
 
 def create_vectorstore(persist_vec_path:str,
-                       embedding_model_type:Literal['OpenAI','Hugging Face(local)'],
+                       embedding_model_type:Literal['OpenAI','huggingface'],
                        embedding_model:str):
     '''
     Create vectorstore.
@@ -40,7 +40,7 @@ def create_vectorstore(persist_vec_path:str,
                                                 openai_api_version=os.getenv('API_VERSION'),
                                                 azure_deployment="text-embedding-ada-002",
                                                 )
-        elif embedding_model_type == 'Hugging Face(local)':
+        elif embedding_model_type == 'huggingface':
             try:
                 embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model)
             except:
@@ -77,7 +77,7 @@ class KnowledgeBase:
                 "embedding_model": "text-embedding-ada-002"
             },
             "Knowledge_base_b":{
-                "embedding_model_type": "Hugging Face(local)",
+                "embedding_model_type": "huggingface",
                 "embedding_model": "bge-base-zh-v1.5"
             }
         }
@@ -157,12 +157,12 @@ class SubKnowledgeBase(KnowledgeBase):
 
         Args:
             persist_vec_path: chroma persist path.
-            embedding_model_type: `OpenAI` or `Hugging Face(local)`
+            embedding_model_type: `OpenAI` or `huggingface`
             local_embedding_model: If `embedding_model_type` == `OpenAI`, there's only one model, here will give a specific embedding model. 
             progress: create gradio progress bar.
         '''
         local_embedding_model_path = os.path.join("embedding model/",local_embedding_model)
-        if embedding_model_type == 'Hugging Face(local)':
+        if embedding_model_type == 'huggingface':
             try:
                 embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model_path)
                 vectorstore = chroma.Chroma(
