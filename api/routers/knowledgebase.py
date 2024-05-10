@@ -197,7 +197,7 @@ async def list_all_files_in_collection(
     collection: chromadb.Collection = Depends(get_chroma_specific_collection)
 ) -> List[str]:
     '''
-    返回指定名称的 collection 中的所有文件
+    返回指定名称的 collection 中的所有文件块
     
     Args:
         name (str): 知识库名称

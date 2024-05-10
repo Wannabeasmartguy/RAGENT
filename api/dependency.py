@@ -21,32 +21,38 @@ class APIRequestHandler:
 
     def get(self, endpoint):
         response = requests.get(self.base_url + endpoint)
-        return response.json()
+        return self._handle_response(response)
 
     def post(self, endpoint, data):
         response = requests.post(self.base_url + endpoint, json=data)
-        return response.json()
+        return self._handle_response(response)
 
     def put(self, endpoint, data):
         response = requests.put(self.base_url + endpoint, json=data)
-        return response.json()
+        return self._handle_response(response)
 
     def delete(self, endpoint):
         response = requests.delete(self.base_url + endpoint)
-        return response.json()
+        return self._handle_response(response)
 
     def get_file(self, endpoint):
         response = requests.get(self.base_url + endpoint)
-        return response.content
+        return self._handle_response(response)
 
     def post_file(self, endpoint, file_path):
         with open(file_path, 'rb') as file:
             response = requests.post(self.base_url + endpoint, files={'file': file})
-        return response.json()
+        return self._handle_response(response)
 
     def delete_file(self, endpoint):
         response = requests.delete(self.base_url + endpoint)
-        return response.json()
+        return self._handle_response(response)
+
+    def _handle_response(self, response):
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {'error': response.status_code, 'message': response.text}
 
 
 async def return_supported_sources():

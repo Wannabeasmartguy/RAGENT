@@ -18,8 +18,8 @@ def llamafile_config_generator(**kwargs):
         config (list): 配置列表
     '''
     config = {
-        "model": "noneed",
-        "api_key": "noneed",
+        "model": kwargs.get("model", "noneed"),
+        "api_key": kwargs.get("api_key", "noneed"),
         "base_url": kwargs.get("base_url","http://127.0.0.1:8080/v1"),
         "params": {
             "temperature": kwargs.get("temperature", 0.5),

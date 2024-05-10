@@ -28,6 +28,9 @@
     "Get Knowledge Base info": "Get Knowledge Base info",
     "Delete the File": "Delete the File",
     "“Knowledge Base path” is empty, Please enter the path": "“Knowledge Base path” is empty, Please enter the path",
-    "Llamafile config": "Llamafile config",
-    "Llamafile endpoint": "Llamafile endpoint"
+    "Llamafile config": "More configs",
+    "Llamafile API key": "API KEY",
+    "Llamafile endpoint": "Endpoint",
+    "Fill in custom model name. (Optional)": "Fill in custom model name. (Optional)",
+    "Fill in your API key. (Optional)": "Fill in your API key. (Optional)"
 }

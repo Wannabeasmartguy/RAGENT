@@ -78,11 +78,19 @@ with st.sidebar:
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
 
-    select_box1 = st.selectbox(
-        label=i18n("Model"),
-        options=model_selector(st.session_state["model_type"]),
-        key="model"
-    )
+    if select_box0 != "Llamafile":
+        select_box1 = st.selectbox(
+            label=i18n("Model"),
+            options=model_selector(st.session_state["model_type"]),
+            key="model"
+        )
+    elif select_box0 == "Llamafile":
+        select_box1 = st.text_input(
+            label=i18n("Model"),
+            value="Noneed",
+            key="model",
+            placeholder=i18n("Fill in custom model name. (Optional)")
+        )
 
     if select_box0 == "Llamafile":
         with st.expander(label=i18n("Llamafile config")):
@@ -90,6 +98,12 @@ with st.sidebar:
                 label=i18n("Llamafile endpoint"),
                 value="http://127.0.0.1:8080/v1",
                 key="llamafile_endpoint"
+            )
+            llamafile_api_key = st.text_input(
+                label=i18n("Llamafile API key"),
+                # value="",
+                key="llamafile_api_key",
+                placeholder=i18n("Fill in your API key. (Optional)")
             )
 
     history_length = st.number_input(
@@ -153,7 +167,10 @@ elif st.session_state["model_type"] == "Groq":
         model = st.session_state["model"]
     )
 elif st.session_state["model_type"] == "Llamafile":
-    config_list = llamafile_config_generator(base_url=st.session_state["llamafile_endpoint"])
+    config_list = llamafile_config_generator(
+        model = st.session_state["model"],
+        base_url = st.session_state["llamafile_endpoint"],
+        api_key = st.session_state["llamafile_api_key"],)
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -212,10 +229,15 @@ if prompt := st.chat_input("What is up?"):
                 # st.write_stream(response)
 
         if not config_list[0].get("params",{}).get("stream",False):
-            response_content = response["choices"][0]["message"]["content"]
-            st.write(response_content)
-            cost = response["cost"]
-            st.write(f"response cost: ${cost}")
+            if "status_code" not in response:
+                # st.write(response)
+                response_content = response["choices"][0]["message"]["content"]
+                st.write(response_content)
+                cost = response["cost"]
+                st.write(f"response cost: ${cost}")
+            else:
+                st.write(response["status_code"])
+                st.write(response["text"])
             
     st.session_state.chat_history.append({"role": "assistant", "content": response_content})
 
