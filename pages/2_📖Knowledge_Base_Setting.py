@@ -5,13 +5,16 @@ from pathlib import Path
 import os
 import tempfile
 
-from configs.basic_config import I18nAuto
+from configs.basic_config import I18nAuto,SUPPORTED_LANGUAGES
 from configs.knowledge_base_config import KnowledgeBase, SubKnowledgeBase, create_vectorstore
 from utils.chroma_utils import *
 from utils.text_splitter.text_splitter_utils import *
 
 
-i18n = I18nAuto()
+# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+
+
 kbs = KnowledgeBase()
 openai_embedding_model = ["text-embedding-ada-002"]
 local_embedding_model = ['bge-base-zh-v1.5','bge-base-en-v1.5',

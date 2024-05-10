@@ -24,7 +24,17 @@ class APIRequestHandler:
         return self._handle_response(response)
 
     def post(self, endpoint, data):
-        response = requests.post(self.base_url + endpoint, json=data)
+        """发送 POST 请求到指定的 endpoint。
+
+        Args:
+            endpoint (str): 请求的 API 端点。
+            data (dict): 发送的数据，应该是可被序列化为 JSON 的字典。
+
+        Returns:
+            dict: 服务器响应。
+        """
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(self.base_url + endpoint, json=data, headers=headers)
         return self._handle_response(response)
 
     def put(self, endpoint, data):

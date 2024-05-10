@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from configs.basic_config import I18nAuto, set_pages_configs_in_common
+from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from llm.Agent.pre_built import reflection_agent_with_nested_chat
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_config_generator
@@ -12,8 +12,8 @@ from autogen.cache import Cache
 
 from typing import List
 
-# i18n = I18nAuto(language="en-US")
-i18n = I18nAuto()
+# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 # Initialize chat history, to avoid error when reloading the page
 if "agent_chat_history_displayed" not in st.session_state:

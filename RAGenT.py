@@ -15,12 +15,12 @@ from llm.aoai.completion import AzureOpenAICompletionClient,aoai_config_generato
 from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
-from configs.basic_config import I18nAuto,set_pages_configs_in_common
+from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from copy import deepcopy
 
 
-# i18n = I18nAuto(language="en-US")
-i18n = I18nAuto()
+# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 requesthandler = APIRequestHandler("localhost", 8000)
 
@@ -101,7 +101,7 @@ with st.sidebar:
             )
             llamafile_api_key = st.text_input(
                 label=i18n("Llamafile API key"),
-                # value="",
+                value="noneed",
                 key="llamafile_api_key",
                 placeholder=i18n("Fill in your API key. (Optional)")
             )
@@ -138,24 +138,7 @@ with st.sidebar:
         options=["None"],
     )
 
-# load config list from .env file
-# config_list = config_list_from_dotenv(
-#     dotenv_file_path=".env",
-#     model_api_key_map={
-#         "gpt-4":{
-#             "api_key_env_var":"AZURE_OAI_KEY",
-#             "api_type": "API_TYPE",
-#             "base_url": "AZURE_OAI_ENDPOINT",
-#             "api_version": "API_VERSION",
-#         },
-#         "gpt-3.5-turbo":{
-#             "api_key_env_var":"AZURE_OAI_KEY",
-#             "api_type": "API_TYPE",
-#             "base_url": "AZURE_OAI_ENDPOINT",
-#             "api_version": "API_VERSION",
-#         }
-#     }
-# )
+
 if st.session_state["model_type"] == "OpenAI":
     pass
 if st.session_state["model_type"] == "AOAI":
@@ -167,10 +150,16 @@ elif st.session_state["model_type"] == "Groq":
         model = st.session_state["model"]
     )
 elif st.session_state["model_type"] == "Llamafile":
+    # 避免因为API_KEY为空字符串导致的请求错误（500）
+    if st.session_state["llamafile_api_key"] == "":
+        custom_api_key = "noneed"
+    else:
+        custom_api_key = st.session_state["llamafile_api_key"]
     config_list = llamafile_config_generator(
         model = st.session_state["model"],
         base_url = st.session_state["llamafile_endpoint"],
-        api_key = st.session_state["llamafile_api_key"],)
+        api_key = custom_api_key,)
+
 
 # Accept user input
 if prompt := st.chat_input("What is up?"):
@@ -229,15 +218,13 @@ if prompt := st.chat_input("What is up?"):
                 # st.write_stream(response)
 
         if not config_list[0].get("params",{}).get("stream",False):
-            if "status_code" not in response:
+            if "error" not in response:
                 # st.write(response)
                 response_content = response["choices"][0]["message"]["content"]
                 st.write(response_content)
                 cost = response["cost"]
                 st.write(f"response cost: ${cost}")
-            else:
-                st.write(response["status_code"])
-                st.write(response["text"])
-            
-    st.session_state.chat_history.append({"role": "assistant", "content": response_content})
 
+                st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
+            else:
+                st.error(response)

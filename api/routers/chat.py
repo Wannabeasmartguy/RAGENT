@@ -33,6 +33,9 @@ class LLMParams(BaseModel):
     top_p: float | None
     max_tokens: int | None = 4096
 
+    class Config:
+        extra = "ignore"
+
 
 @router.get("/openai-like-chat/supported-sources")
 async def get_supported_sources(support_sources: dict = Depends(return_supported_sources)):
@@ -71,7 +74,10 @@ async def create_completion(
     if support_sources["sources"][source] == "sdk":
         # 只有 aoai 才有 api_version 和 api_type，必须增加单独的判断
         client = OpenAIWrapper(
-            **llm_config.dict(exclude_unset=True)
+            **llm_config.dict(exclude_unset=True),
+            # 禁用缓存
+            cache = None,
+            cache_seed = None
         )
 
         if llm_params:
