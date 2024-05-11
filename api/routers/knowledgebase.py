@@ -213,6 +213,26 @@ async def list_all_files_in_collection(
     return document_list
 
 
+@router.post("/list-all-files-in-detail")
+async def list_all_files_in_collection_in_detail(
+    collection: chromadb.Collection = Depends(get_chroma_specific_collection)
+) -> Dict:
+    '''
+    返回指定名称的 collection 中的所有文件块及其详细信息
+    
+    Args:
+        name (str): 知识库名称
+        knowledgebase_collections (List[str], optional): 知识库的所有 collection
+
+    Returns:
+        List[str]: 文件的具体内容列表
+    '''
+    document_count = collection.count()  # 获取文档数量
+    document_situation = collection.peek(limit=document_count)
+
+    return document_situation
+
+
 @router.post("/list-all-files-metadata-name")
 async def list_all_files_metadata_name(
     name: str,
@@ -309,6 +329,16 @@ async def add_docs_to_collection(
     collection_in_client.add_documents(
         documents=documents
     )
+
+    # # 使用列表推导式构造符合要求的text和metadata list
+    # page_content = [doc["page_content"] for doc in documents]
+    # metadatas = [doc["metadata"] for doc in documents]
+
+    # # Add texts to collection
+    # collection_in_client.add_texts(
+    #     texts=page_content,
+    #     metadatas=metadatas,
+    # )
 
 
 @router.post("/delete-whole-file-in-collection")

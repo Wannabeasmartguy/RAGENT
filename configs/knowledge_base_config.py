@@ -1,7 +1,7 @@
 import os
 import json
 
-from typing import Literal
+from typing import Literal, List, Dict
 
 import streamlit as st
 
@@ -11,242 +11,329 @@ from langchain_community.embeddings.sentence_transformer import (
 )
 from langchain_openai.embeddings import AzureOpenAIEmbeddings
 from langchain_community.vectorstores import chroma
+from langchain_core.documents.base import Document
 
 from utils.text_splitter.text_splitter_utils import simplify_filename
 
 from configs.basic_config import I18nAuto
+from api.dependency import APIRequestHandler
+from api.routers.knowledgebase import EmbeddingModelConfig
 
 i18n = I18nAuto()
 
+requesthandler = APIRequestHandler("localhost", 8000)
 
-def create_vectorstore(persist_vec_path:str,
-                       embedding_model_type:Literal['OpenAI','huggingface'],
-                       embedding_model:str):
-    '''
-    Create vectorstore.
-    '''
-    if persist_vec_path == "":
-        raise "Please provide a path to persist the vectorstore."
+DEFAULT_COLLECTION_NAME = "default_collection"
+
+
+def create_embedding_model_config(
+    embedding_model_type: Literal["openai", "huggingface"],
+    embedding_model_name_or_path: str,
+    **openai_kwargs
+):
+    if embedding_model_type == "openai":
+        embedding_model_config = EmbeddingModelConfig(
+            embedding_type="openai",
+            embedding_model_or_path=embedding_model_name_or_path,
+            api_key=openai_kwargs.get("api_key"),
+            api_type=openai_kwargs.get("api_type"),
+            base_url=openai_kwargs.get("base_url"),
+            api_version=openai_kwargs.get("api_version"),
+        )
+    elif embedding_model_type == "huggingface":
+        embedding_model_config = EmbeddingModelConfig(
+            embedding_type="huggingface",
+            embedding_model_or_path=embedding_model_name_or_path,
+        )
     
-    local_embedding_model = 'embedding model/'+embedding_model
+    return embedding_model_config
 
-    import os
-    if os.path.isabs(persist_vec_path):
-        if embedding_model_type == 'OpenAI':
-            embeddings = AzureOpenAIEmbeddings(
-                                                openai_api_type=os.getenv('API_TYPE'),
-                                                azure_endpoint=os.getenv('AZURE_OAI_ENDPOINT'),
-                                                openai_api_key=os.getenv('AZURE_OAI_KEY'),
-                                                openai_api_version=os.getenv('API_VERSION'),
-                                                azure_deployment="text-embedding-ada-002",
-                                                )
-        elif embedding_model_type == 'huggingface':
-            try:
-                embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model)
-            except:
-                # 如果 embedding model 的前三个字母是 bge ,则在 repo_id 前加上 BAAI/
-                if embedding_model[:3] == 'bge':
-                    st.toast("Downloading embedding model, please wait...")
-                    try:
-                        snapshot_download(repo_id="BAAI/"+embedding_model,
-                                        local_dir=local_embedding_model)
-                        st.toast("Download complete.")
-                    except:
-                        st.toast("Download failed, please check your network connection and try again.")
-                    embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model)
 
-        # global vectorstore
-        vectorstore = chroma.Chroma(persist_directory=persist_vec_path,embedding_function=embeddings)
-        vectorstore.persist()
-    else:
-        raise "The path is not valid."
+def list_all_knowledgebase_collections() -> List[str]:
+    """
+    List all knowledgebase collections.
+
+    Returns:
+        List[str]: A list of collection names.
+    """
+    response = requesthandler.get("/knowledgebase/list-knowledge-bases")
+    return response
+
+
+def create_knowledgebase_collection(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+) -> None:
+    """
+    Create a knowledgebase collection.
+
+    Args:
+        collection_name (str): The name of the collection.
+        embedding_model_type (str): The type of the embedding model.
+        embedding_model_name_or_path (str): The name or path of the embedding model.
+        openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
+    """
+    # 根据embedding_model_type选择不同的embedding模型配置
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type, 
+        embedding_model_name_or_path, 
+        **openai_kwargs
+    )
     
-    return vectorstore
+    # 创建请求
+    requesthandler.post(
+        "/knowledgebase/create-knowledge-base",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name},
+    )
 
 
-class KnowledgeBase:
-    '''
-    用于管理本地知识库的基类，记录所有子知识库的embedding信息
-    '''
-    def __init__(self):
-        '''
-        初始化时，先读取本地的`embedding_config.json`,该json的结构如下
-        {
-            "Knowledge_base_a": {
-                "embedding_model_type": "OpenAI",
-                "embedding_model": "text-embedding-ada-002"
-            },
-            "Knowledge_base_b":{
-                "embedding_model_type": "huggingface",
-                "embedding_model": "bge-base-zh-v1.5"
-            }
-        }
-        '''
-        if os.path.exists("embedding_config.json"):
-            with open("embedding_config.json", "r", encoding='utf-8') as f:
-                self.__embedding_config = json.load(f)
-        else:
-            # 如果不存在"embedding_config.json"，则创建它
-            self.__embedding_config = {
-                "default_empty_vec": {
-                    "embedding_model_type": "OpenAI",
-                    "embedding_model": "text-embedding-ada-002"
-                }
-            }
-            with open("embedding_config.json", 'w', encoding='utf-8') as file:
-                json.dump(self.__embedding_config, file, ensure_ascii=False, indent=4)
-            tmp_vec_path = os.path.join(os.getcwd(), "knowledge base", "default_empty_vec")
-            if os.path.exists(tmp_vec_path) is False:
-                os.makedirs(tmp_vec_path)
-            create_vectorstore(tmp_vec_path, "OpenAI", "text-embedding-ada-002")
-                
-        self.knowledge_bases = list(self.__embedding_config.keys())
+def delete_knowledgebase_collection(collection_name: str) -> None:
+    """
+    Delete a knowledgebase collection by name.
 
-    def reinitialize(self):
-        '''重新初始化，以重载json中内容'''
-        self.__init__()
+    Args:
+        collection_name (str): The name of the collection.
+    """
+    requesthandler.post(
+        "/knowledgebase/list-knowledge-bases",
+        params={"name": collection_name},
+    )
 
-    def get_embedding_model(self, knowledge_base_name:str):
-        """
-        根据知识库名称获取嵌入模型的分类和名称
 
-        Args:
-            knowledge_base_name: `embedding_config.json` 中保存的名称;
-        
-        Return: 
-            `embedding_model_type`: str,`embedding_model`: str
-        """
-        
-        if knowledge_base_name in self.knowledge_bases:
-            return self.__embedding_config[knowledge_base_name]["embedding_model_type"],self.__embedding_config[knowledge_base_name]["embedding_model"]
-        else:
-            raise ValueError(f"未找到名为{knowledge_base_name}的知识库")
-        
-    def get_persist_vec_path(self, knowledge_base_name:str):
-        '''在默认路径下按名字查找知识库，并返回知识库的路径'''
-        vec_root_path = os.path.join(os.getcwd(), "knowledge base")
-        vec_path = os.path.join(vec_root_path, knowledge_base_name)
-        if os.path.exists(vec_path):
-            return vec_path
-        else:
-            raise ValueError(f"未找到名为{knowledge_base_name}的知识库")
-        
+def list_collection_all_filechunks_content(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+    ) -> List[str]:
+    """
+    List all files content in a collection.
 
-class SubKnowledgeBase(KnowledgeBase):
-    '''
-    用于管理子知识库的基类
-    '''
-    def __init__(self, knowledge_base_name:str):
-        super().__init__()
-        self.knowledge_base_name = knowledge_base_name
-        self.embedding_model_type,self.embedding_model = self.get_embedding_model(knowledge_base_name)
-        self.persist_vec_path = self.get_persist_vec_path(knowledge_base_name)
-        self.vectorstore = self.vectorstore_init_create(persist_vec_path=self.persist_vec_path,
-                                                        embedding_model_type=self.embedding_model_type,
-                                                        local_embedding_model=self.embedding_model)
+    Args:
+        collection_name (str): The name of the collection.
+        embedding_model_type (str): The type of the embedding model.
+        embedding_model_name_or_path (str): The name or path of the embedding model.
+        openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
     
-    def reinitialize(self,knowledge_base_name):
-        '''重新初始化，以重载json中内容'''
-        self.__init__(knowledge_base_name=knowledge_base_name)
+    Returns:
+        List[str]: A list of file content.
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type, 
+        embedding_model_name_or_path, 
+        **openai_kwargs
+    )
 
-    def vectorstore_init_create(self,persist_vec_path, 
-                                embedding_model_type,
-                                local_embedding_model):
-        '''
-        Generic Vectorstore Creation Functions
-
-        Args:
-            persist_vec_path: chroma persist path.
-            embedding_model_type: `OpenAI` or `huggingface`
-            local_embedding_model: If `embedding_model_type` == `OpenAI`, there's only one model, here will give a specific embedding model. 
-            progress: create gradio progress bar.
-        '''
-        local_embedding_model_path = os.path.join("embedding model/",local_embedding_model)
-        if embedding_model_type == 'huggingface':
-            try:
-                embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model_path)
-                vectorstore = chroma.Chroma(
-                    persist_directory=persist_vec_path, embedding_function=embeddings
-                )
-            except:
-                st.toast("Downloading embedding model...")
-                if local_embedding_model[:3] == 'bge':
-                    snapshot_download(repo_id="BAAI/"+local_embedding_model,
-                                        local_dir=local_embedding_model_path)
-                    st.toast("Download complete.")
-                    embeddings = SentenceTransformerEmbeddings(model_name=local_embedding_model_path)
-                    vectorstore = chroma.Chroma(persist_directory=persist_vec_path,
-                                                embedding_function=embeddings)
-                    
-        elif embedding_model_type == 'OpenAI':
-            vectorstore = chroma.Chroma(persist_directory=persist_vec_path, 
-                                embedding_function=AzureOpenAIEmbeddings(
-                                openai_api_type=os.getenv('API_TYPE'),
-                                azure_endpoint=os.getenv('AZURE_OAI_ENDPOINT'),
-                                openai_api_key=os.getenv('AZURE_OAI_KEY'),
-                                openai_api_version=os.getenv('API_VERSION'),
-                                azure_deployment="text-embedding-ada-002",
-                                ))
-        return vectorstore
+    response = requesthandler.post(
+        "/knowledgebase/list-all-files",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name},
+    )
+    return response
 
 
-    def add_file_in_vectorstore(
-            self,
-            split_docs:list,
-            file_obj,   # get it from 'file' (gr.file)
-        ):
-        '''
-        Add file to vectorstore.
-        '''
-        if file_obj == None:
-            raise "You haven't chosen a file yet."
+def list_all_filechunks_in_detail(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+) -> Dict:
+    """
+    List all file chunks in a collection.
 
-        if isinstance(file_obj, list):
-            self.vectorstore.add_documents(documents=split_docs)
-
-
-    def delete_flie_in_vectorstore(self,files_samename:str):
-        '''
-        Get the file's ids first, then delete by vector IDs.
-        '''
-        # Specify the target file
-        try:
-            metadata = self.vectorstore.get()
-        except NameError as n:
-            raise 'Vectorstore is not initialized.'
-
-        # Initialize an empty list to store the ids
-        ids_for_target_file = []
-
-        # Loop over the metadata
-        for i in range(len(metadata['metadatas'])):
-            # Check if the source matches the target file
-            # We only compare the last part of the path (the actual file name)
-            if metadata['metadatas'][i]['source'].split('/')[-1].split('\\')[-1] == files_samename:
-                # If it matches, add the corresponding id to the list
-                ids_for_target_file.append(metadata['ids'][i])
-
-        # print("IDs for target file:", ids_for_target_file)
-        try:
-            self.vectorstore.delete(ids=ids_for_target_file)
-        except ValueError as v:
-            raise 'File does not exist in vectorstore.'
-        return
+    Args:
+        collection_name (str): The name of the collection.
+        embedding_model_type (str): The type of the embedding model.
+        embedding_model_name_or_path (str): The name or path of the embedding model.
+        openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
     
-    @property
-    def load_file_names(self):
-        try:
-            vct_store = self.vectorstore.get()
-            unique_sources = set(vct_store['metadatas'][i]['source'] for i in range(len(vct_store['metadatas'])))
+    Returns:
+        Dict: A dictionary of file chunks info, include "ids", "embeddings", "metadatas" and "documents".
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
 
-            # Merge duplicate sources
-            merged_sources = ', '.join(unique_sources)
+    response = requesthandler.post(
+        "/knowledgebase/list-all-files-in-detail",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name}
+    )
+    return response
 
-            # Extract actual file names
-            file_names = [source.split('/')[-1].split('\\')[-1] for source in unique_sources]
 
-            print(i18n("Successfully load kowledge base."))
-            return file_names
-        except IndexError:
-            print(i18n('No file in vectorstore.'))
-        return []
+def list_all_filechunks_content_by_file_name(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+) -> List[str]:
+    """
+    List all files content in a collection by file name.
+    
+    Args:
+        collection_name (str): The name of the collection.
+        embedding_model_type (str): The type of the embedding model.
+        embedding_model_name_or_path (str): The name or path of the embedding model.
+        openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
+        
+    Returns:
+        List[str]: A list of file content.
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
+
+    response = requesthandler.post(
+        "/knowledgebase/list-all-files-metadata-name",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name}
+    )
+    return response
+
+
+def search_docs(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        query:str | List[str],
+        n_results:int,
+        **openai_kwargs,
+) -> Dict:
+    """
+    查询知识库中的文档，返回与查询语句最相似 n_results 个文档列表
+    
+    Args:
+        collection_name (str): 知识库名称
+        embedding_model_type (str): 嵌入模型类型
+        embedding_model_name_or_path (str): 嵌入模型名称或路径
+        query (str | List[str]): 查询的文本或列表
+        n_results (int): 返回结果的数量
+        openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
+        
+    Returns:
+        Dict: 查询结果
+            ids (List[List[str]]): 匹配文档的 ID
+            distances (List[List[float]]): 匹配文档的向量距离
+            metadata (List[List[Dict]]): 匹配文档的元数据
+            embeddings : 匹配文档的嵌入向量
+            documents (List[List[str]]): 匹配文档的文本内容
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
+
+    response = requesthandler.post(
+        "/knowledgebase/search-docs",
+        data={
+            "query": query,
+            "embedding_config": embedding_model_config.dict(),
+        },
+        params={"name": collection_name, "n_results": n_results}
+    )
+    return response
+
+
+def add_documents(
+        collection_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        documents:List[Document],
+        **openai_kwargs,
+        
+) -> None:
+    """
+    向知识库中添加文档
+    
+    Args:
+        collection_name (str): 知识库名称
+        embedding_model_type (str): 嵌入模型类型
+        embedding_model_name_or_path (str): 嵌入模型名称或路径
+        documents (List[Document]): 要添加的文档列表
+        openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
+    
+    requesthandler.post(
+        "/knowledgebase/add-docs",
+        data={
+            "documents": documents,
+            "embedding_config": embedding_model_config.dict(),
+        },
+        params={"name": collection_name}
+    )
+
+
+def delete_documents_from_same_metadata(
+        collection_name: str,
+        files_name: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+) -> None:
+    """
+    从知识库中删除来自于同一个相同元文件的文档块
+
+    Args:
+        collection_name (str): 知识库名称
+        files_name (str): 元文件名称
+        embedding_model_type (str): 嵌入模型类型
+        embedding_model_name_or_path (str): 嵌入模型名称或路径
+        openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
+        
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
+    
+    requesthandler.post(
+        "/knowledgebase/delete-whole-file-in-collection",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name, "files_name": files_name}
+    )
+
+
+def delete_specific_documents(
+        collection_name: str,
+        chunk_document_content: str,
+        embedding_model_type:Literal["openai","huggingface"],
+        embedding_model_name_or_path:str,
+        **openai_kwargs,
+) -> None:
+    """
+    从知识库中删除特定的文档块
+
+    Args:
+        collection_name (str): 知识库名称
+        chunk_document_content (str): 要删除的文档块内容
+        embedding_model_type (str): 嵌入模型类型
+        embedding_model_name_or_path (str): 嵌入模型名称或路径
+        openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
+        
+    """
+    embedding_model_config = create_embedding_model_config(
+        embedding_model_type,
+        embedding_model_name_or_path,
+        **openai_kwargs
+    )
+    
+    requesthandler.post(
+        "/knowledgebase/delete-specific-splitted-document",
+        data=embedding_model_config.dict(),
+        params={"name": collection_name, "chunk_document_content": chunk_document_content}
+    )

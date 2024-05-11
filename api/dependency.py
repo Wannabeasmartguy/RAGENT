@@ -23,7 +23,7 @@ class APIRequestHandler:
         response = requests.get(self.base_url + endpoint)
         return self._handle_response(response)
 
-    def post(self, endpoint, data):
+    def post(self, endpoint, data, params=None):
         """发送 POST 请求到指定的 endpoint。
 
         Args:
@@ -34,7 +34,7 @@ class APIRequestHandler:
             dict: 服务器响应。
         """
         headers = {'Content-Type': 'application/json'}
-        response = requests.post(self.base_url + endpoint, json=data, headers=headers)
+        response = requests.post(self.base_url + endpoint, json=data, headers=headers, params=params)
         return self._handle_response(response)
 
     def put(self, endpoint, data):
