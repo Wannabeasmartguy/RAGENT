@@ -6,7 +6,7 @@ import os
 import tempfile
 
 from configs.basic_config import I18nAuto,SUPPORTED_LANGUAGES
-from configs.knowledge_base_config import KnowledgeBase, SubKnowledgeBase, create_vectorstore
+from configs.knowledge_base_config import ChromaCollectionProcessor, ChromaVectorStoreProcessor
 from utils.chroma_utils import *
 from utils.text_splitter.text_splitter_utils import *
 
@@ -15,17 +15,15 @@ from utils.text_splitter.text_splitter_utils import *
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 
-kbs = KnowledgeBase()
 openai_embedding_model = ["text-embedding-ada-002"]
 local_embedding_model = ['bge-base-zh-v1.5','bge-base-en-v1.5',
                          'bge-large-zh-v1.5','bge-large-en-v1.5']
 
 def embed_model_selector(embed_model_type):
-    if embed_model_type == "OpenAI":
-        return ["text-embedding-ada-002"]
+    if embed_model_type == "openai":
+        return openai_embedding_model
     elif embed_model_type == "huggingface":
-        return ['bge-base-zh-v1.5','bge-base-en-v1.5',
-                'bge-large-zh-v1.5','bge-large-en-v1.5']
+        return local_embedding_model
     else:
         return None
 
@@ -49,23 +47,96 @@ with st.sidebar:
     st.write("---")
 
     embed_model_type_selectbox = st.selectbox(label=i18n("Embed Model Type"),
-                                              options=["OpenAI", "huggingface"],
+                                              options=["openai", "huggingface"],
                                               key="embed_model_type")
     embed_model_selectbox = st.selectbox(label=i18n("Embed Model"),
                                          options=embed_model_selector(st.session_state.embed_model_type),
                                          key="embed_model")
     # create_kb_button = st.button(label=i18n("Create Knowledge Base"),
     #                                on_click=create_vectorstore(embed_model_selectbox))
-    
 
-kb_choose = st.selectbox(label=i18n("Knowledge Base Choose"), 
-                         #  label_visibility="collapsed",
-                         options=kbs.knowledge_bases,
-                         key="kb_choose")
-kb = SubKnowledgeBase(kb_choose)
 
-reinitialize_kb_button = st.button(label=i18n("Reinitialize Knowledge Base"),
-                                   on_click=kb.reinitialize(kb_choose))
+# 根据嵌入模型的选择情况，创建ChromaVectorStoreProcessor
+if embed_model_type_selectbox == "openai":
+    chroma_vectorstore_processor = ChromaVectorStoreProcessor(
+        embedding_model_name_or_path=embed_model_selectbox,
+        embedding_model_type=embed_model_type_selectbox,
+        api_key=os.getenv("AZURE_OAI_KEY",default="OPENAI_API_KEY"),
+        base_url=os.getenv("AZURE_OAI_ENDPOINT",default=None),
+        api_version=os.getenv("API_VERSION",default="2024-02-15-preview"),
+        api_type=os.getenv("API_TYPE",default="openai"),
+    )
+elif embed_model_type_selectbox == "huggingface":
+    chroma_vectorstore_processor = ChromaVectorStoreProcessor(
+        embedding_model_name_or_path="embedding model/" + embed_model_selectbox,
+        embedding_model_type=embed_model_type_selectbox,
+    )
+
+
+collection_choose_placeholder = st.empty()
+with collection_choose_placeholder.container():
+    collection_choose = st.selectbox(
+        label=i18n("Knowledge Base Choose"), 
+        #  label_visibility="collapsed",
+        options=chroma_vectorstore_processor.list_all_knowledgebase_collections(),
+        key="collection_choose"
+    )
+
+if embed_model_type_selectbox == "openai":
+    chroma_collection_processor = ChromaCollectionProcessor(
+        collection_name=collection_choose,
+        embedding_model_name_or_path=embed_model_selectbox,
+        embedding_model_type=embed_model_type_selectbox,
+        api_key=os.getenv("AZURE_OAI_KEY",default="OPENAI_API_KEY"),
+        base_url=os.getenv("AZURE_OAI_ENDPOINT",default=None),
+        api_version=os.getenv("API_VERSION",default="2024-02-15-preview"),
+        api_type=os.getenv("API_TYPE",default="openai"),
+    )
+elif embed_model_type_selectbox == "huggingface":
+    chroma_collection_processor = ChromaCollectionProcessor(
+        collection_name=collection_choose,
+        embedding_model_name_or_path="embedding model/" + embed_model_selectbox,
+        embedding_model_type=embed_model_type_selectbox
+    )
+
+with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
+    collection_name_input = st.text_input(
+        label=i18n("To be added Collection Name"),
+        placeholder=i18n("Collection Name"),
+        key="collection_name_input"
+    )
+    add_collection_button = st.button(
+        label=i18n("Add Collection"),
+        use_container_width=True
+    )
+
+
+reinitialize_colleciton_button = st.button(
+    label=i18n("Reinitialize Knowledge Base"),
+)
+
+delete_collection_button = st.button(
+    label=i18n("Delete Collection"),
+    use_container_width=True
+)
+
+if add_collection_button:
+    if st.session_state.collection_name_input != "":
+        chroma_vectorstore_processor.create_knowledgebase_collection(collection_name=st.session_state.collection_name_input)
+        st.success(i18n("Collection added successfully."))
+        chroma_vectorstore_processor.list_all_knowledgebase_collections()
+        st.rerun()
+    else:
+        st.warning(i18n("Please enter the collection name."))
+
+
+if delete_collection_button:
+    chroma_collection_processor.delete_knowledgebase_collection()
+    st.success(i18n("Collection deleted successfully."))
+    chroma_vectorstore_processor.list_all_knowledgebase_collections()
+
+if reinitialize_colleciton_button:
+    chroma_vectorstore_processor.list_all_knowledgebase_collections()
 
 
 st.write("## Choose files you want to embed")
@@ -150,18 +221,18 @@ if embed_button:
         st.warning(i18n("Please upload and split files first"))
     else:
         with st.spinner():
-            kb.add_file_in_vectorstore(split_docs=st.session_state.pages, file_obj=file_upload)
+            chroma_collection_processor.add_documents(documents=st.session_state.pages)
         st.toast("Embedding completed!")
 
 
 st.write("---")
-st.write(f"知识库 `{kb_choose}` 中的文件：")
+st.write(f"知识库 `{chroma_collection_processor.collection_name}` 中的文件：")
 
 column1, column2 = st.columns([0.7,0.3])
 with column1:
     file_names_inchroma = st.selectbox(label=i18n("Files in Knowledge Base"),
                                        label_visibility="collapsed",
-                                       options=kb.load_file_names)
+                                       options=chroma_collection_processor.list_all_filechunks_metadata_name())
 with column2:
     get_knowledge_base_info_button = st.button(label=i18n("Get Knowledge Base info"))
 
@@ -169,12 +240,15 @@ delete_file_button = st.button(label=i18n("Delete the File"),
                                use_container_width=True)
 
 if get_knowledge_base_info_button:
-    chroma_info_html = get_chroma_file_info(persist_path=kb.persist_vec_path,
-                    file_name=file_names_inchroma,
-                    advance_info=False)
+    chroma_info_html = get_chroma_file_info(
+        persist_path="./knowledgebase",
+        collection_name=chroma_collection_processor.collection_name,
+        file_name=file_names_inchroma,
+        limit=len(chroma_collection_processor.list_collection_all_filechunks_content()),
+        advance_info=False)
     components.html(chroma_info_html,
                     height=800)
 
 if delete_file_button:
-    kb.delete_flie_in_vectorstore(files_samename=file_names_inchroma)
+    chroma_collection_processor.delete_documents_from_same_metadata(files_name=file_names_inchroma)
     st.rerun()

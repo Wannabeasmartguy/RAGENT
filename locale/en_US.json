@@ -32,5 +32,14 @@
     "Llamafile API key": "API KEY",
     "Llamafile endpoint": "Endpoint",
     "Fill in custom model name. (Optional)": "Fill in custom model name. (Optional)",
-    "Fill in your API key. (Optional)": "Fill in your API key. (Optional)"
+    "Fill in your API key. (Optional)": "Fill in your API key. (Optional)",
+    "Collection Add/Delete": "Collection Add/Delete",
+    "To be added Collection Name": "Collection Name To be added",
+    "Collection Name": "Collection Name",
+    "Add Collection": "Add Collection",
+    "Delete Collection": "Delete Collection",
+    "Collection added successfully.": "Collection added successfully.",
+    "Please enter the collection name.": "Please enter the collection name.",
+    "Collection deleted successfully.": "Collection deleted successfully.",
+    "Embedding completed!": "Embedding completed!"
 }

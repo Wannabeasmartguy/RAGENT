@@ -303,7 +303,7 @@ async def query_docs_in_collection(
 @router.post("/add-docs")
 async def add_docs_to_collection(
     name: str,
-    documents: List[Document],
+    documents: List[Dict],
     embedding_model: LC_Embeddings = Depends(create_lc_embedding_model),
     knowledgebase_collections: List[str] = Depends(list_chroma_collections)
 ) -> None:
@@ -312,7 +312,7 @@ async def add_docs_to_collection(
 
     Args:
         name (str): 知识库名称
-        documents (List[str]): 文档的具体内容列表
+        documents (List[Dict]): 文档的具体内容列表，包含两个键：page_content 和 metadata
         knowledgebase_collections (List[str], optional): 知识库的所有 collection
     '''
     # Check if collection exists
@@ -326,19 +326,19 @@ async def add_docs_to_collection(
     )
 
     # Add documents to collection
-    collection_in_client.add_documents(
-        documents=documents
-    )
-
-    # # 使用列表推导式构造符合要求的text和metadata list
-    # page_content = [doc["page_content"] for doc in documents]
-    # metadatas = [doc["metadata"] for doc in documents]
-
-    # # Add texts to collection
-    # collection_in_client.add_texts(
-    #     texts=page_content,
-    #     metadatas=metadatas,
+    # collection_in_client.add_documents(
+    #     documents=documents
     # )
+
+    # 使用列表推导式构造符合要求的text和metadata list
+    page_content = [doc["page_content"] for doc in documents]
+    metadatas = [doc["metadata"] for doc in documents]
+
+    # Add texts to collection
+    collection_in_client.add_texts(
+        texts=page_content,
+        metadatas=metadatas,
+    )
 
 
 @router.post("/delete-whole-file-in-collection")

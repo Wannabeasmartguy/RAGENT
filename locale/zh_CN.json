@@ -32,5 +32,14 @@
     "Llamafile endpoint": "终结点",
     "Llamafile API key": "API KEY",
     "Fill in custom model name. (Optional)": "填写自定义模型名称（可选）",
-    "Fill in your API key. (Optional)": "填写你的 API 密钥（可选）"
+    "Fill in your API key. (Optional)": "填写你的 API 密钥（可选）",
+    "Collection Add/Delete": "知识库创建/删除",
+    "To be added Collection Name": "将要创建的知识库名称",
+    "Collection Name": "知识库名称",
+    "Add Collection": "创建知识库",
+    "Delete Collection": "删除知识库",
+    "Collection added successfully.": "知识库创建成功！",
+    "Please enter the collection name.": "请输入知识库名称。",
+    "Collection deleted successfully.": "知识库删除成功",
+    "Embedding completed!": "文件嵌入完成！"
 }
