@@ -29,6 +29,14 @@ DEFAULT_COLLECTION_NAME = "default_collection"
 
 class ChromaVectorStoreProcessStrategy(ABC):
     @abstractmethod
+    def model_dir_verify(self, model_name_or_path: str) -> None:
+        pass
+
+    @abstractmethod
+    def download_model(self, model_name_or_path: str, repo_id: str) -> None:
+        pass
+
+    @abstractmethod
     def list_all_knowledgebase_collections(self,) -> List[str]:
         pass
 
@@ -144,6 +152,42 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             embedding_model_name_or_path,
             **openai_kwargs
         )
+
+    
+    def model_dir_verify(self, model_name_or_path: str):
+        """
+        Verify the model directory. If the model_name_or_path is a directory, it will be used as the model directory.
+        If the model_name_or_path doesn't exist, it will be created.
+
+        Args:
+            model_name_or_path (str): The model name or path. It's a directory path, consists of "models_dir_path/model_name".
+        """
+        if not os.path.exists(model_name_or_path):
+            # 创建模型目录
+            # os.makedirs(model_name_or_path, exist_ok=True)
+
+            create_info = i18n("You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.")
+            return create_info
+        else:
+            # 模型目录存在
+            return None
+    
+    
+    def download_model(self, model_name_or_path: str, repo_id: str) -> None:
+        """
+        Download the model from Hugging Face Hub.
+
+        Args:
+            model_name_or_path (str): The model name or path. It's a directory path, consists of "models_dir_path/model_name".
+        """
+        # 下载模型
+        os.makedirs(model_name_or_path, exist_ok=True)
+        snapshot_download(
+            repo_id=repo_id,
+            local_dir=model_name_or_path,
+        )
+        
+        return i18n("Model downloaded successfully!")
     
     
     def list_all_knowledgebase_collections(self) -> List[str]:

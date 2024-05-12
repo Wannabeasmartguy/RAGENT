@@ -15,7 +15,7 @@
     "Embed Model Type": "Embed Model Type",
     "Embed Model": "Embed Model",
     "Knowledge Base Choose": "Knowledge Base Choose",
-    "Reinitialize Knowledge Base": "Reinitialize Knowledge Base",
+    "Reinitialize Knowledge Base": "Refresh",
     "Upload File": "Upload File",
     "File Handling Configuration": "File Preprocessing Configuration",
     "Chunk Size": "Chunk Size",
@@ -41,5 +41,17 @@
     "Collection added successfully.": "Collection added successfully.",
     "Please enter the collection name.": "Please enter the collection name.",
     "Collection deleted successfully.": "Collection deleted successfully.",
-    "Embedding completed!": "Embedding completed!"
+    "Embedding completed!": "Embedding completed!",
+    "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.": "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.",
+    "Model downloaded successfully!": "Model downloaded successfully!",
+    "Local embedding model download": "Local embedding model download",
+    "Huggingface repo id": "Huggingface repo id",
+    "Paste huggingface repo id here": "Paste huggingface repo id here",
+    "Download embedding model": "Download embedding model",
+    "### Choose files you want to embed": "## Choose files you want to embed",
+    "### Knowledge Base Setting": "## Knowledge Base Setting",
+    "Content Preview": "Content Preview",
+    "Clear File": "Clear File Uploaded",
+    "Knowledge Base ": "Knowledge Base ",
+    " 's files: ": " 's files: "
 }

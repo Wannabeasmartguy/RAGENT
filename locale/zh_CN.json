@@ -15,7 +15,7 @@
     "Embed Model Type": "嵌入模型类型",
     "Embed Model": "嵌入模型",
     "Knowledge Base Choose": "选择知识库",
-    "Reinitialize Knowledge Base": "重新初始化知识库",
+    "Reinitialize Knowledge Base": "刷新知识库",
     "Upload File": "上传文件",
     "File Handling Configuration": "文件预处理配置",
     "Chunk Size": "分块大小",
@@ -41,5 +41,17 @@
     "Collection added successfully.": "知识库创建成功！",
     "Please enter the collection name.": "请输入知识库名称。",
     "Collection deleted successfully.": "知识库删除成功",
-    "Embedding completed!": "文件嵌入完成！"
+    "Embedding completed!": "文件嵌入完成！",
+    "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.": "你还没有这个嵌入模型。请先输入 huggingface 模型 'repo_id' 来下载模型。",
+    "Model downloaded successfully!": "模型下载成功！",
+    "Local embedding model download": "本地嵌入模型下载",
+    "Huggingface repo id": "Huggingface 仓库 id",
+    "Paste huggingface repo id here": "在这里粘贴 huggingface 仓库 id",
+    "Download embedding model": "下载嵌入模型",
+    "### Choose files you want to embed": "### 嵌入文件管理",
+    "### Knowledge Base Setting": "### 知识库设置",
+    "Content Preview": "内容预览",
+    "Clear File": "清除已上传文件",
+    "Knowledge Base ": "知识库 ",
+    " 's files: ": " 中的文件："
 }
