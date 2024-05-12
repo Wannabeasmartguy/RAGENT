@@ -131,9 +131,10 @@ if add_collection_button:
 
 
 if delete_collection_button:
-    chroma_collection_processor.delete_knowledgebase_collection()
+    chroma_vectorstore_processor.delete_knowledgebase_collection(collection_name=collection_choose)
     st.success(i18n("Collection deleted successfully."))
     chroma_vectorstore_processor.list_all_knowledgebase_collections()
+    st.rerun()
 
 if reinitialize_colleciton_button:
     chroma_vectorstore_processor.list_all_knowledgebase_collections()

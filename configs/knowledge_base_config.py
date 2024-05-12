@@ -42,8 +42,6 @@ class ChromaVectorStoreProcessStrategy(ABC):
     ) -> None:
         pass
 
-
-class BaseProcessStrategy(ABC):
     @abstractmethod
     def delete_knowledgebase_collection(
         self,
@@ -51,6 +49,8 @@ class BaseProcessStrategy(ABC):
     ) -> None:
         pass
 
+
+class BaseProcessStrategy(ABC):
     @abstractmethod
     def list_collection_all_filechunks_content(
             collection_name: str,
@@ -177,6 +177,44 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             params={"name": collection_name},
         )
 
+        # 请求完成后，在 embedding_config.json 中更新该 collection 的全部信息
+        # 格式为
+        # {
+        #     collection_name: self.embedding_model_config.dict()
+        # }
+        
+        # 更新 embedding_config.json，如果没有该文件，则创建
+        if not os.path.exists("embedding_config.json"):
+            with open("embedding_config.json", "w") as f:
+                json.dump({collection_name: self.embedding_model_config.dict()}, f)
+        else:
+            with open("embedding_config.json", "r") as f:
+                collections_embedding_config = json.load(f)
+            collections_embedding_config[collection_name] = self.embedding_model_config.dict()
+            with open("embedding_config.json", "w") as f:
+                json.dump(collections_embedding_config, f, indent=4)
+    
+
+    def delete_knowledgebase_collection(self,collection_name:str) -> None:
+        """
+        Delete a knowledgebase collection by name.
+
+        Args:
+            collection_name (str): The name of the collection.
+        """
+        requesthandler.post(
+            "/knowledgebase/delete-knowledge-base",
+            data=None,
+            params={"name": collection_name},
+        )
+        
+        # 删除 embedding_config.json 中的该 collection 的信息
+        with open("embedding_config.json", "r") as f:
+            collections_embedding_config = json.load(f)
+        del collections_embedding_config[collection_name]
+        with open("embedding_config.json", "w") as f:
+            json.dump(collections_embedding_config, f, indent=4)
+            
 
 class ChromaCollectionProcessor(BaseProcessStrategy):
     def __init__(
@@ -191,20 +229,6 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type,
             embedding_model_name_or_path,
             **openai_kwargs
-        )
-
- 
-    def delete_knowledgebase_collection(self) -> None:
-        """
-        Delete a knowledgebase collection by name.
-
-        Args:
-            collection_name (str): The name of the collection.
-        """
-        requesthandler.post(
-            "/knowledgebase/delete-knowledge-base",
-            data=None,
-            params={"name": self.collection_name},
         )
 
 
