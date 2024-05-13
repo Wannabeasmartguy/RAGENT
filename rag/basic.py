@@ -204,8 +204,7 @@ class LCOpenAILikeRAGManager:
             llm_config (Dict): The configuration of the LLM.
             collection (str): The name of the Chroma collection to use for RAG.
         """
-        self.llm = OpenAILikeLLM()
-        self.llm_config = llm_config
+        self.llm = OpenAILikeLLM(**llm_config)
         self.collection = collection
 
     def invoke(
@@ -236,7 +235,7 @@ class LCOpenAILikeRAGManager:
             if_rerank=is_rerank,
         )
         
-        response = qa_system.invoke({"question": prompt,"chat_history": chat_history},**self.llm_config)
+        response = qa_system.invoke({"question": prompt,"chat_history": chat_history})
         
         return response
     
