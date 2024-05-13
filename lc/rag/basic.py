@@ -15,7 +15,7 @@ from langchain_community.embeddings.sentence_transformer import (
 )
 
 from lc.llm.openailike.completion import OpenAILikeLLM
-from lc.chain.rag.rerank import BgeRerank
+from lc.chain.rerank import BgeRerank
 from configs.knowledge_base_config import ChromaCollectionProcessor
 
 import json
