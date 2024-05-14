@@ -108,7 +108,7 @@ def text_split_execute(
         # st.write("File contents:")
         # st.write(temp_file.read())
     
-    splitted_docs = choose_text_splitter(file_path=temp_file,chunk_size=split_chunk_size,chunk_overlap=split_overlap)
+        splitted_docs = choose_text_splitter(file_path=temp_file,chunk_size=split_chunk_size,chunk_overlap=split_overlap)
     # 手动删除临时文件
     os.remove(temp_file.name)
     # st.write(splitted_docs[0].page_content)

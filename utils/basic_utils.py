@@ -1,3 +1,7 @@
+import streamlit as st
+from streamlit import cache_resource
+
+
 def split_list_by_key_value(dict_list, key, value):
     result = []
     temp_list = []
@@ -22,3 +26,11 @@ def split_list_by_key_value(dict_list, key, value):
         result.append(temp_list)
 
     return result
+
+
+class Meta(type):
+    def __new__(cls, name, bases, attrs):
+        for name, value in attrs.items():
+            if callable(value) and not name.startswith('__') and not name.startswith('_'):  # 跳过特殊方法和私有方法
+                attrs[name] = cache_resource(value)
+        return super().__new__(cls, name, bases, attrs)
