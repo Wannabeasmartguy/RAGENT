@@ -2,20 +2,11 @@ from fastapi import APIRouter, Depends
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-import openai
 import chromadb
+import uuid
 from chromadb.utils import embedding_functions
 
-from autogen.oai import OpenAIWrapper
-
-import langchain_community.vectorstores.chroma as lcchroma
-from langchain_community.embeddings.sentence_transformer import (
-    SentenceTransformerEmbeddings,
-)
-from langchain_openai.embeddings import AzureOpenAIEmbeddings
-from langchain_core.embeddings import Embeddings as LC_Embeddings
 from langchain_core.documents.base import Document
-from huggingface_hub import snapshot_download
 
 from typing import List, Dict, Literal
 
@@ -64,32 +55,6 @@ async def create_embedding_model(
         )
     else:
         raise ValueError("Unsupported embedding type")
-    
-    return embedding_model
-
-
-async def create_lc_embedding_model(
-    embedding_config: EmbeddingModelConfig,
-) -> LC_Embeddings:
-    '''根据embedding_type和embedding_model选择相应的模型'''
-    if embedding_config.embedding_type == "openai":
-        embedding_model = AzureOpenAIEmbeddings(
-            openai_api_type=embedding_config.api_type,
-            azure_endpoint=embedding_config.base_url,
-            openai_api_key=embedding_config.api_key,
-            openai_api_version=embedding_config.api_version,
-            azure_deployment=embedding_config.embedding_model_or_path,
-        )
-    elif embedding_config.embedding_type == "huggingface":
-        try:
-            embedding_model = SentenceTransformerEmbeddings(
-                model_name=embedding_config.embedding_model_or_path
-            )
-        except:
-            raise HTTPException(
-                status_code=400, 
-                detail="Invalid embedding model, please check the model name or use huggingface model name and try again."
-            )
     
     return embedding_model
     
@@ -235,9 +200,7 @@ async def list_all_files_in_collection_in_detail(
 
 @router.post("/list-all-files-metadata-name")
 async def list_all_files_metadata_name(
-    name: str,
-    knowledgebase_collections: List[str] = Depends(list_chroma_collections),
-    embedding_model: LC_Embeddings = Depends(create_lc_embedding_model)
+    collection: chromadb.Collection = Depends(get_chroma_specific_collection)
 ) -> List[str]:
     '''
     返回指定名称的 collection 中文件 metadata 的文件名
@@ -248,19 +211,8 @@ async def list_all_files_metadata_name(
 
     Returns:
         List[Dict]: 文件的具体内容列表，每个字典包含文件元数据和名称
-    '''
-
-    client = lcchroma.Chroma(
-        collection_name=name,
-        embedding_function=embedding_model,
-        persist_directory=KNOWLEDGE_BASE_PATH
-    )
-    
-    # Check if collection exists
-    if name not in knowledgebase_collections:
-        raise HTTPException(status_code=400, detail="Collection does not exist")
-    
-    client_data = client.get()
+    '''    
+    client_data = collection.get()
     unique_sources = set(client_data['metadatas'][i]['source'] for i in range(len(client_data['metadatas'])))
     # Extract actual file names
     file_names = [source.split('/')[-1].split('\\')[-1] for source in unique_sources]
@@ -304,8 +256,7 @@ async def query_docs_in_collection(
 async def add_docs_to_collection(
     name: str,
     documents: List[Dict],
-    embedding_model: LC_Embeddings = Depends(create_lc_embedding_model),
-    knowledgebase_collections: List[str] = Depends(list_chroma_collections)
+    collection: chromadb.Collection = Depends(get_chroma_specific_collection)
 ) -> None:
     '''
     将文档添加到指定名称的 collection 中，并进行向量化。
@@ -315,16 +266,6 @@ async def add_docs_to_collection(
         documents (List[Dict]): 文档的具体内容列表，包含两个键：page_content 和 metadata
         knowledgebase_collections (List[str], optional): 知识库的所有 collection
     '''
-    # Check if collection exists
-    if name not in knowledgebase_collections:
-        raise HTTPException(status_code=400, detail="Collection does not exist")
-    
-    collection_in_client = lcchroma.Chroma(
-        collection_name=name,
-        persist_directory=KNOWLEDGE_BASE_PATH,
-        embedding_function=embedding_model
-    )
-
     # Add documents to collection
     # collection_in_client.add_documents(
     #     documents=documents
@@ -333,20 +274,20 @@ async def add_docs_to_collection(
     # 使用列表推导式构造符合要求的text和metadata list
     page_content = [doc["page_content"] for doc in documents]
     metadatas = [doc["metadata"] for doc in documents]
+    ids = [str(uuid.uuid4()) for _ in page_content]
 
     # Add texts to collection
-    collection_in_client.add_texts(
-        texts=page_content,
+    collection.add(
+        documents=page_content,
         metadatas=metadatas,
+        ids=ids,
     )
 
 
 @router.post("/delete-whole-file-in-collection")
 async def delete_whole_file_in_collection(
-    name: str,
     files_name: str,
-    knowledgebase_collections: List[str] = Depends(list_chroma_collections),
-    embedding_model: LC_Embeddings = Depends(create_lc_embedding_model)
+    collection: chromadb.Collection = Depends(get_chroma_specific_collection)
 ) -> None:
     '''
     删除指定 collection 中的指定文件。
@@ -356,22 +297,12 @@ async def delete_whole_file_in_collection(
         file_name (str): 待删除的文件名
         knowledgebase_collections (List[str], optional): 知识库的所有 collection
     '''
-    # Check if collection exists
-    if name not in knowledgebase_collections:
-        raise HTTPException(status_code=400, detail="Collection does not exist")
-    
     # Delete file from collection
     # Initialize an empty list to store the ids
     ids_for_target_file = []
 
     # Get the documents from the collection
-    client = lcchroma.Chroma(
-        collection_name=name,
-        persist_directory=KNOWLEDGE_BASE_PATH,
-        embedding_function=embedding_model
-    )
-
-    metadata = client.get()
+    metadata = collection.get()
     
     # Loop over the metadata
     for i in range(len(metadata['metadatas'])):
@@ -381,7 +312,7 @@ async def delete_whole_file_in_collection(
             # If it matches, add the corresponding id to the list
             ids_for_target_file.append(metadata['ids'][i])
 
-    client.delete(ids=ids_for_target_file)
+    collection.delete(ids=ids_for_target_file)
 
     
 @router.post("/delete-specific-splitted-document")
