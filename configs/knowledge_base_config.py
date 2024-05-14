@@ -190,9 +190,13 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         return i18n("Model downloaded successfully!")
     
     
-    def list_all_knowledgebase_collections(self) -> List[str]:
+    @st.cache_data
+    def list_all_knowledgebase_collections(_self,counter: int) -> List[str]:
         """
         List all knowledgebase collections.
+
+        Args:
+            counter (int): No usage, just for update cache data.
 
         Returns:
             List[str]: A list of collection names.
@@ -318,23 +322,21 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
         return response
 
 
-    def list_all_filechunks_metadata_name(self) -> List[str]:
+    @st.cache_data
+    def list_all_filechunks_metadata_name(_self,counter:int) -> List[str]:
         """
         List all files content in a collection by file name.
         
         Args:
-            collection_name (str): The name of the collection.
-            embedding_model_type (str): The type of the embedding model.
-            embedding_model_name_or_path (str): The name or path of the embedding model.
-            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
+            counter (int): No usage, just for update cache data.
             
         Returns:
             List[str]: A list of file content.
         """
         response = requesthandler.post(
             "/knowledgebase/list-all-files-metadata-name",
-            data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name}
+            data=_self.embedding_model_config.dict(),
+            params={"name": _self.collection_name}
         )
         
         if "error" in response:
