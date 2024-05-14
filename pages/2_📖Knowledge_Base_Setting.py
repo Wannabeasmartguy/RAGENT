@@ -231,26 +231,11 @@ if file_upload:
     if upload_and_split_file_button:
         pages = []
         for file in file_upload:
-            file_name = file.name
-            # 获取文件类型，以在创建临时文件时使用正确的后缀
-            file_suffix = Path(file.name).suffix
-            # 获取文件名，不包含后缀
-            file_name_without_suffix = Path(file.name).stem
-
-            # delete 设置为 False,才能在解除绑定后使用 temp_file 进行分割
-            with tempfile.NamedTemporaryFile(prefix=file_name_without_suffix + "__",suffix=file_suffix,delete=False) as temp_file:
-                # stringio = StringIO(file.getvalue().decode())
-                temp_file.write(file.getvalue())
-                temp_file.seek(0)
-                # st.write(temp_file.name)
-                # st.write("File contents:")
-                # st.write(temp_file.read())
-            
-            splitted_docs = choose_text_splitter(file_path=temp_file,chunk_size=split_chunk_size,chunk_overlap=split_overlap)
-            # 手动删除临时文件
-            os.remove(temp_file.name)
-            # st.write(splitted_docs[0].page_content)
-            # st.write(splitted_docs)
+            splitted_docs = text_split_execute(
+                file=file,
+                split_chunk_size=split_chunk_size,
+                split_overlap=split_overlap,
+            )
 
             pages.extend(splitted_docs)
             st.session_state.pages = pages
