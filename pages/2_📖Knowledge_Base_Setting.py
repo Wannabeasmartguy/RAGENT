@@ -66,7 +66,7 @@ with st.sidebar:
         key="embed_model"
     )
     
-    with st.expander(label=i18n("Local embedding model download")):
+    with st.popover(label=i18n("Local embedding model download"),use_container_width=True):
         huggingface_repo_id_input = st.text_input(
             label=i18n("Huggingface repo id"),
             placeholder=i18n("Paste huggingface repo id here"),
@@ -117,7 +117,7 @@ st.write(i18n("### Knowledge Base Setting"))
 collection_choose_placeholder = st.empty()
 with collection_choose_placeholder.container():
     st.write(i18n("Knowledge Base Choose"))
-    collection_column, reinit_column = st.columns([0.8, 0.2])
+    collection_column, reinit_column = st.columns([0.7, 0.3])
     with collection_column:
         collection_choose = st.selectbox(
             label=i18n("Knowledge Base Choose"), 
@@ -244,11 +244,17 @@ with clear_column:
     if clear_file_button:
         st.session_state["file_uploader_key"] += 1
         st.session_state.pages = []
-        st.experimental_rerun()
+        st.rerun()
 
 embed_button = st.button(label=i18n("② Embed Files"),use_container_width=True,type="primary")
-        
-preview_placeholder = st.empty()
+
+st.write("")
+st.write(i18n("Choose the file you want to preview"))
+
+option_column,preview_column = st.columns([0.7,0.3])
+
+with option_column:
+    preview_placeholder = st.empty()
 
 if file_upload:
     if upload_and_split_file_button:
@@ -263,15 +269,22 @@ if file_upload:
             pages.extend(splitted_docs)
             st.session_state.pages = pages
 
+    # 优化预览文件列表的显示效果
+    # 仅取每个文件的前50个字符作预览
+    pages_option_preview = {f"{page.page_content[:50]}...": page.page_content for page in st.session_state.pages}
+
     option = preview_placeholder.selectbox(
         label=i18n("Choose the file you want to preview"),
         # label_visibility="collapsed",
-        options=st.session_state.pages,
+        options=pages_option_preview.keys(),
+        label_visibility="collapsed",
     )
-    with st.expander(label=i18n("Content Preview")):
-        with st.container(border=True):
-            if option:
-                st.write(option.page_content)
+
+    with preview_column:
+        with st.popover(label=i18n("Content Preview"),use_container_width=True):
+            with st.container(border=True):
+                if option:
+                    st.write(pages_option_preview[option])
 else:
     file_upload.clear()
     preview_placeholder.empty()

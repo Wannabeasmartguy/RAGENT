@@ -93,7 +93,7 @@ with st.sidebar:
         )
 
     if select_box0 == "Llamafile":
-        with st.expander(label=i18n("Llamafile config")):
+        with st.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
                 value="http://127.0.0.1:8080/v1",
