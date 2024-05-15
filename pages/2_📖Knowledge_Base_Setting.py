@@ -304,12 +304,13 @@ with column2:
 delete_file_button = st.button(label=i18n("Delete the File"),use_container_width=True)
 
 if get_knowledge_base_info_button:
-    chroma_info_html = get_chroma_file_info(
-        persist_path="./knowledgebase",
-        collection_name=chroma_collection_processor.collection_name,
-        file_name=file_names_inchroma,
-        limit=len(chroma_collection_processor.list_collection_all_filechunks_content()),
-        advance_info=False)
+    with st.spinner(i18n("Getting file info...")):
+        chroma_info_html = get_chroma_file_info(
+            persist_path="./knowledgebase",
+            collection_name=chroma_collection_processor.collection_name,
+            file_name=file_names_inchroma,
+            limit=len(chroma_collection_processor.list_collection_all_filechunks_content()),
+            advance_info=False)
     components.html(chroma_info_html,
                     height=800)
 

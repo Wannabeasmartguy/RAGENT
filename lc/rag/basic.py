@@ -17,8 +17,10 @@ from langchain_community.embeddings.sentence_transformer import (
 from lc.llm.openailike.completion import OpenAILikeLLM
 from lc.chain.rerank import BgeRerank
 from configs.knowledge_base_config import ChromaCollectionProcessor
+from api.routers.knowledgebase import KNOWLEDGE_BASE_PATH
 
 import json
+
 
 def create_lc_embedding_model(
     # embedding_config: Dict[str, Any],
@@ -95,7 +97,6 @@ def create_conversational_retrieval_system(
         llm,
         compressor, 
         collection_name: str,
-        metadata: Dict,
         filter_goal: List = [0],
         filter_type: Literal['all', 'specific'] = "all",
         if_hybrid_retrieve: bool = False, 
@@ -122,6 +123,7 @@ def create_conversational_retrieval_system(
     vectorstore = Chroma(
         collection_name=collection_name,
         embedding_function=embedding_function,
+        persist_directory=KNOWLEDGE_BASE_PATH
     )
 
     sparse_retrieve_kwargs = {
@@ -131,7 +133,7 @@ def create_conversational_retrieval_system(
         vec_retrieve_search_kwargs = {
             'k': 6
         }
-        metadatas_in_sparse_retrieve = metadata
+        metadatas_in_sparse_retrieve = vectorstore.get()["metadatas"]
         
     elif filter_type == "specific":
         vec_retrieve_search_kwargs = {
@@ -141,7 +143,7 @@ def create_conversational_retrieval_system(
             }
         }
         # metadatas_in_sparse_retrieve = filter_documents_by_source(vectorstore.get()["metadatas"],filter_goal)
-        metadatas_in_sparse_retrieve = metadata.get("metadatas",[])
+        metadatas_in_sparse_retrieve = vectorstore.get("metadatas",[])
 
     retriever = vectorstore.as_retriever(search_type="mmr", search_kwargs=vec_retrieve_search_kwargs)
 
@@ -149,7 +151,7 @@ def create_conversational_retrieval_system(
         try:
             bm25_retriever = BM25Retriever.from_texts(
                 vectorstore.get()["documents"],
-                metadatas=metadatas_in_sparse_retrieve[0],
+                metadatas=metadatas_in_sparse_retrieve,
                 kwargs=sparse_retrieve_kwargs
             )
             ensemble_retriever = EnsembleRetriever(
@@ -157,7 +159,7 @@ def create_conversational_retrieval_system(
                 weights=[hybrid_retriever_weight, 1 - hybrid_retriever_weight]
             )
         except Exception as e:
-            raise "Could not import rank_bm25, please install with `pip install rank_bm25`" from e
+            raise BaseException("Could not import rank_bm25, please install with `pip install rank_bm25`") from e
 
     if if_rerank:
         if if_hybrid_retrieve:
@@ -211,9 +213,9 @@ class LCOpenAILikeRAGManager:
             self, 
             prompt: str,
             chat_history: List[Dict],
-            metadata: Dict,
             is_rerank: bool = False,
             is_hybrid_retrieve: bool = False,
+            hybrid_retriever_weight: float = 0.5,
     ) -> Dict:
         """
         Invoke the RAG process.
@@ -230,8 +232,8 @@ class LCOpenAILikeRAGManager:
             llm=self.llm,
             compressor=reranker,
             collection_name=self.collection,
-            metadata=metadata,
             if_hybrid_retrieve=is_hybrid_retrieve,
+            hybrid_retriever_weight=hybrid_retriever_weight,
             if_rerank=is_rerank,
         )
         

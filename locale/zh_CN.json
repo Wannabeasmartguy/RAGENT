@@ -53,5 +53,6 @@
     "Content Preview": "内容预览",
     "Clear File": "清除已上传文件",
     "Knowledge Base ": "知识库 ",
-    " 's files: ": " 中的文件："
+    " 's files: ": " 中的文件：",
+    "Getting file info...": "正在获取文档信息..."
 }
