@@ -6,7 +6,7 @@ from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from llm.fake.completion import fake_agent_chat_completion
-from utils.basic_utils import split_list_by_key_value
+from utils.basic_utils import model_selector,split_list_by_key_value
 
 from autogen.cache import Cache
 
@@ -93,17 +93,6 @@ def initialize_agent_chat_history(chat_history:List[dict],
 initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
 
 
-def model_selector(model_type):
-    if model_type == "OpenAI":
-        return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "Groq":
-        return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif model_type == "Llamafile":
-        return ["Noneed"]
-    else:
-        return None
-    
-
 with st.sidebar:
     st.image(logo_path)
 
@@ -122,16 +111,36 @@ with st.sidebar:
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["OpenAI","Groq","Llamafile"],
+        options=["AOAI","OpenAI","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
     
-    select_box1 = st.selectbox(
-        label=i18n("Model"),
-        options=model_selector(st.session_state["model_type"]),
-        key="model"
-    )
+    if select_box0 != "Llamafile":
+        select_box1 = st.selectbox(
+            label=i18n("Model"),
+            options=model_selector(st.session_state["model_type"]),
+            key="model"
+        )
+    elif select_box0 == "Llamafile":
+        select_box1 = st.text_input(
+            label=i18n("Model"),
+            value="Noneed",
+            key="model",
+            placeholder=i18n("Fill in custom model name. (Optional)")
+        )
+        with st.popover(label=i18n("Llamafile config"),use_container_width=True):
+            llamafile_endpoint = st.text_input(
+                label=i18n("Llamafile endpoint"),
+                value="http://127.0.0.1:8080/v1",
+                key="llamafile_endpoint"
+            )
+            llamafile_api_key = st.text_input(
+                label=i18n("Llamafile API key"),
+                value="noneed",
+                key="llamafile_api_key",
+                placeholder=i18n("Fill in your API key. (Optional)")
+            )
 
     history_length = st.number_input(
         label=i18n("History length"),
@@ -167,12 +176,28 @@ with st.sidebar:
 
 
 # 根据选择的模型和类型，生成相应的 config_list
-if st.session_state["model_type"] == "OpenAI":
+if st.session_state["model_type"] == "AOAI":
     config_list = aoai_config_generator(model=st.session_state["model"])
+if st.session_state["model_type"] == "OpenAI":
+    config_list = aoai_config_generator(
+        model=st.session_state["model"],
+        api_key=os.getenv("OPENAI_API_KEY"),
+        base_url="https://api.openai.com/v1",
+        api_type="openai",
+        api_version=None,
+    )
 elif st.session_state["model_type"] == "Groq":
     config_list = groq_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Llamafile":
-    config_list = llamafile_config_generator(model=st.session_state["model"])
+    if st.session_state["llamafile_api_key"] == "":
+        custom_api_key = "noneed"
+    else:
+        custom_api_key = st.session_state["llamafile_api_key"]
+    config_list = llamafile_config_generator(
+        model = st.session_state["model"],
+        base_url = st.session_state["llamafile_endpoint"],
+        api_key = custom_api_key,
+    )
 
 if agent_type == "Reflection":
     user_proxy, writing_assistant, reflection_assistant = reflection_agent_with_nested_chat(config_list=config_list,max_message=history_length)

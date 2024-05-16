@@ -6,6 +6,7 @@ from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
+from copy import deepcopy
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,7 +17,7 @@ from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
-from copy import deepcopy
+from utils.basic_utils import model_selector,save_basic_chat_history
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -41,29 +42,13 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # Display chat messages from history on app rerun
+@st.cache_data
 def write_chat_history(chat_history):
     for message in chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
 write_chat_history(st.session_state.chat_history)
-            
-
-def model_selector(model_type):
-    if model_type == "OpenAI" or model_type == "AOAI":
-        return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "Ollama":
-        try:
-           model_list = get_ollama_model_list() 
-           return model_list
-        except:
-            return ["qwen:7b-chat"]
-    elif model_type == "Groq":
-        return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif model_type == "Llamafile":
-        return ["Noneed"]
-    else:
-        return None
 
 
 with st.sidebar:
@@ -91,8 +76,6 @@ with st.sidebar:
             key="model",
             placeholder=i18n("Fill in custom model name. (Optional)")
         )
-
-    if select_box0 == "Llamafile":
         with st.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
@@ -133,10 +116,46 @@ with st.sidebar:
 
     st.write("---")
 
-    saved_dialog = st.selectbox(
+
+    dialog_settings = st.popover(
+        label=i18n("Saved dialog settings"),
+        use_container_width=True,
+        # TODO:未完成保存、删除和读取功能，先disable
+        disabled=True,
+    )
+    
+    # 管理已有对话
+    saved_dialog = dialog_settings.selectbox(
         label=i18n("Saved dialog"),
+        # TODO: 读取本地文件夹中的对话
         options=["None"],
     )
+    load_dialog_button = dialog_settings.button(
+        label=i18n("Load selected dialog"),
+        use_container_width=True,
+    )
+    delete_dialog_button = dialog_settings.button(
+        label=i18n("Delete selected dialog"),
+        use_container_width=True,
+    )
+    if load_dialog_button:
+        # TODO: 加载对话
+        pass
+    if delete_dialog_button:
+        # TODO: 删除对话
+        pass
+
+    # 保存对话
+    dialog_name = dialog_settings.text_input(
+        label=i18n("Dialog name"),
+    )
+    save_dialog_button = dialog_settings.button(
+        label=i18n("Save dialog"),
+        use_container_width=True,
+    )
+    if save_dialog_button:
+        # TODO: 保存对话到本地文件
+        pass
 
 
 if st.session_state["model_type"] == "OpenAI":
@@ -158,7 +177,8 @@ elif st.session_state["model_type"] == "Llamafile":
     config_list = llamafile_config_generator(
         model = st.session_state["model"],
         base_url = st.session_state["llamafile_endpoint"],
-        api_key = custom_api_key,)
+        api_key = custom_api_key,
+    )
 
 
 # Accept user input

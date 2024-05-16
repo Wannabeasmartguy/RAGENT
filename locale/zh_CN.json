@@ -54,5 +54,10 @@
     "Clear File": "清除已上传文件",
     "Knowledge Base ": "知识库 ",
     " 's files: ": " 中的文件：",
-    "Getting file info...": "正在获取文档信息..."
+    "Getting file info...": "正在获取文档信息...",
+    "Load selected dialog": "加载对话",
+    "Saved dialog settings": "保存设置",
+    "Dialog name": "对话名称",
+    "Save dialog": "保存对话",
+    "Delete selected dialog": "删除对话"
 }

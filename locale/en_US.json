@@ -54,5 +54,10 @@
     "Clear File": "Clear File Uploaded",
     "Knowledge Base ": "Knowledge Base ",
     " 's files: ": " 's files: ",
-    "Getting file info...": "Getting file info..."
+    "Getting file info...": "Getting file info...",
+    "Load selected dialog": "Load dialog",
+    "Saved dialog settings": "Saved dialog settings",
+    "Dialog name": "Dialog name",
+    "Save dialog": "Save dialog",
+    "Delete selected dialog": "Delete dialog"
 }

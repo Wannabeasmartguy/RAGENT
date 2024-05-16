@@ -34,10 +34,10 @@ def llamafile_config_generator(**kwargs):
 class LlamafileClient:
     '''符合 Autogen 规范的 llamafile Completion Client .'''
     def __init__(self,config: dict):
-        self.model = "noneed"
+        self.model = config.get("model","noneed")
         self.client = OpenAI(
             base_url=config.get("base_url","http://127.0.0.1:8080/v1"),
-            api_key="noneed"
+            api_key=config.get("api_key","noneed")
         )
 
         get_config_param:dict = config.get("params",{})
