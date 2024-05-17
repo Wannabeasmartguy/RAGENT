@@ -17,6 +17,7 @@ from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
+from configs.chat_config import ChatProcessor
 from utils.basic_utils import model_selector,save_basic_chat_history
 
 
@@ -201,33 +202,16 @@ if prompt := st.chat_input("What is up?"):
 
                 # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
                 # 一般都是在的
-                if st.session_state["model_type"].lower() in SUPPORTED_SOURCES["sources"]:
-
-                    # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
-                    if SUPPORTED_SOURCES["sources"][st.session_state["model_type"].lower()] == "sdk":
-                        path = "/chat/openai-like-chat/openai"
-
-                    # 否则，走 request 或另行定义的 SDK （如 Groq）
-                    else:
-                        # path = "/chat/openai-like-chat/xxxx"
-                        pass
-
-                response = requesthandler.post(
-                    path,
-                    data={
-                        "llm_config": config_list[0],
-                        "llm_params": config_list[0].get(
-                            "params",
-                            {
-                                "temperature": 0.5,
-                                "top_p": 0.1,
-                                "max_tokens": 4096
-                            }
-                        ),
-                        "messages": processed_messages
-                    }
+                chatprocessor = ChatProcessor(
+                    requesthandler=requesthandler,
+                    model_type=st.session_state["model_type"],
+                    llm_config=config_list[0],
                 )
 
+                response = chatprocessor.create_completion(
+                    messages=processed_messages
+                )
+                
             # TODO：流式调用
             else:
                 # response = client.create_completion_stream(
