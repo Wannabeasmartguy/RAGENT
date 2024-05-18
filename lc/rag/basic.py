@@ -8,6 +8,7 @@ from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriev
 from langchain_community.retrievers.bm25 import BM25Retriever
 from langchain_community.vectorstores.chroma import Chroma
 from langchain.schema.retriever import BaseRetriever
+from langchain.memory import ConversationBufferMemory
 
 from langchain_openai.embeddings import AzureOpenAIEmbeddings
 from langchain_community.embeddings.sentence_transformer import (
@@ -15,6 +16,7 @@ from langchain_community.embeddings.sentence_transformer import (
 )
 
 from lc.llm.openailike.completion import OpenAILikeLLM
+from lc.chain.embed import CustomEmbeddings
 from lc.chain.rerank import BgeRerank
 from configs.knowledge_base_config import ChromaCollectionProcessor
 from api.routers.knowledgebase import KNOWLEDGE_BASE_PATH
@@ -41,7 +43,7 @@ def create_lc_embedding_model(
         )
     elif embedding_config[collection_name]["embedding_type"] == "huggingface":
         embedding_config_processed = embedding_config[collection_name]
-        embedding_model = SentenceTransformerEmbeddings(
+        embedding_model = CustomEmbeddings(
             model_name=embedding_config[collection_name]["embedding_model_or_path"]
         )
 
@@ -197,6 +199,7 @@ class LCOpenAILikeRAGManager:
     def __init__(
             self, 
             llm_config: Dict,
+            llm_params: Dict,
             collection: str
     ):
         """
@@ -206,7 +209,10 @@ class LCOpenAILikeRAGManager:
             llm_config (Dict): The configuration of the LLM.
             collection (str): The name of the Chroma collection to use for RAG.
         """
-        self.llm = OpenAILikeLLM(**llm_config)
+        self.llm = OpenAILikeLLM(
+            **llm_config,
+            **llm_params
+        )
         self.collection = collection
 
     def invoke(
@@ -227,7 +233,11 @@ class LCOpenAILikeRAGManager:
             response: The generated response.
                 Include "answer", and "content", which is the source files retrieved from the Chroma collection.
         """
-        reranker = self.create_reranker(if_rerank=is_rerank)
+        if is_rerank:
+            reranker = self.create_reranker(if_rerank=is_rerank)
+        else:
+            reranker = None
+
         qa_system = create_conversational_retrieval_system(
             llm=self.llm,
             compressor=reranker,
@@ -236,8 +246,23 @@ class LCOpenAILikeRAGManager:
             hybrid_retriever_weight=hybrid_retriever_weight,
             if_rerank=is_rerank,
         )
+
+        # 匹配 Langchain 的 chat_history 格式，需要使用 ConversationBufferMemory
+        if len(chat_history) >= 2 :
+            chat_memory = ConversationBufferMemory(memory_key="chat_memory", return_messages=True)
+
+            # 每两个消息为一个对话，添加到chat_memory中
+            for i in range(0, len(chat_history), 2):
+                chat_memory.save_context(
+                    {"input": chat_history[i]["content"]}, {"output": chat_history[i+1]["content"]}
+                )
+            # 需要先把 chat_memory load 出来，才能在 prompt 中使用
+            chat_history_loaded = chat_memory.load_memory_variables({})['chat_memory']
+        else:
+            chat_history_loaded = []
         
-        response = qa_system.invoke({"question": prompt,"chat_history": chat_history})
+        
+        response = qa_system.invoke({"question": prompt,"chat_history": chat_history_loaded})
         
         return response
     

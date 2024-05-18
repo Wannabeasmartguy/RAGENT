@@ -106,6 +106,7 @@ with st.sidebar:
     if clear_button:
         st.session_state.chat_history = []
         write_chat_history(st.session_state.chat_history)
+        st.rerun()
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
