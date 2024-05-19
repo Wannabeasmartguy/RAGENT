@@ -60,7 +60,8 @@ async def create_agentchat_lc_rag_response(
         chat_history=chat_history,
         is_rerank=is_rerank,
         is_hybrid_retrieve=is_hybrid_retrieve,
-        hybrid_retriever_weight=hybrid_retriever_weight
+        hybrid_retriever_weight=hybrid_retriever_weight,
+        sources_num=6
     )
 
     return response

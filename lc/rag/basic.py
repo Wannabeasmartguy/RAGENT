@@ -99,6 +99,7 @@ def create_conversational_retrieval_system(
         llm,
         compressor, 
         collection_name: str,
+        sources_num: int = 6,
         filter_goal: List = [0],
         filter_type: Literal['all', 'specific'] = "all",
         if_hybrid_retrieve: bool = False, 
@@ -129,17 +130,17 @@ def create_conversational_retrieval_system(
     )
 
     sparse_retrieve_kwargs = {
-                'k': 6
+                'k': sources_num
             }
     if filter_type == "all":
         vec_retrieve_search_kwargs = {
-            'k': 6
+            'k': sources_num
         }
         metadatas_in_sparse_retrieve = vectorstore.get()["metadatas"]
         
     elif filter_type == "specific":
         vec_retrieve_search_kwargs = {
-            'k': 6,
+            'k': sources_num,
             "filter":{
                 "source":filter_goal[0]
             }
@@ -222,6 +223,7 @@ class LCOpenAILikeRAGManager:
             is_rerank: bool = False,
             is_hybrid_retrieve: bool = False,
             hybrid_retriever_weight: float = 0.5,
+            sources_num: int = 6
     ) -> Dict:
         """
         Invoke the RAG process.
@@ -245,6 +247,7 @@ class LCOpenAILikeRAGManager:
             if_hybrid_retrieve=is_hybrid_retrieve,
             hybrid_retriever_weight=hybrid_retriever_weight,
             if_rerank=is_rerank,
+            sources_num=sources_num
         )
 
         # 匹配 Langchain 的 chat_history 格式，需要使用 ConversationBufferMemory

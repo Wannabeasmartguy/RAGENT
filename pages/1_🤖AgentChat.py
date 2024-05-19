@@ -8,9 +8,49 @@ from llm.llamafile.completion import llamafile_config_generator
 from llm.fake.completion import fake_agent_chat_completion
 from utils.basic_utils import model_selector,split_list_by_key_value
 
+from configs.chat_config import AgentChatProcessor
+from configs.knowledge_base_config import ChromaVectorStoreProcessor
+from api.dependency import APIRequestHandler
+
 from autogen.cache import Cache
 
 from typing import List
+
+
+@st.cache_data
+def write_rag_chat_history(chat_history,sources):
+    for message in chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+            if message["role"] == "assistant":
+                # st.markdown("**Source**:")
+                # 展示引用源
+                row1 = st.columns(3)
+                row2 = st.columns(3)
+
+                for content_source in sources:
+                    if message["content"] in content_source:
+                        # 获取引用文件
+                        response_sources_list = content_source[message["content"]]
+
+                for index,pop in enumerate(row1+row2):
+                    a = pop.popover(f"引用文件",use_container_width=True)
+                    file_name = response_sources_list[index]["metadata"]["source"]
+                    file_content = response_sources_list[index]["page_content"]
+                    a.text(f"引用文件{file_name}")
+                    a.code(file_content,language="plaintext")
+
+
+requesthandler = APIRequestHandler("localhost", 8000)
+
+
+vectorstore_processor = ChromaVectorStoreProcessor(
+    # 仅需要展示所有的 Collection 即可，故所有参数都为空
+    embedding_model_name_or_path="",
+    embedding_model_type="huggingface",
+)
+
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
@@ -20,6 +60,13 @@ if "agent_chat_history_displayed" not in st.session_state:
     st.session_state.agent_chat_history_displayed = []
 if "agent_chat_history_total" not in st.session_state:
     st.session_state.agent_chat_history_total = []
+
+# Initialize RAG chat history, to avoid error when reloading the page
+if "rag_chat_history_displayed" not in st.session_state:
+    st.session_state.rag_chat_history_displayed = []
+if "rag_sources" not in st.session_state:
+    st.session_state.rag_sources = []
+
 
 VERSION = "0.0.1"
 current_directory = os.path.dirname(__file__)
@@ -105,9 +152,34 @@ with st.sidebar:
 
     agent_type = st.selectbox(
         label=i18n("Agent type"),
-        options=["Reflection","RAG"],
+        options=["Reflection","RAG_lc"],
         key="agent_type"
     )
+
+    if agent_type == "RAG_lc":
+        with st.popover(label=i18n("RAG Setting"),use_container_width=True):
+            collection_selectbox = st.selectbox(
+                label=i18n("Collection"),
+                options=vectorstore_processor.list_all_knowledgebase_collections(1)
+            )
+            is_rerank = st.checkbox(
+                label=i18n("Rerank"),
+                value=False,
+                key="is_rerank"
+            )
+            is_hybrid_retrieve = st.checkbox(
+                label=i18n("Hybrid retrieve"),
+                value=False,
+                key="is_hybrid_retrieve"
+            )
+            hybrid_retrieve_weight = st.slider(
+                label=i18n("Hybrid retrieve weight"),
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.1,
+                key="hybrid_retrieve_weight"
+            )
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),
@@ -154,9 +226,14 @@ with st.sidebar:
     export_button = cols[0].button(label=i18n("Export chat history"))
     clear_button = cols[1].button(label=i18n("Clear chat history"))
     if clear_button:
-        st.session_state.agent_chat_history_displayed = []
-        st.session_state.agent_chat_history_total = []
-        initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
+        if agent_type == "RAG_lc":
+            st.session_state.rag_chat_history_displayed = []
+            st.session_state.rag_sources = []
+            write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
+        elif agent_type == "Reflection":
+            st.session_state.agent_chat_history_displayed = []
+            st.session_state.agent_chat_history_total = []
+            initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.agent_chat_history_total])
@@ -173,6 +250,10 @@ with st.sidebar:
         with open(filename, "w") as f:
             f.write(chat_history)
         st.toast(body=i18n(f"Chat history exported to {filename}"),icon="🎉")
+
+
+if agent_type =="RAG_lc":
+    write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
 
 
 # 根据选择的模型和类型，生成相应的 config_list
@@ -198,6 +279,14 @@ elif st.session_state["model_type"] == "Llamafile":
         base_url = st.session_state["llamafile_endpoint"],
         api_key = custom_api_key,
     )
+
+
+agentchat_processor = AgentChatProcessor(
+    requesthandler=requesthandler,
+    model_type=select_box0,
+    llm_config=config_list[0],
+)
+
 
 if agent_type == "Reflection":
     user_proxy, writing_assistant, reflection_assistant = reflection_agent_with_nested_chat(config_list=config_list,max_message=history_length)
@@ -239,5 +328,47 @@ if prompt := st.chat_input("What is up?"):
             st.session_state.agent_chat_history_displayed.append({"role": "assistant", "content": result.summary})
             st.write(result.summary)
 
+
+    elif agent_type == "RAG_lc":
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Add user message to chat history
+        st.session_state.rag_chat_history_displayed.append({"role": "user", "content": prompt})
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = agentchat_processor.create_rag_agent_response(
+                    name=collection_selectbox,
+                    messages=st.session_state.rag_chat_history_displayed,
+                    is_rerank=is_rerank,
+                    is_hybrid_retrieve=is_hybrid_retrieve,
+                    hybrid_retriever_weight=hybrid_retrieve_weight
+                )
+            
+            # 将回答添加入 st.sesstion
+            st.session_state.rag_chat_history_displayed.append({"role": "assistant", "content": response["answer"]})
+
+            # 将引用sources添加到 st.session
+            st.session_state.rag_sources.append({response["answer"]: response["source_documents"]})
+            
+            # 展示回答
+            st.write(response["answer"])
+
+            # 展示引用源
+            row1 = st.columns(3)
+            row2 = st.columns(3)
+
+            for content_source in st.session_state.rag_sources:
+                if response["answer"] in content_source:
+                    # 获取引用文件
+                    response_sources_list = content_source[response["answer"]]
+
+            for index,pop in enumerate(row1+row2):
+                a = pop.popover(f"引用文件",use_container_width=True)
+                file_name = response_sources_list[index]["metadata"]["source"]
+                file_content = response_sources_list[index]["page_content"]
+                a.text(f"引用文件{file_name}")
+                a.code(file_content,language="plaintext")
 # st.write(st.session_state.agent_chat_history_displayed)
         

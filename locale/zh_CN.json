@@ -59,5 +59,9 @@
     "Saved dialog settings": "保存设置",
     "Dialog name": "对话名称",
     "Save dialog": "保存对话",
-    "Delete selected dialog": "删除对话"
+    "Delete selected dialog": "删除对话",
+    "Collection": "知识库",
+    "Rerank": "检索结果重排序",
+    "Hybrid retrieve": "混合检索",
+    "Hybrid retrieve weight": "混合检索权重"
 }

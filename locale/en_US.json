@@ -59,5 +59,9 @@
     "Saved dialog settings": "Saved dialog settings",
     "Dialog name": "Dialog name",
     "Save dialog": "Save dialog",
-    "Delete selected dialog": "Delete dialog"
+    "Delete selected dialog": "Delete dialog",
+    "Collection": "Collection",
+    "Rerank": "Rerank Retrieve Result",
+    "Hybrid retrieve": "Hybrid retrieve",
+    "Hybrid retrieve weight": "Hybrid retrieve weight"
 }

@@ -10,9 +10,11 @@ def llamafile_config_generator(**kwargs):
         kwargs (dict): 配置参数
             model (str): 模型名称
             api_key (str): API Key
-            temperature (float): 温度
-            top_p (float): Top P
-            stream (bool): 是否流式输出
+            base_url (str): Base URL
+            params (dict): 其他请求参数
+                temperature (float): 温度
+                top_p (float): Top P
+                stream (bool): 是否流式输出
         
     Returns:
         config (list): 配置列表
