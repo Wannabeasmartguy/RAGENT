@@ -96,3 +96,22 @@ def save_basic_chat_history(
     # 打开聊天历史记录文件，写入更新后的数据
     with open(chat_history_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def list_length_transform(n, lst) -> List:
+    '''
+    聊天上下文限制函数
+    
+    Args:
+        n (int): 限制列表lst的长度为n
+        lst (list): 需要限制长度的列表
+        
+    Returns:
+        list: 限制后的列表
+    '''
+    # 如果列表lst的长度大于n，则返回lst的最后n个元素
+    if len(lst) > n:
+        return lst[-n:]
+    # 如果列表lst的长度小于等于n，则返回lst本身
+    else:
+        return lst

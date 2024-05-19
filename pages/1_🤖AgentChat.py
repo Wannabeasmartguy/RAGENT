@@ -6,7 +6,7 @@ from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from llm.fake.completion import fake_agent_chat_completion
-from utils.basic_utils import model_selector,split_list_by_key_value
+from utils.basic_utils import model_selector,split_list_by_key_value,list_length_transform
 
 from configs.chat_config import AgentChatProcessor
 from configs.knowledge_base_config import ChromaVectorStoreProcessor
@@ -336,11 +336,13 @@ if prompt := st.chat_input("What is up?"):
         # Add user message to chat history
         st.session_state.rag_chat_history_displayed.append({"role": "user", "content": prompt})
 
+        processed_messages = list_length_transform(history_length,st.session_state.rag_chat_history_displayed)
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 response = agentchat_processor.create_rag_agent_response(
                     name=collection_selectbox,
-                    messages=st.session_state.rag_chat_history_displayed,
+                    messages=processed_messages,
                     is_rerank=is_rerank,
                     is_hybrid_retrieve=is_hybrid_retrieve,
                     hybrid_retriever_weight=hybrid_retrieve_weight
