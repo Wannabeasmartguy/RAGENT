@@ -25,7 +25,8 @@ def llamafile_config_generator(**kwargs):
         "base_url": kwargs.get("base_url","http://127.0.0.1:8080/v1"),
         "params": {
             "temperature": kwargs.get("temperature", 0.5),
-            "top_p": kwargs.get("top_p", 1.0),
+            "top_p": kwargs.get("top_p", 0.5),
+            "max_tokens": kwargs.get("max_tokens", 4096),
             "stream": kwargs.get("stream", False),
         },
         "model_client_cls": "LlamafileClient",
