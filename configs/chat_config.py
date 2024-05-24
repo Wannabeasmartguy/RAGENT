@@ -1,7 +1,27 @@
 from typing import Literal, List, Dict, Any
 from abc import ABC, abstractmethod
+import os
+import json
 
 from api.dependency import APIRequestHandler,SUPPORTED_SOURCES
+
+
+class OpenAILikeModelConfigProcessStrategy(ABC):
+    @abstractmethod
+    def get_config(self):
+        pass
+
+    @abstractmethod
+    def update_config(self):
+        pass
+
+    @abstractmethod
+    def delete_model_config(self):
+        pass
+
+    @abstractmethod
+    def get_model_config(self):
+        pass
 
 
 class ChatProcessStrategy(ABC):
@@ -136,3 +156,79 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
 
     def create_reflection_agent_response(self) -> Dict:
         pass
+
+
+class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
+    """
+    处理 OAI-like 模型的配置的策略模式实现类
+    """
+    config_path = "custom_model_config.json"
+
+    def __init__(self):
+        # 如果本地没有custom_model_config.json文件，则创建
+        if not os.path.exists(self.config_path):
+            with open(self.config_path, "w") as f:
+                json.dump({}, f)
+        
+        # 读取custom_model_config.json文件
+        with open(self.config_path, "r") as f:
+            self.exist_config = json.load(f)
+    
+    def reinitialize(self) -> None:
+        """
+        重新初始化类实例
+        """
+        self.__init__()
+
+    def get_config(self) -> Dict:
+        """
+        获取完整的配置文件配置信息
+        """
+        return self.exist_config
+    
+    def update_config(
+            self, 
+            model:str,
+            base_url: str,
+            api_key: str,
+        ) -> None:
+        """
+        更新模型的配置信息
+        
+        Args:
+            config (Dict): 模型的配置信息
+                该字典以model为key，以model的配置信息为value:
+                {
+                    "deepseek-chat": {
+                        "base_url": "https://api.deepseek.com/v1/",
+                        "api_key": "your_api_key"
+                    }
+                }
+        """
+        config = {
+            "base_url": base_url,
+            "api_key": api_key
+        }
+        self.exist_config[model] = config
+        
+        # 更新custom_model_config.json文件
+        with open(self.config_path, "w") as f:
+            json.dump(self.exist_config, f)
+        
+    def delete_model_config(self, model:str) -> None:
+        """
+        删除模型的配置信息
+        """
+        if model in self.exist_config:
+            del self.exist_config[model]
+            
+            # 更新custom_model_config.json文件
+            with open(self.config_path, "w") as f:
+                json.dump(self.exist_config, f)
+                
+    def get_model_config(self,model:str) -> Dict:
+        """
+        获取指定模型的配置信息
+        """
+        dict_body = self.exist_config.get(model, {})
+        return {model: dict_body}

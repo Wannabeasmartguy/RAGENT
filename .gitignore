@@ -8,11 +8,14 @@ test.ipynb
 chat_history.md
 *Agent_chat_history.md
 
-# embedding models and knowledge bases
+# Embedding models and knowledge bases
 embedding model
 embedding_config.json
 knowledge base
 knowledgebase
+
+# Model config
+custom_model_config.json
 
 # C extensions
 *.so

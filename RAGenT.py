@@ -17,8 +17,8 @@ from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
 from llm.groq.completion import GroqCompletionClient,groq_config_generator
 from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
-from configs.chat_config import ChatProcessor
-from utils.basic_utils import model_selector,save_basic_chat_history
+from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
+from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -26,6 +26,7 @@ i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 requesthandler = APIRequestHandler("localhost", 8000)
 
+oailike_config_processor = OAILikeConfigProcessor()
 
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
@@ -41,6 +42,15 @@ st.title("RAGenT")
 # Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+
+# Initialize openai-like model config
+if "oai_like_model_config_dict" not in st.session_state:
+    st.session_state.oai_like_model_config_dict = {
+        "noneed":{
+            "base_url": "http://127.0.0.1:8080/v1",
+            "api_key": "noneed"
+        }
+    }
 
 # Display chat messages from history on app rerun
 @st.cache_data
@@ -73,21 +83,49 @@ with st.sidebar:
     elif select_box0 == "Llamafile":
         select_box1 = st.text_input(
             label=i18n("Model"),
-            value="Noneed",
+            value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
             key="model",
             placeholder=i18n("Fill in custom model name. (Optional)")
         )
         with st.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
-                value="http://127.0.0.1:8080/v1",
+                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
                 key="llamafile_endpoint"
             )
             llamafile_api_key = st.text_input(
                 label=i18n("Llamafile API key"),
-                value="noneed",
+                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[2],
                 key="llamafile_api_key",
                 placeholder=i18n("Fill in your API key. (Optional)")
+            )
+            save_oai_like_config_button = st.button(
+                label=i18n("Save model config"),
+                on_click=oailike_config_processor.update_config,
+                args=(select_box1,llamafile_endpoint,llamafile_api_key),
+                use_container_width=True
+            )
+            
+            st.write("---")
+
+            oai_like_config_list = st.selectbox(
+                label=i18n("Select model config"),
+                options=oailike_config_processor.get_config()
+            )
+            load_oai_like_config_button = st.button(
+                label=i18n("Load model config"),
+                use_container_width=True,
+                type="primary"
+            )
+            if load_oai_like_config_button:
+                st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
+                st.rerun()
+
+            delete_oai_like_config_button = st.button(
+                label=i18n("Delete model config"),
+                use_container_width=True,
+                on_click=oailike_config_processor.delete_model_config,
+                args=(oai_like_config_list,)
             )
 
     history_length = st.number_input(

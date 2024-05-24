@@ -63,5 +63,8 @@
     "Collection": "Collection",
     "Rerank": "Rerank Retrieve Result",
     "Hybrid retrieve": "Hybrid retrieve",
-    "Hybrid retrieve weight": "Hybrid retrieve weight"
+    "Hybrid retrieve weight": "Hybrid retrieve weight",
+    "Save model config": "Save model config",
+    "Load model config": "Load model config",
+    "Select model config": "Select model config"
 }

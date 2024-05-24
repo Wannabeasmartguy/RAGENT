@@ -7,6 +7,7 @@ import uuid
 from typing import List, Dict
 
 from llm.ollama.completion import get_ollama_model_list
+from configs.chat_config import OAILikeConfigProcessor
 
 
 def model_selector(model_type):
@@ -24,7 +25,18 @@ def model_selector(model_type):
         return ["Noneed"]
     else:
         return None
-    
+
+
+def oai_model_config_selector(oai_model_config:Dict):
+    config_processor = OAILikeConfigProcessor()
+    model_name = list(oai_model_config.keys())[0]
+    config_dict = config_processor.get_config()
+
+    if model_name in config_dict:
+        return model_name, config_dict[model_name]["base_url"], config_dict[model_name]["api_key"]
+    else:
+        return "noneed", "http://127.0.0.1:8080/v1", "noneed"
+
     
 def split_list_by_key_value(dict_list, key, value):
     result = []

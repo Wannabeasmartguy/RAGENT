@@ -63,5 +63,8 @@
     "Collection": "知识库",
     "Rerank": "检索结果重排序",
     "Hybrid retrieve": "混合检索",
-    "Hybrid retrieve weight": "混合检索权重"
+    "Hybrid retrieve weight": "混合检索权重",
+    "Save model config": "保存模型配置",
+    "Load model config": "加载模型配置",
+    "Select model config": "选择模型配置"
 }
