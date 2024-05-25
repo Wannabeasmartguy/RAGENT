@@ -128,6 +128,34 @@ with st.sidebar:
                 args=(oai_like_config_list,)
             )
 
+    with st.expander(label=i18n("Model config")):
+        max_tokens = st.number_input(
+            label=i18n("Max tokens"),
+            min_value=1,
+            value=1900,
+            step=1,
+            key="max_tokens",
+            help=i18n("Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000).")
+        )
+        temperature = st.slider(
+            label=i18n("Temperature"),
+            min_value=0.0,
+            max_value=2.0,
+            value=0.5,
+            step=0.1,
+            key="temperature",
+            help=i18n("'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5.")
+        )
+        top_p = st.slider(
+            label=i18n("Top p"),
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.1,
+            key="top_p",
+            help=i18n("Similar to 'temperature', but don't change it at the same time as temperature")
+        )
+
     history_length = st.number_input(
         label=i18n("History length"),
         min_value=1,
@@ -200,8 +228,12 @@ with st.sidebar:
 
 if st.session_state["model_type"] == "OpenAI":
     pass
-if st.session_state["model_type"] == "AOAI":
-    config_list = aoai_config_generator()
+elif st.session_state["model_type"] == "AOAI":
+    config_list = aoai_config_generator(
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+    )
 elif st.session_state["model_type"] == "Ollama":
     pass
 elif st.session_state["model_type"] == "Groq":
@@ -218,6 +250,9 @@ elif st.session_state["model_type"] == "Llamafile":
         model = st.session_state["model"],
         base_url = st.session_state["llamafile_endpoint"],
         api_key = custom_api_key,
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
     )
 
 

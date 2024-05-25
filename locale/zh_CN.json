@@ -66,5 +66,13 @@
     "Hybrid retrieve weight": "混合检索权重",
     "Save model config": "保存模型配置",
     "Load model config": "加载模型配置",
-    "Select model config": "选择模型配置"
+    "Select model config": "选择模型配置",
+    "Delete model config": "删除模型配置",
+    "Model config": "模型配置",
+    "Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000).": "生成的最大令牌数。不同的模型可能有不同的约束，例如 Qwen 系列模型需要在 [0,2000) 之间。",
+    "Max tokens": "单次回复限制（max tokens）",
+    "Temperature": "随机性（Temperature）",
+    "'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5.": "控制模型的随机性。较低的值会使模型更确定性，而较高的值会使它更创造性，更多样性。默认值为 0.5。",
+    "Similar to 'temperature', but don't change it at the same time as temperature": "与'temperature'类似，但不要相同改变",
+    "Top p": "核采样（Top p）"
 }
