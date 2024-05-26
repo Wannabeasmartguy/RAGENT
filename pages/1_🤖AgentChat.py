@@ -42,7 +42,7 @@ def write_rag_chat_history(chat_history,sources):
                     a.code(file_content,language="plaintext")
 
 
-requesthandler = APIRequestHandler("localhost", 8000)
+requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 

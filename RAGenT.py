@@ -23,7 +23,7 @@ from utils.basic_utils import model_selector, save_basic_chat_history, oai_model
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
-requesthandler = APIRequestHandler("localhost", 8000)
+requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 

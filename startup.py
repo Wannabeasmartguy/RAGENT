@@ -1,6 +1,8 @@
 import subprocess
 import time
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # 确保在当前目录下运行
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -13,7 +15,7 @@ try:
         [
             "uvicorn", "server:app", 
             "--host", "127.0.0.1",
-            "--port", "8000"
+            "--port", str(os.getenv("SERVER_PORT",8000)),
         ]
     )
 
@@ -26,7 +28,7 @@ try:
         [
             "streamlit", "run", "RAGenT.py",
             "--server.address", "127.0.0.1",
-            "--server.port", "5998"
+            "--server.port", str(os.getenv("FRONT_PORT",5998)),
         ]
     )
 

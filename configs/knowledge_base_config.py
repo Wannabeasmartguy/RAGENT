@@ -22,7 +22,7 @@ from api.routers.knowledgebase import EmbeddingModelConfig
 
 i18n = I18nAuto()
 
-requesthandler = APIRequestHandler("localhost", 8000)
+requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT"))
 
 DEFAULT_COLLECTION_NAME = "default_collection"
 
