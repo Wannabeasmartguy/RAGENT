@@ -1,4 +1,5 @@
 import requests
+from typing import Dict, Union, Generator
 
 
 SUPPORTED_SOURCES = {
@@ -23,7 +24,7 @@ class APIRequestHandler:
         response = requests.get(self.base_url + endpoint)
         return self._handle_response(response)
 
-    def post(self, endpoint, data, params=None):
+    def post(self, endpoint, data, params=None) -> Dict:
         """发送 POST 请求到指定的 endpoint。
 
         Args:
@@ -58,9 +59,14 @@ class APIRequestHandler:
         response = requests.delete(self.base_url + endpoint)
         return self._handle_response(response)
 
-    def _handle_response(self, response):
+    def _handle_response(self, response) -> Union[Dict, Generator]:
         if response.status_code == 200:
-            return response.json()
+            # 检查响应是否为 StreamingResponse
+            if 'content-type' in response.headers and 'plain' in response.headers['content-type']:
+                # 处理 StreamingResponse
+                return response  # 返回响应的文本内容
+            else:
+                return response.json()  # 返回 JSON 响应
         else:
             return {'error': response.status_code, 'message': response.text}
 

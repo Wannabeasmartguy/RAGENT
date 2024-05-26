@@ -1,6 +1,5 @@
 import streamlit as st
 import autogen
-import asyncio
 
 from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
@@ -155,6 +154,12 @@ with st.sidebar:
             key="top_p",
             help=i18n("Similar to 'temperature', but don't change it at the same time as temperature")
         )
+        if_stream = st.toggle(
+            label=i18n("Stream"),
+            value=True,
+            key="if_stream",
+            help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
+        )
 
     history_length = st.number_input(
         label=i18n("History length"),
@@ -233,6 +238,7 @@ elif st.session_state["model_type"] == "AOAI":
         max_tokens = max_tokens,
         temperature = temperature,
         top_p = top_p,
+        stream = if_stream,
     )
 elif st.session_state["model_type"] == "Ollama":
     pass
@@ -253,6 +259,7 @@ elif st.session_state["model_type"] == "Llamafile":
         max_tokens = max_tokens,
         temperature = temperature,
         top_p = top_p,
+        stream = if_stream,
     )
 
 
@@ -271,38 +278,47 @@ if prompt := st.chat_input("What is up?"):
             # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
 
+            chatprocessor = ChatProcessor(
+                requesthandler=requesthandler,
+                model_type=st.session_state["model_type"],
+                llm_config=config_list[0],
+            )
+
             # 非流式调用
             if not config_list[0].get("params",{}).get("stream",False):
 
                 # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
                 # 一般都是在的
-                chatprocessor = ChatProcessor(
-                    requesthandler=requesthandler,
-                    model_type=st.session_state["model_type"],
-                    llm_config=config_list[0],
-                )
-
                 response = chatprocessor.create_completion(
                     messages=processed_messages
                 )
+
+                if "error" not in response:
+                    # st.write(response)
+                    response_content = response["choices"][0]["message"]["content"]
+                    st.write(response_content)
+                    cost = response["cost"]
+                    st.write(f"response cost: ${cost}")
+
+                    st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
+                else:
+                    st.error(response)
+
                 
             # TODO：流式调用
             else:
-                # response = client.create_completion_stream(
-                #     model=st.session_state["model"],
+                # 流式调用
+                # 获得 API 的响应，但是解码出来的乱且不完整
+                # response = chatprocessor.create_completion_stream_api(
                 #     messages=processed_messages
                 # )
-                pass
-                # st.write_stream(response)
+                # for chunk in response:
+                #     st.write(chunk.decode("utf-8","ignore"))
+                #     time.sleep(0.1)
 
-        if not config_list[0].get("params",{}).get("stream",False):
-            if "error" not in response:
-                # st.write(response)
-                response_content = response["choices"][0]["message"]["content"]
-                st.write(response_content)
-                cost = response["cost"]
-                st.write(f"response cost: ${cost}")
+                response = chatprocessor.create_completion_stream_noapi(
+                    messages=processed_messages
+                )
+                total_response = st.write_stream(response)
 
-                st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
-            else:
-                st.error(response)
+                st.session_state.chat_history.append({"role": "assistant", "content": total_response})

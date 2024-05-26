@@ -127,3 +127,32 @@ def list_length_transform(n, lst) -> List:
     # 如果列表lst的长度小于等于n，则返回lst本身
     else:
         return lst
+
+
+def detect_and_decode(data_bytes):
+    """
+    尝试使用不同的编码格式来解码bytes对象。
+
+    参数:
+    data_bytes (bytes): 需要进行编码检测和解码的bytes对象。
+
+    返回:
+    tuple: 包含解码后的字符串和使用的编码格式。
+           如果解码失败，返回错误信息。
+    """
+    # 定义常见的编码格式列表
+    encodings = ['utf-8', 'ascii', 'gbk', 'iso-8859-1']
+
+    # 遍历编码格式，尝试解码
+    for encoding in encodings:
+        try:
+            # 尝试使用当前编码解码
+            decoded_data = data_bytes.decode(encoding)
+            # 如果解码成功，返回解码后的数据和编码格式
+            return decoded_data, encoding
+        except UnicodeDecodeError:
+            # 如果当前编码解码失败，继续尝试下一个编码
+            continue
+
+    # 如果所有编码格式都解码失败，返回错误信息
+    return "无法解码，未知的编码格式。", None

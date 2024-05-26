@@ -1,4 +1,4 @@
-from typing import Literal, List, Dict, Any
+from typing import Literal, List, Dict, Any, Generator
 from abc import ABC, abstractmethod
 import os
 import json
@@ -93,6 +93,72 @@ class ChatProcessor(ChatProcessStrategy):
         )
         
         return response
+    
+
+    def create_completion_stream_api(
+            self, 
+            messages: List[Dict[str, str]],
+        ) -> str:
+        """
+        通过 requesthandler ，根据 model_type ，调用相应的 API 接口创建流式输出
+        """
+        if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
+            # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
+            if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
+                path = "/chat/openai-like-chat/openai/stream"
+
+            # 否则，走 request 或另行定义的 SDK （如 Groq）
+            else:
+                # path = "/chat/openai-like-chat/xxxx/stream"
+                pass
+            
+        response = self.requesthandler.post(
+            path,
+            data={
+                "llm_config": self.llm_config,
+                "llm_params": self.llm_config.get(
+                    "params",
+                    {
+                        "temperature": 0.5,
+                        "top_p": 0.1,
+                        "max_tokens": 4096,
+                        "stream": True
+                    }
+                ),
+                "messages": messages
+            }
+        )
+        
+        return response
+    
+
+    def create_completion_stream_noapi(
+            self, 
+            messages: List[Dict[str, str]],
+        ) -> Generator:
+        """
+        通过 requesthandler ，根据 model_type ，调用相应的 SDK (不经过后端API)接口创建流式输出
+        """
+        if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
+            # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
+            if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
+                from openai import OpenAI
+                client = OpenAI(
+                    api_key=self.llm_config.get("api_key"),
+                    base_url=self.llm_config.get("base_url"),
+                )
+                
+                response = client.chat.completions.create(
+                    model=self.llm_config.get("model"),
+                    messages=messages,
+                    temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                    top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                    max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                    stream=True
+                )
+                
+                return response
+        
 
 
 class AgentChatProcessor(AgentChatProcessoStrategy):
