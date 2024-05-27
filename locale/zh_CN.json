@@ -76,5 +76,6 @@
     "Similar to 'temperature', but don't change it at the same time as temperature": "与'temperature'类似，但不要相同改变",
     "Top p": "核采样（Top p）",
     "Stream": "流式输出",
-    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.": "是否流式输出响应。默认情况下为 False，这意味着在等待生成完整响应后才返回结果。"
+    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.": "是否流式输出响应。默认情况下为 False，这意味着在等待生成完整响应后才返回结果。",
+    "RAG Setting": "RAG 设置"
 }

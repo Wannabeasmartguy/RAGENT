@@ -5,6 +5,7 @@ from llm.Agent.pre_built import reflection_agent_with_nested_chat
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_config_generator
 from llm.llamafile.completion import llamafile_config_generator
+from llm.ollama.completion import ollama_config_generator
 from llm.fake.completion import fake_agent_chat_completion
 from utils.basic_utils import model_selector,split_list_by_key_value,list_length_transform,oai_model_config_selector
 
@@ -147,9 +148,6 @@ def initialize_agent_chat_history(chat_history:List[dict],
             st.markdown(message["content"])
 
 
-initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
-
-
 with st.sidebar:
     st.image(logo_path)
 
@@ -193,7 +191,7 @@ with st.sidebar:
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["AOAI","OpenAI","Groq","Llamafile"],
+        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
@@ -290,10 +288,6 @@ with st.sidebar:
         st.toast(body=i18n(f"Chat history exported to {filename}"),icon="🎉")
 
 
-if agent_type =="RAG_lc":
-    write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
-
-
 # 根据选择的模型和类型，生成相应的 config_list
 if st.session_state["model_type"] == "AOAI":
     config_list = aoai_config_generator(model=st.session_state["model"])
@@ -305,6 +299,8 @@ if st.session_state["model_type"] == "OpenAI":
         api_type="openai",
         api_version=None,
     )
+if st.session_state["model_type"] == "Ollama":
+    config_list = ollama_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Groq":
     config_list = groq_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Llamafile":
@@ -325,8 +321,12 @@ agentchat_processor = AgentChatProcessor(
     llm_config=config_list[0],
 )
 
-
-if agent_type == "Reflection":
+if agent_type =="RAG_lc":
+    write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
+elif agent_type == "Reflection":
+    # 初始化代理聊天历史
+    initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
+    # 初始化各个 Agent
     user_proxy, writing_assistant, reflection_assistant = reflection_agent_with_nested_chat(config_list=config_list,max_message=history_length)
 
 # st.write(type(user_proxy))

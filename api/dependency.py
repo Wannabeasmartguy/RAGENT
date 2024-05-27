@@ -7,7 +7,7 @@ SUPPORTED_SOURCES = {
         "openai": "sdk",
         "aoai": "sdk",
         "llamafile": "sdk",
-        "ollama": "request"
+        "ollama": "sdk"
     }
 }
 

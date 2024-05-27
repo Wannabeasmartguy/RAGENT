@@ -193,7 +193,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
             is_hybrid_retrieve (bool): 是否进行混合检索
             hybrid_retriever_weight (float): 混合检索的权重
         """
-        if self.model_type.lower() == "llamafile":
+        if self.model_type.lower() == "llamafile" or "ollama":
             response = self.requesthandler.post(
                 endpoint="/agentchat/lc-rag/create-rag-response",
                 data={

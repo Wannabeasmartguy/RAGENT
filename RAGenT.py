@@ -1,7 +1,5 @@
 import streamlit as st
-import autogen
 
-from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
@@ -11,10 +9,10 @@ load_dotenv()
 
 from api.dependency import APIRequestHandler,SUPPORTED_SOURCES
 
-from llm.aoai.completion import AzureOpenAICompletionClient,aoai_config_generator
-from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
-from llm.groq.completion import GroqCompletionClient,groq_config_generator
-from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
+from llm.aoai.completion import aoai_config_generator
+from llm.ollama.completion import ollama_config_generator
+from llm.groq.completion import groq_config_generator
+from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector
@@ -241,7 +239,13 @@ elif st.session_state["model_type"] == "AOAI":
         stream = if_stream,
     )
 elif st.session_state["model_type"] == "Ollama":
-    pass
+    config_list = ollama_config_generator(
+        model = st.session_state["model"],
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
+    )
 elif st.session_state["model_type"] == "Groq":
     config_list = groq_config_generator(
         model = st.session_state["model"]
