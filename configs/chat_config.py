@@ -142,21 +142,40 @@ class ChatProcessor(ChatProcessStrategy):
         if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
             # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
             if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
-                from openai import OpenAI
-                client = OpenAI(
-                    api_key=self.llm_config.get("api_key"),
-                    base_url=self.llm_config.get("base_url"),
-                )
+                if self.llm_config.get("api_type") != "azure":
+                    from openai import OpenAI
+                    client = OpenAI(
+                        api_key=self.llm_config.get("api_key"),
+                        base_url=self.llm_config.get("base_url"),
+                    )
+                    
+                    response = client.chat.completions.create(
+                        model=self.llm_config.get("model"),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
                 
-                response = client.chat.completions.create(
-                    model=self.llm_config.get("model"),
-                    messages=messages,
-                    temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
-                    top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
-                    max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
-                    stream=True
-                )
-                
+                else:
+                    from openai import AzureOpenAI
+                    client = AzureOpenAI(
+                        api_key=self.llm_config.get("api_key"),
+                        azure_endpoint=self.llm_config.get("base_url"),
+                        api_version=self.llm_config.get("api_version"),
+                    )
+
+                    response = client.chat.completions.create(
+                        # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
+                        model=self.llm_config.get("model"),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
+
                 return response
         
 
