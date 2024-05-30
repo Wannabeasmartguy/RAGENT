@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import chromadb
 import uuid
@@ -24,10 +24,10 @@ router = APIRouter(
 class EmbeddingModelConfig(BaseModel):
     embedding_type: Literal["openai", "huggingface"]
     embedding_model_or_path: str
-    api_key: str | None
-    base_url: str | None
-    api_type: str | None
-    api_version: str | None
+    api_key: str | None = Field(None)
+    base_url: str | None = Field(None)
+    api_type: str | None = Field(None)
+    api_version: str | None = Field(None)
 
 
 async def list_chroma_collections() -> List[str]:

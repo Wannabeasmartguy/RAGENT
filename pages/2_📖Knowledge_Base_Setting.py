@@ -54,6 +54,7 @@ with st.sidebar:
 
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.write("---")
+    st.info(i18n("Please choose embedding model when creating the knowledge base"))
 
     embed_model_type_selectbox = st.selectbox(
         label=i18n("Embed Model Type"),
@@ -129,6 +130,7 @@ with collection_choose_placeholder.container():
         reinitialize_colleciton_button = st.button(
             label=i18n("Reinitialize Knowledge Base"),
             use_container_width=True,
+            type="primary"
         )
 
 
