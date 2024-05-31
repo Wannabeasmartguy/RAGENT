@@ -156,3 +156,13 @@ def detect_and_decode(data_bytes):
 
     # 如果所有编码格式都解码失败，返回错误信息
     return "无法解码，未知的编码格式。", None
+
+
+def config_list_postprocess(config_list):
+    """将config_list中，每个config的params字段合并到各个config中。"""
+    for config in config_list:
+        if "params" in config:
+            params = config["params"]
+            del config["params"]
+            config.update(**params)
+    return config_list

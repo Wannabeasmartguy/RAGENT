@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 # Test notebook
-test.ipynb
+test*.ipynb
 chat_history.md
 *Agent_chat_history.md
 
