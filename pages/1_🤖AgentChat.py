@@ -8,6 +8,7 @@ from llm.llamafile.completion import llamafile_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.fake.completion import fake_agent_chat_completion
 from utils.basic_utils import model_selector,split_list_by_key_value,list_length_transform,oai_model_config_selector
+from llm.aoai.tools.tools import TO_TOOLS
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
 from configs.knowledge_base_config import ChromaVectorStoreProcessor
@@ -160,7 +161,7 @@ with st.sidebar:
 
     agent_type = st.selectbox(
         label=i18n("Agent type"),
-        options=["Reflection","RAG_lc"],
+        options=["Reflection","RAG_lc","Function Call"],
         key="agent_type"
     )
 
@@ -188,6 +189,23 @@ with st.sidebar:
                 step=0.1,
                 key="hybrid_retrieve_weight"
             )
+    
+    if agent_type == "Function Call":
+        with st.expander(label=i18n("Function Call Setting")):
+            function_mutiple_selectbox = st.multiselect(
+                label=i18n("Functions"),
+                options=TO_TOOLS.keys(),
+                default=list(TO_TOOLS.keys())[:2],
+                help=i18n("Select functions you want to use."),
+                # format_func 将所有名称开头的"tool_"去除
+                format_func=lambda x: x.replace("tool_","")
+            )
+            with st.popover(label=i18n("Function Description"),use_container_width=True):
+                with st.container(height=300):
+                    for tool_name in function_mutiple_selectbox:
+                        with st.container(height=150):
+                            st.write("#### " + tool_name.replace("tool_",""))
+                            st.write(TO_TOOLS[tool_name]["description"])
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),

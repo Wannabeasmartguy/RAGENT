@@ -166,3 +166,44 @@ def config_list_postprocess(config_list):
             del config["params"]
             config.update(**params)
     return config_list
+
+
+def dict_filter(
+        dict_data: Dict, 
+        filter_keys: List[str] = None,
+        filter_values: List[str] = None
+    ) -> Dict:
+    """
+    过滤字典中的键值对，只保留指定的键或值。
+    
+    Args:
+        dict_data (Dict): 要过滤的字典。
+        filter_keys (List[str], optional): 要保留的键列表。默认值为None。
+        filter_values (List[str], optional): 要保留的值列表。默认值为None。
+        
+    Returns:
+        Dict: 过滤后的字典。
+    """
+    if filter_keys is None and filter_values is None:
+        return dict_data
+    
+    filtered_dict = {}
+    for key, value in dict_data.items():
+        if (filter_keys is None or key in filter_keys) and (filter_values is None or value in filter_values):
+            filtered_dict[key] = value
+            
+    return filtered_dict
+
+
+def reverse_traversal(lst: List):
+    '''
+    反向遍历列表，直到找到非空且不为'TERMINATE'的元素为止。
+    用于处理 Tool Use Agent 的 chat_history 列表。
+    '''
+    # 遍历列表中的每一个元素
+    for item in reversed(lst):
+        # 如果元素中的内容不为空且不为'TERMINATE'，则打印元素
+        if item.get('content', '') not in ('', 'TERMINATE'):
+            print(item)
+            # 打印元素后跳出循环
+            break
