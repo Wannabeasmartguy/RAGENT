@@ -7,7 +7,14 @@ from llm.groq.completion import groq_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.fake.completion import fake_agent_chat_completion
-from utils.basic_utils import model_selector,split_list_by_key_value,list_length_transform,oai_model_config_selector
+from utils.basic_utils import (
+    model_selector, 
+    split_list_by_key_value, 
+    list_length_transform, 
+    oai_model_config_selector, 
+    reverse_traversal, 
+    write_chat_history
+)
 from llm.aoai.tools.tools import TO_TOOLS
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
@@ -83,8 +90,6 @@ if "oai_like_model_config_dict" not in st.session_state:
 # Initialize function call agent chat history, to avoid error when reloading the page
 if "function_call_agent_chat_history_displayed" not in st.session_state:
     st.session_state.function_call_agent_chat_history_displayed = []
-if "function_call_agent_chat_history_total" not in st.session_state:
-    st.session_state.function_call_agent_chat_history_total = []
 
 
 VERSION = "0.0.1"
@@ -295,6 +300,9 @@ with st.sidebar:
             st.session_state.agent_chat_history_displayed = []
             st.session_state.agent_chat_history_total = []
             initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
+        elif agent_type == "Function Call":
+            st.session_state.function_call_agent_chat_history_displayed = []
+            write_chat_history(st.session_state.function_call_agent_chat_history_displayed)
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.agent_chat_history_total])
@@ -353,6 +361,8 @@ elif agent_type == "Reflection":
     initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
     # 初始化各个 Agent
     user_proxy, writing_assistant, reflection_assistant = reflection_agent_with_nested_chat(config_list=config_list,max_message=history_length)
+elif agent_type == "Function Call":
+    write_chat_history(st.session_state.function_call_agent_chat_history_displayed)
 
 # st.write(type(user_proxy))
 
@@ -435,4 +445,27 @@ if prompt := st.chat_input("What is up?"):
                 file_content = response_sources_list[index]["page_content"]
                 a.text(f"引用文件{file_name}")
                 a.code(file_content,language="plaintext")
-        
+    
+
+    elif agent_type == "Function Call":
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            
+        # Add user message to chat history
+        st.session_state.function_call_agent_chat_history_displayed.append({"role": "user", "content": prompt})
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = agentchat_processor.create_function_call_agent_response_noapi(
+                    message=prompt,
+                    tools=function_mutiple_selectbox
+                )
+                # 返回的是一个完整的chat_history，包含了"None"和""
+                # 需要将"None"和""去除
+                answer = reverse_traversal(response)
+                
+                # 将回答添加入 st.sesstion
+                st.session_state.function_call_agent_chat_history_displayed.append({"role": "assistant", "content": answer["content"]})
+
+                # 展示回答
+                st.write(answer["content"])

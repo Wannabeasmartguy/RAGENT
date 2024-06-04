@@ -104,7 +104,7 @@ def reflection_agent_with_nested_chat(
 def create_function_call_agent_response(
     message: str | Dict ,
     config_list: List[Dict[str, str]],
-    tools: Dict[str, str | Callable] = TO_TOOLS,
+    tools: List = [],
 ) -> ChatResult:
     '''
     创建一个agentchat的function call响应
@@ -113,7 +113,7 @@ def create_function_call_agent_response(
         del config_list[0]["stream"]
 
     all_tools = TO_TOOLS
-    selected_tools = dict_filter(all_tools, tools)
+    selected_tools = dict_filter(dict_data=all_tools, filter_keys=tools)
 
     assistant = ConversableAgent(
         name="Assistant",
@@ -134,7 +134,7 @@ def create_function_call_agent_response(
     )
     
     for tool_name in selected_tools:
-        tool = tools[tool_name]
+        tool = selected_tools[tool_name]
         # Register the tool signature with the assistant agent.
         assistant.register_for_llm(name=tool["name"], description=tool["description"])(tool["func"])
 

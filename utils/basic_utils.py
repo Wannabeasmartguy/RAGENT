@@ -37,7 +37,15 @@ def oai_model_config_selector(oai_model_config:Dict):
     else:
         return "noneed", "http://127.0.0.1:8080/v1", "noneed"
 
-    
+
+# Display chat messages from history on app rerun
+@st.cache_data
+def write_chat_history(chat_history: List[Dict[str, str]]) -> None:
+    for message in chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+
 def split_list_by_key_value(dict_list, key, value):
     result = []
     temp_list = []
@@ -158,7 +166,7 @@ def detect_and_decode(data_bytes):
     return "无法解码，未知的编码格式。", None
 
 
-def config_list_postprocess(config_list):
+def config_list_postprocess(config_list: List[Dict]):
     """将config_list中，每个config的params字段合并到各个config中。"""
     for config in config_list:
         if "params" in config:
@@ -195,7 +203,7 @@ def dict_filter(
     return filtered_dict
 
 
-def reverse_traversal(lst: List):
+def reverse_traversal(lst: List) -> Dict[str, str]:
     '''
     反向遍历列表，直到找到非空且不为'TERMINATE'的元素为止。
     用于处理 Tool Use Agent 的 chat_history 列表。
@@ -204,6 +212,4 @@ def reverse_traversal(lst: List):
     for item in reversed(lst):
         # 如果元素中的内容不为空且不为'TERMINATE'，则打印元素
         if item.get('content', '') not in ('', 'TERMINATE'):
-            print(item)
-            # 打印元素后跳出循环
-            break
+            return item

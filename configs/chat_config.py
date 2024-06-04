@@ -236,6 +236,52 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
             )
             return response
     
+    def create_function_call_agent_response(
+        self,
+        message: Dict[str, str] | str,
+        tools: List
+    ) -> List[Dict[str, str]]:
+        '''
+        通过 requesthandler ，创建一个agentchat的function call响应
+        '''
+        response = self.requesthandler.post(
+            endpoint="/agentchat/autogen/create-function-call-agent-response",
+            data={
+                "message": message,
+                "llm_config": self.llm_config,
+                "llm_params": self.llm_config.get(
+                    "params",
+                    {
+                        "temperature": 0.5,
+                        "top_p": 0.1,
+                        "max_tokens": 4096
+                    }
+                ),
+                "tools": tools
+            }
+        )
+        return response
+    
+    def create_function_call_agent_response_noapi(
+            self,
+            message: str | Dict,
+            tools: List,
+        ) -> Dict:
+        from llm.Agent.pre_built import create_function_call_agent_response
+        from utils.basic_utils import config_list_postprocess
+        # 对config进行处理
+        try:
+            config_list = config_list_postprocess([self.llm_config])
+        except:
+            config_list = [self.llm_config]
+
+        response = create_function_call_agent_response(
+            message=message,
+            config_list=config_list,
+            tools=tools
+        )
+        return response.chat_history
+    
     def create_base_chat_agent_response(self) -> Dict:
         pass
 

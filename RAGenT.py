@@ -15,7 +15,7 @@ from llm.groq.completion import groq_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
-from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector
+from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector, write_chat_history
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -49,12 +49,6 @@ if "oai_like_model_config_dict" not in st.session_state:
         }
     }
 
-# Display chat messages from history on app rerun
-@st.cache_data
-def write_chat_history(chat_history):
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
 
 write_chat_history(st.session_state.chat_history)
 
