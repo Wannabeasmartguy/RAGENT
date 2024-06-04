@@ -80,6 +80,13 @@ if "oai_like_model_config_dict" not in st.session_state:
         }
     }
 
+# Initialize function call agent chat history, to avoid error when reloading the page
+if "function_call_agent_chat_history_displayed" not in st.session_state:
+    st.session_state.function_call_agent_chat_history_displayed = []
+if "function_call_agent_chat_history_total" not in st.session_state:
+    st.session_state.function_call_agent_chat_history_total = []
+
+
 VERSION = "0.0.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
@@ -428,5 +435,4 @@ if prompt := st.chat_input("What is up?"):
                 file_content = response_sources_list[index]["page_content"]
                 a.text(f"引用文件{file_name}")
                 a.code(file_content,language="plaintext")
-# st.write(st.session_state.agent_chat_history_displayed)
         

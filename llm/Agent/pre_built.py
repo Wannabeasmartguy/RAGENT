@@ -120,9 +120,9 @@ def create_function_call_agent_response(
         system_message="You are a helpful AI assistant. "
         "You can help with web scraper. "
         "Return 'TERMINATE' when the task is done.",
-        # llm_config={"config_list": [{"model": "deepseek-chat", "api_key": "sk-ba10eb17ff0a470085dbe564473133b9", "base_url": "https://api.deepseek.com/v1"}]},
         llm_config={
             "config_list": config_list,
+            "cache_seed": None,
         }
     )
 
