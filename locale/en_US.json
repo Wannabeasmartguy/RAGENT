@@ -82,5 +82,9 @@
     "Function Call Setting": "Function Call Setting",
     "Functions": "Functions",
     "Select functions you want to use.": "Select functions you want to use.",
-    "Function Description": "Function Description"
+    "Function Description": "Function Description",
+    "Configration": "Configration",
+    "Access token": "Access token",
+    "(Optional)Input your Coze access token here": "(Optional)Input your Coze access token here",
+    "Optional": "Optional"
 }

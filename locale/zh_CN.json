@@ -82,5 +82,9 @@
     "Function Call Setting": "函数工具调用设置",
     "Functions": "函数工具",
     "Select functions you want to use.": "选择你想要调用的工具。",
-    "Function Description": "函数工具介绍"
+    "Function Description": "函数工具介绍",
+    "Configration": "配置",
+    "Access token": "访问令牌（Access token）",
+    "(Optional)Input your Coze access token here": "(可选)在这里输入你的 Coze 访问令牌",
+    "Optional": "可选"
 }

@@ -166,6 +166,7 @@ with st.sidebar:
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link("pages/AgentChat_Setting.py", label=i18n("⚙️ AgentChat Setting"))
     st.page_link("pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting")))

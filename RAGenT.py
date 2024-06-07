@@ -58,6 +58,7 @@ with st.sidebar:
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     select_box0 = st.selectbox(
         label=i18n("Model type"),
         options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
