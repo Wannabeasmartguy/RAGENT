@@ -45,7 +45,7 @@ class ChatProcessor(ChatProcessStrategy):
                 pass
 
         response = self.requesthandler.post(
-            path,
+            endpoint=path,
             data={
                 "llm_config": self.llm_config,
                 "llm_params": self.llm_config.get(
@@ -81,7 +81,7 @@ class ChatProcessor(ChatProcessStrategy):
                 pass
             
         response = self.requesthandler.post(
-            path,
+            endpoint=path,
             data={
                 "llm_config": self.llm_config,
                 "llm_params": self.llm_config.get(
@@ -136,7 +136,7 @@ class ChatProcessor(ChatProcessStrategy):
 
                     response = client.chat.completions.create(
                         # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
-                        model=self.llm_config.get("model"),
+                        model=self.llm_config.get("model").replace(".", ""),
                         messages=messages,
                         temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
                         top_p=self.llm_config.get("params", {}).get("top_p", 0.1),

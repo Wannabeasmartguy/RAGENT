@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, ConfigDict
+from typing import List, Union
 
 
 class Prompt(BaseModel):
@@ -33,6 +33,7 @@ class Model(BaseModel):
     """Check https://www.coze.cn/docs/developer_guides/get_metadata#24646564"""
     model_id: str
     model_name: str
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class Bot_Single_Agent(BaseModel):
@@ -49,6 +50,7 @@ class Bot_Single_Agent(BaseModel):
     bot_mode: int
     plugin_info_list: List[Plugin]
     model_info: Model
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class Bot_Multi_Agent(BaseModel):
@@ -65,3 +67,10 @@ class Bot_Multi_Agent(BaseModel):
     bot_mode: int
     plugin_info_list: List[Plugin]
     model_info: List[Model]
+    model_config = ConfigDict(protected_namespaces=())
+
+
+class Bot(BaseModel):
+    code: int
+    msg: str
+    data: Union[Bot_Single_Agent, Bot_Multi_Agent]
