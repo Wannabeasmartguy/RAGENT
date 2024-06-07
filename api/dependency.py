@@ -1,5 +1,5 @@
 import requests
-from typing import Dict, Union, Generator
+from typing import Dict, Union, Generator, Optional
 
 
 SUPPORTED_SOURCES = {
@@ -24,17 +24,24 @@ class APIRequestHandler:
         response = requests.get(self.base_url + endpoint)
         return self._handle_response(response)
 
-    def post(self, endpoint, data, params=None) -> Dict:
+    def post(
+            self, 
+            endpoint: str, 
+            data: Dict, 
+            headers: Optional[Dict] = {'Content-Type': 'application/json'}, 
+            params: Optional[Dict] = None
+        ) -> Dict:
         """发送 POST 请求到指定的 endpoint。
 
         Args:
             endpoint (str): 请求的 API 端点。
             data (dict): 发送的数据，应该是可被序列化为 JSON 的字典。
+            headers (dict, optional): 请求头，默认为 {'Content-Type': 'application/json'}。
+            params (dict, optional): 查询参数，默认为 None。
 
         Returns:
             dict: 服务器响应。
         """
-        headers = {'Content-Type': 'application/json'}
         response = requests.post(self.base_url + endpoint, json=data, headers=headers, params=params)
         return self._handle_response(response)
 

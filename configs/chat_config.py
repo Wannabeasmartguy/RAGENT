@@ -1,47 +1,15 @@
-from typing import Literal, List, Dict, Any, Generator
-from abc import ABC, abstractmethod
+from typing import Literal, List, Dict, Any, Generator, Optional
 import os
 import json
+import requests
 
 from api.dependency import APIRequestHandler,SUPPORTED_SOURCES
-
-
-class OpenAILikeModelConfigProcessStrategy(ABC):
-    @abstractmethod
-    def get_config(self):
-        pass
-
-    @abstractmethod
-    def update_config(self):
-        pass
-
-    @abstractmethod
-    def delete_model_config(self):
-        pass
-
-    @abstractmethod
-    def get_model_config(self):
-        pass
-
-
-class ChatProcessStrategy(ABC):
-    @abstractmethod
-    def create_completion(self, messages: List[Dict[str, str]]) -> Dict:
-        pass
-
-
-class AgentChatProcessoStrategy(ABC):
-    @abstractmethod
-    def create_reflection_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_rag_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_base_chat_agent_response(self) -> Dict:
-        pass
+from configs.strategy import (
+    ChatProcessStrategy,
+    AgentChatProcessoStrategy,
+    OpenAILikeModelConfigProcessStrategy,
+    CozeChatProcessStrategy
+)
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -363,3 +331,98 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
         """
         dict_body = self.exist_config.get(model, {})
         return {model: dict_body}
+
+
+class CozeChatProcessor(CozeChatProcessStrategy):
+    """
+    处理与 Coze API 相关的逻辑
+    """
+    def __init__(
+            self, 
+            access_token: Optional[str] = None,
+        ):
+        
+        if access_token:
+            self.personal_access_token = access_token
+        else:
+            from dotenv import load_dotenv
+            load_dotenv()
+            self.personal_access_token = os.getenv("COZE_ACCESS_TOKEN")
+    
+    def create_coze_agent_response(
+            self,
+            user: str,
+            query: str,
+            bot_id: str,
+            stream: bool = False,
+            conversation_id: Optional[str] = None,
+            chat_history: Optional[List[Dict[str, str]]] = None,
+            custom_variables: Optional[Dict[str, str]] = None,
+        ) -> requests.Response:
+        """
+        Creates a response from the Coze Agent API.
+
+        Args:
+            user (str): The user identifier.
+            query (str): The user's input or question.
+            bot_id (str): Identifier for the bot to use.
+            stream (bool, optional): Whether to return streaming responses. Defaults to False.
+            conversation_id (Optional[str], optional): ID of the current conversation. Defaults to None.
+            chat_history (Optional[List[Dict[str, str]]], optional): History of previous interactions. Defaults to None.
+            custom_variables (Optional[Dict[str, str]], optional): Custom variables for the request. Defaults to None.
+
+        Returns:
+            requests.Response: The response from the API call.
+        """
+        headers = {
+            'Authorization': f'Bearer {self.personal_access_token}',
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'Host': 'api.coze.cn',
+            'Connection': 'keep-alive'
+        }
+
+        data = {
+            'user': user,
+            'query': query,
+            'bot_id': bot_id,
+            'stream': stream,
+            'conversation_id': conversation_id,
+            'chat_history': chat_history,
+            'custom_variables': custom_variables
+        }
+
+        data = dict(filter(lambda item: item[1] is not None, data.items()))
+
+        response = requests.post(
+            url='https://api.coze.cn/open_api/v2/chat',
+            headers=headers,
+            json=data
+        )
+
+        return response
+
+    def get_bot_config(
+            self,
+            bot_id: str,
+            bot_version: Optional[str] = None
+        ) -> requests.Response:
+        headers = {
+            'Authorization': f'Bearer {self.personal_access_token}',
+            'Content-Type': 'application/json',
+            'Accept': '*/*',
+            'Connection': 'keep-alive'
+        }
+        
+        params = {
+            'bot_id': bot_id,
+            'bot_version': bot_version
+        }
+        params = dict(filter(lambda item: item[1] is not None, params.items()))
+
+        response = requests.get(
+            url="https://api.coze.cn/v1/bot/get_online_info",
+            headers=headers,
+            params=params
+        )
+        return response
