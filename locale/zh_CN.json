@@ -86,5 +86,8 @@
     "Configration": "配置",
     "Access token": "访问令牌（Access token）",
     "(Optional)Input your Coze access token here": "(可选)在这里输入你的 Coze 访问令牌",
-    "Optional": "可选"
+    "Optional": "可选",
+    "Please provide the access token and bot ID in sidebar.": "请在侧边栏中提供访问令牌和机器人 ID。",
+    "Your Coze bot ID, see https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993": "你的 Coze 机器人 ID，请参考 https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993",
+    "Get Coze Bot info": "获取 Coze 机器人信息"
 }

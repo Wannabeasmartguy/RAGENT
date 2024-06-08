@@ -402,13 +402,15 @@ class CozeChatProcessor(CozeChatProcessStrategy):
 
         return response
 
+    @classmethod
     def get_bot_config(
-            self,
+            cls,
+            personal_access_token: str,
             bot_id: str,
             bot_version: Optional[str] = None
         ) -> requests.Response:
         headers = {
-            'Authorization': f'Bearer {self.personal_access_token}',
+            'Authorization': f'Bearer {personal_access_token}',
             'Content-Type': 'application/json',
             'Accept': '*/*',
             'Connection': 'keep-alive'

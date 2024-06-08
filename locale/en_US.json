@@ -86,5 +86,8 @@
     "Configration": "Configration",
     "Access token": "Access token",
     "(Optional)Input your Coze access token here": "(Optional)Input your Coze access token here",
-    "Optional": "Optional"
+    "Optional": "Optional",
+    "Please provide the access token and bot ID in sidebar.": "Please provide the access token and bot ID in sidebar.",
+    "Your Coze bot ID, see https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993": "Your Coze bot ID, see https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993",
+    "Get Coze Bot info": "Get Coze Bot info"
 }
