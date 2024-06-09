@@ -86,4 +86,5 @@ if prompt := st.chat_input("What is up?"):
 
         st.session_state.coze_chat_history_display.append({"role": "assistant", "content": usable_response, "content_type":"coze_bot_response"})
         for i in usable_response.messages:
-            st.session_state.coze_chat_history_total.append(dict(i))
+            if i.type != 'follow_up':
+                st.session_state.coze_chat_history_total.append(dict(i))

@@ -1,10 +1,11 @@
 import streamlit as st
+import pyperclip
 
 from typing import Dict, List
 
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from configs.pydantic_model.message import CozeBotResponse, Message
-
+from utils.basic_utils import copy_to_clipboard
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
@@ -33,19 +34,21 @@ def display_cozebot_response(coze_response: CozeBotResponse | Dict[str, str]) ->
             if message.type == 'answer':
                 st.write(message.content)
             elif message.type == 'function_call':
-                function_call = st.popover(i18n('Function Call'))
+                function_call = st.popover(i18n("Function Call"))
                 function_call.write(message.content)
             elif message.type == 'follow_up':
                 follow_up_detect += 1
                 if follow_up_detect == 1:
                     st.write(i18n('---'))
-                    st.write(i18n('Follow Up'))
+                    st.write(i18n("Follow Up"))
                 st.button(
-                    label=message.content
+                    label=message.content,
+                    on_click=copy_to_clipboard,
+                    args=(message.content,)
                 )
         
         # 构建返回值
-        if message.type in ('answer', 'function_call', 'tool_response'):
+        if message.type in ('answer', 'function_call', 'tool_response', 'follow_up'):
             processed_message = Message.model_validate({
                 'role': message.role,
                 'type': message.type,

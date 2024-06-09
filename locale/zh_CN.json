@@ -89,5 +89,8 @@
     "Optional": "可选",
     "Please provide the access token and bot ID in sidebar.": "请在侧边栏中提供访问令牌和机器人 ID。",
     "Your Coze bot ID, see https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993": "你的 Coze 机器人 ID，请参考 https://www.coze.cn/docs/developer_guides/coze_api_overview#c5ac4993",
-    "Get Coze Bot info": "获取 Coze 机器人信息"
+    "Get Coze Bot info": "获取 Coze 机器人信息",
+    "The content has been copied to the clipboard": "内容已复制到剪贴板",
+    "Function Call": "函数工具调用",
+    "Follow Up": "后续问题"
 }

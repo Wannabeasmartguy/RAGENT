@@ -1,4 +1,5 @@
 import streamlit as st
+import pyperclip
 from streamlit import cache_resource
 
 import os
@@ -7,8 +8,10 @@ import uuid
 from typing import List, Dict
 
 from llm.ollama.completion import get_ollama_model_list
+from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from configs.chat_config import OAILikeConfigProcessor
 
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 def model_selector(model_type):
     if model_type == "OpenAI" or model_type == "AOAI":
@@ -213,3 +216,11 @@ def reverse_traversal(lst: List) -> Dict[str, str]:
         # 如果元素中的内容不为空且不为'TERMINATE'，则打印元素
         if item.get('content', '') not in ('', 'TERMINATE'):
             return item
+
+
+def copy_to_clipboard(content: str):
+    '''
+    将内容复制到剪贴板,并提供streamlit提醒
+    '''
+    pyperclip.copy(content)
+    st.toast(i18n("The content has been copied to the clipboard"), icon="✂️")

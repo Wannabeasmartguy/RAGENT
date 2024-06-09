@@ -28,3 +28,4 @@ fastapi==0.111.0
 pydantic==2.7.2
 pydantic-core==2.18.3
 pydantic-settings==2.2.1
+pyperclip==1.8.2
