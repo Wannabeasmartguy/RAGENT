@@ -27,7 +27,7 @@ from typing import List
 
 
 @st.cache_data
-def write_rag_chat_history(chat_history,sources):
+def write_rag_chat_history(chat_history,_sources):
     for message in chat_history:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
@@ -38,7 +38,7 @@ def write_rag_chat_history(chat_history,sources):
                 row1 = st.columns(3)
                 row2 = st.columns(3)
 
-                for content_source in sources:
+                for content_source in _sources:
                     if message["content"] in content_source:
                         # 获取引用文件
                         response_sources_list = content_source[message["content"]]
