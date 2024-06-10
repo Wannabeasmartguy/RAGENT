@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Dict
 
 from configs.chat_config import CozeChatProcessor
-from configs.pydantic_model.bot import Bot
+from configs.pydantic_model.coze.bot import Bot
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 import streamlit as st
 

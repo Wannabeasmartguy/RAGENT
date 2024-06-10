@@ -5,6 +5,7 @@ from streamlit import cache_resource
 import os
 import json
 import uuid
+from datetime import datetime, timezone
 from typing import List, Dict
 
 from llm.ollama.completion import get_ollama_model_list
@@ -224,3 +225,15 @@ def copy_to_clipboard(content: str):
     '''
     pyperclip.copy(content)
     st.toast(i18n("The content has been copied to the clipboard"), icon="✂️")
+
+
+def current_datetime() -> datetime:
+    return datetime.now()
+
+
+def current_datetime_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def current_datetime_utc_str() -> str:
+    return current_datetime_utc().strftime("%Y-%m-%dT%H:%M:%S")

@@ -4,7 +4,7 @@ import pyperclip
 from typing import Dict, List
 
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from configs.pydantic_model.message import CozeBotResponse, Message
+from configs.pydantic_model.coze.message import CozeBotResponse, Message
 from utils.basic_utils import copy_to_clipboard
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
