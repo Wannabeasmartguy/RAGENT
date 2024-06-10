@@ -45,8 +45,8 @@ def write_rag_chat_history(chat_history,sources):
 
                 for index,pop in enumerate(row1+row2):
                     a = pop.popover(f"引用文件",use_container_width=True)
-                    file_name = response_sources_list[index]["metadata"]["source"]
-                    file_content = response_sources_list[index]["page_content"]
+                    file_name = response_sources_list[index].metadata["source"]
+                    file_content = response_sources_list[index].page_content
                     a.text(f"引用文件{file_name}")
                     a.code(file_content,language="plaintext")
 
@@ -414,7 +414,7 @@ if prompt := st.chat_input("What is up?"):
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                response = agentchat_processor.create_rag_agent_response(
+                response = agentchat_processor.create_rag_agent_response_noapi(
                     name=collection_selectbox,
                     messages=processed_messages,
                     is_rerank=is_rerank,
@@ -442,8 +442,8 @@ if prompt := st.chat_input("What is up?"):
 
             for index,pop in enumerate(row1+row2):
                 a = pop.popover(f"引用文件",use_container_width=True)
-                file_name = response_sources_list[index]["metadata"]["source"]
-                file_content = response_sources_list[index]["page_content"]
+                file_name = response_sources_list[index].metadata["source"]
+                file_content = response_sources_list[index].page_content
                 a.text(f"引用文件{file_name}")
                 a.code(file_content,language="plaintext")
     

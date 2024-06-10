@@ -13,6 +13,7 @@ from configs.strategy import (
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
+from lc.rag.basic import LCOpenAILikeRAGManager
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -258,6 +259,54 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
                 }
             )
             return response
+        
+    def create_rag_agent_response_noapi(
+            self,
+            name: str,
+            messages: List[Dict[str, str]],
+            is_rerank: bool,
+            is_hybrid_retrieve: bool,
+            hybrid_retriever_weight: float,
+    ) -> Dict[str, Any]:
+        '''
+        创建一个agentchat的lc-rag响应
+
+        Args:
+            name (str): 知识库名称
+            messages (str): 完整的对话上下文
+            is_rerank (bool): 是否进行知识库检索结果 rerank
+            is_hybrid_retrieve (bool): 是否进行混合检索
+            hybrid_retriever_weight (float): 混合检索的权重
+            llm_config (LLMConfig): LLM配置
+            metadatas (Dict): 知识库查询得到的metadata
+        '''
+        llm_config = LLMConfig(**self.llm_config)
+        llm_params = LLMParams(**self.llm_config.get("params", {}))
+
+        rag_manager = LCOpenAILikeRAGManager(
+            llm_config=llm_config.dict(),
+            llm_params=llm_params.dict(),
+            collection=name
+        )
+
+        if len(messages) == 1:
+            prompt = messages[0]["content"]
+            chat_history = []
+        else:
+            prompt = messages[-1]["content"]
+            chat_history = messages[:-1]
+
+        response = rag_manager.invoke(
+            prompt=prompt,
+            chat_history=chat_history,
+            is_rerank=is_rerank,
+            is_hybrid_retrieve=is_hybrid_retrieve,
+            hybrid_retriever_weight=hybrid_retriever_weight,
+            sources_num=6
+        )
+
+        return response
+
     
     def create_function_call_agent_response(
         self,
