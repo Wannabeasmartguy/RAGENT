@@ -8,7 +8,7 @@ from openai import OpenAI
 
 from autogen.oai import OpenAIWrapper
 
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Optional
 
 from ..dependency import return_supported_sources
 
@@ -24,8 +24,8 @@ class LLMConfig(BaseModel):
     model: str
     base_url: str
     api_key: str
-    api_type: str | None
-    api_version: str | None
+    api_type: Optional[str | None] = None
+    api_version: Optional[str | None] = None
     
     class Config:
         extra = "ignore"
@@ -46,7 +46,7 @@ async def get_supported_sources(support_sources: dict = Depends(return_supported
     return support_sources
     
 
-@router.post("/openai-like-chat/{source}")
+@router.post("/openai-like-chat/{source}",deprecated=True)
 async def create_completion(
     source: str, 
     llm_config: LLMConfig,

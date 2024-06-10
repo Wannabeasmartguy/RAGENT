@@ -3,7 +3,10 @@ import os
 import json
 import requests
 
-from api.dependency import APIRequestHandler,SUPPORTED_SOURCES
+from autogen import OpenAIWrapper
+
+from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
+from api.routers.chat import LLMConfig, LLMParams
 from configs.strategy import (
     ChatProcessStrategy,
     AgentChatProcessoStrategy,
@@ -62,6 +65,59 @@ class ChatProcessor(ChatProcessStrategy):
         
         return response
     
+    def create_completion_noapi(
+        self,
+        messages: List[dict]
+    ):
+        '''
+        创建一个 LLM 模型，并使用该模型生成一个响应。
+        
+        Args:
+            source (str):  支持的 LLM 推理源，保存于 dependence.py 中。
+            llm_config (LLMConfig): LLM 模型的配置信息。
+            llm_params (LLMParams, optional): LLM 模型的参数信息，包括 temperature、top_p 和 max_tokens。
+            messages (List[dict]): 完整的对话消息列表。
+            support_sources (dict): 支持的 LLM 源列表。
+            
+        Returns:
+            Dict: 生成的响应。
+        '''
+        llm_config = LLMConfig(**self.llm_config)
+        llm_params = LLMParams(**self.llm_config.get("params", {}))
+        
+        # 检查 source 是否在支持列表中
+        source = self.model_type.lower()
+
+        if source not in SUPPORTED_SOURCES["sources"]:
+            raise ValueError(f"Unsupported source: {source}")
+        
+        # 根据 source 选择不同的处理逻辑
+        # 如果 Source 在 sources 中为 "sdk"，则使用 OpenAI SDK 进行处理
+        # 如果 Source 在 sources 中为 "request"，则使用 Request 进行处理
+
+        if SUPPORTED_SOURCES["sources"][source] == "sdk":
+            client = OpenAIWrapper(
+                **llm_config.dict(exclude_unset=True),
+                # 禁用缓存
+                cache = None,
+                cache_seed = None
+            )
+
+            if llm_params:
+                response = client.create(
+                    messages = messages,
+                    model = llm_config.model,
+                    temperature = llm_params.temperature,
+                    top_p = llm_params.top_p,
+                    max_tokens = llm_params.max_tokens
+                )
+            else:
+                response = client.create(
+                    messages = messages,
+                    model = llm_config.model,
+                )
+
+            return response
 
     def create_completion_stream_api(
             self, 
@@ -99,7 +155,6 @@ class ChatProcessor(ChatProcessStrategy):
         
         return response
     
-
     def create_completion_stream_noapi(
             self, 
             messages: List[Dict[str, str]],

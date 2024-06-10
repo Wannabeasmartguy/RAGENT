@@ -288,15 +288,15 @@ if prompt := st.chat_input("What is up?"):
 
                 # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
                 # 一般都是在的
-                response = chatprocessor.create_completion(
+                response = chatprocessor.create_completion_noapi(
                     messages=processed_messages
                 )
 
                 if "error" not in response:
                     # st.write(response)
-                    response_content = response["choices"][0]["message"]["content"]
+                    response_content = response.choices[0].message.content
                     st.write(response_content)
-                    cost = response["cost"]
+                    cost = response.cost
                     st.write(f"response cost: ${cost}")
 
                     st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
