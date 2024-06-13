@@ -3,6 +3,7 @@ import streamlit as st
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
+from uuid import uuid4
 from copy import deepcopy
 from dotenv import load_dotenv
 load_dotenv()
@@ -16,6 +17,8 @@ from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector, write_chat_history
+from storage.db.sqlite import SqlAssistantStorage
+from configs.pydantic_model.chat.assistant import AssistantRun
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -25,6 +28,13 @@ requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
+chat_history_storage = SqlAssistantStorage(
+    table_name="chatbot_chat_history",
+    db_file = os.path.join(os.path.dirname(__file__), "chat_history.db")
+)
+if not chat_history_storage.table_exists():
+    chat_history_storage.create()
+
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
 set_pages_configs_in_common(
@@ -33,12 +43,13 @@ set_pages_configs_in_common(
     page_icon_path=logo_path
 )
 
-st.title("RAGenT")
- 
 
 # Initialize chat history
 if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+    try:
+        st.session_state.chat_history = deepcopy(st.session_state.chat_history_list.memory['chat_history'])
+    except:
+        st.session_state.chat_history = []
 
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
@@ -49,8 +60,11 @@ if "oai_like_model_config_dict" not in st.session_state:
         }
     }
 
-
-write_chat_history(st.session_state.chat_history)
+if "run_id" not in st.session_state:
+    try:
+        st.session_state.run_id = st.session_state.chat_history_list.memory.run_id
+    except:
+        st.session_state.run_id = str(uuid4())
 
 
 with st.sidebar:
@@ -169,6 +183,7 @@ with st.sidebar:
     clear_button = cols[1].button(label=i18n("Clear chat history"))
     if clear_button:
         st.session_state.chat_history = []
+        st.session_state.run_id = str(uuid4())
         write_chat_history(st.session_state.chat_history)
         st.rerun()
     if export_button:
@@ -186,42 +201,61 @@ with st.sidebar:
     dialog_settings = st.popover(
         label=i18n("Saved dialog settings"),
         use_container_width=True,
-        # TODO:未完成保存、删除和读取功能，先disable
-        disabled=True,
+        # disabled=True,
     )
     
     # 管理已有对话
     saved_dialog = dialog_settings.selectbox(
         label=i18n("Saved dialog"),
-        # TODO: 读取本地文件夹中的对话
-        options=["None"],
+        options=chat_history_storage.get_all_runs(),
+        format_func=lambda x: x.run_name,
+        key="chat_history_list",
     )
-    load_dialog_button = dialog_settings.button(
-        label=i18n("Load selected dialog"),
+    add_dialog_button = dialog_settings.button(
+        label=i18n("Add a new dialog"),
         use_container_width=True,
     )
     delete_dialog_button = dialog_settings.button(
         label=i18n("Delete selected dialog"),
         use_container_width=True,
     )
-    if load_dialog_button:
-        # TODO: 加载对话
-        pass
+
+    if saved_dialog:
+        st.session_state.run_id = saved_dialog.run_id
+        st.session_state.chat_history = saved_dialog.memory['chat_history']
+    if add_dialog_button:
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=str(uuid4()),
+                run_name="New dialog",
+                memory={
+                    "chat_history": []
+                }
+            )
+        )
+        st.rerun()
     if delete_dialog_button:
-        # TODO: 删除对话
-        pass
+        chat_history_storage.delete_run(st.session_state.run_id)
+        st.session_state.run_id = str(uuid4())
+        st.session_state.chat_history = []
+        st.rerun()
 
     # 保存对话
+    def get_run_name():
+        try:
+            run_name = saved_dialog.run_name
+        except:
+            run_name = "RAGenT"
+        return run_name
+    def change_run_name():
+        # TODO: 修改对话名称
+        pass
     dialog_name = dialog_settings.text_input(
         label=i18n("Dialog name"),
+        value=get_run_name(),
+        key="run_name",
     )
-    save_dialog_button = dialog_settings.button(
-        label=i18n("Save dialog"),
-        use_container_width=True,
-    )
-    if save_dialog_button:
-        # TODO: 保存对话到本地文件
-        pass
 
 
 if st.session_state["model_type"] == "OpenAI":
@@ -262,6 +296,10 @@ elif st.session_state["model_type"] == "Llamafile":
     )
 
 
+st.title(st.session_state.run_name)
+write_chat_history(st.session_state.chat_history)
+
+
 # Accept user input
 if prompt := st.chat_input("What is up?"):
     # Display user message in chat message container
@@ -300,11 +338,23 @@ if prompt := st.chat_input("What is up?"):
                     st.write(f"response cost: ${cost}")
 
                     st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
+
+                    # 保存聊天记录
+                    chat_history_storage.upsert(
+                        AssistantRun(
+                            name="assistant",
+                            run_name=st.session_state.run_name,
+                            run_id=st.session_state.run_id,
+                            llm=config_list[0],
+                            memory={
+                                "chat_history": st.session_state.chat_history
+                            },
+                        )
+                    )
                 else:
                     st.error(response)
 
                 
-            # TODO：流式调用
             else:
                 # 流式调用
                 # 获得 API 的响应，但是解码出来的乱且不完整
@@ -321,3 +371,16 @@ if prompt := st.chat_input("What is up?"):
                 total_response = st.write_stream(response)
 
                 st.session_state.chat_history.append({"role": "assistant", "content": total_response})
+                chat_history_storage.upsert(
+                        AssistantRun(
+                            name="assistant",
+                            run_id=st.session_state.run_id,
+                            run_name=st.session_state.run_name,
+                            llm=config_list[0],
+                            memory={
+                                "chat_history": st.session_state.chat_history
+                            },
+                        )
+                    )
+        # TODO：没有添加直接修改run_name的功能前，先使用rerun更新
+        st.rerun()

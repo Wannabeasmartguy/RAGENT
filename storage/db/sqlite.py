@@ -362,7 +362,12 @@ class SqlAssistantStorage:
                 sess.rollback()
         return None
 
-    def delete(self) -> None:
+    def delete_table(self) -> None:
         if self.table_exists():
             logger.debug(f"Deleting table: {self.table_name}")
             self.table.drop(self.db_engine)
+    
+    def delete_run(self, run_id: str) -> None:
+        with self.Session() as sess, sess.begin():
+            stmt = delete(self.table).where(self.table.c.run_id == run_id)
+            sess.execute(stmt)

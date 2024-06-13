@@ -6,7 +6,7 @@ import os
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from llm.ollama.completion import get_ollama_model_list
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
@@ -44,10 +44,11 @@ def oai_model_config_selector(oai_model_config:Dict):
 
 # Display chat messages from history on app rerun
 @st.cache_data
-def write_chat_history(chat_history: List[Dict[str, str]]) -> None:
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
+    if chat_history:
+        for message in chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
 
 def split_list_by_key_value(dict_list, key, value):

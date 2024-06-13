@@ -17,6 +17,9 @@ knowledgebase
 # Model config
 custom_model_config.json
 
+# User data
+*.db
+
 # C extensions
 *.so
 
