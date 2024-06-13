@@ -183,7 +183,16 @@ with st.sidebar:
     clear_button = cols[1].button(label=i18n("Clear chat history"))
     if clear_button:
         st.session_state.chat_history = []
-        st.session_state.run_id = str(uuid4())
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.run_id,
+                run_name=st.session_state.run_name,
+                memory={
+                    "chat_history": st.session_state.chat_history
+                }
+            )
+        )
         write_chat_history(st.session_state.chat_history)
         st.rerun()
     if export_button:

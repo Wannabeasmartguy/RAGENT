@@ -239,7 +239,7 @@ class SqlAssistantStorage:
         )
 
     def table_exists(self) -> bool:
-        logger.debug(f"Checking if table exists: {self.table.name}")
+        # logger.debug(f"Checking if table exists: {self.table.name}")
         try:
             return inspect(self.db_engine).has_table(self.table.name)
         except Exception as e:
@@ -248,7 +248,7 @@ class SqlAssistantStorage:
 
     def create(self) -> None:
         if not self.table_exists():
-            logger.debug(f"Creating table: {self.table.name}")
+            logger.info(f"Creating table: {self.table.name}")
             self.table.create(self.db_engine)
 
     def _read(self, session: Session, run_id: str) -> Optional[Row[Any]]:
@@ -346,6 +346,7 @@ class SqlAssistantStorage:
             try:
                 sess.execute(stmt)
                 sess.commit()  # Make sure to commit the changes to the database
+                logger.info(f"Upserted assistant run: run_id = {row.run_id}, name = {row.run_name}")
                 return self.read(run_id=row.run_id)
             except OperationalError as oe:
                 logger.debug(f"OperationalError occurred: {oe}")
@@ -371,3 +372,4 @@ class SqlAssistantStorage:
         with self.Session() as sess, sess.begin():
             stmt = delete(self.table).where(self.table.c.run_id == run_id)
             sess.execute(stmt)
+            logger.info(f"Deleted assistant run: run_id = {run_id}")
