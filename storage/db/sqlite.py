@@ -10,7 +10,7 @@ except ImportError:
     raise ImportError("`sqlalchemy` not installed")
 
 from sqlite3 import OperationalError
-from typing import Optional, List, Any
+from typing import Optional, List, Literal, Any
 from loguru import logger
 
 from configs.pydantic_model.memory.base import MemoryRow
@@ -267,7 +267,11 @@ class SqlAssistantStorage:
             existing_row: Optional[Row[Any]] = self._read(session=sess, run_id=run_id)
             return AssistantRun.model_validate(existing_row) if existing_row is not None else None
 
-    def get_all_run_ids(self, user_id: Optional[str] = None) -> List[str]:
+    def get_all_run_ids(
+            self, 
+            user_id: Optional[str] = None, 
+            filter: Optional[Literal["created_at", "updated_at"]] = "created_at"
+        ) -> List[str]:
         run_ids: List[str] = []
         try:
             with self.Session() as sess:
@@ -275,8 +279,12 @@ class SqlAssistantStorage:
                 stmt = select(self.table)
                 if user_id is not None:
                     stmt = stmt.where(self.table.c.user_id == user_id)
-                # order by created_at desc
-                stmt = stmt.order_by(self.table.c.created_at.desc())
+                if filter == "created_at":
+                    # order by created_at desc by default
+                    stmt = stmt.order_by(self.table.c.created_at.desc())
+                elif filter == "updated_at":
+                    # order by updated_at desc
+                    stmt = stmt.order_by(self.table.c.updated_at.desc())
                 # execute query
                 rows = sess.execute(stmt).fetchall()
                 for row in rows:
@@ -287,7 +295,11 @@ class SqlAssistantStorage:
             pass
         return run_ids
 
-    def get_all_runs(self, user_id: Optional[str] = None) -> List[AssistantRun]:
+    def get_all_runs(
+            self, 
+            user_id: Optional[str] = None, 
+            filter: Optional[Literal["created_at", "updated_at"]] = "created_at"
+        ) -> List[AssistantRun]:
         conversations: List[AssistantRun] = []
         try:
             with self.Session() as sess:
@@ -295,8 +307,12 @@ class SqlAssistantStorage:
                 stmt = select(self.table)
                 if user_id is not None:
                     stmt = stmt.where(self.table.c.user_id == user_id)
-                # order by created_at desc
-                stmt = stmt.order_by(self.table.c.created_at.desc())
+                if filter == "created_at":
+                    # order by created_at desc by default
+                    stmt = stmt.order_by(self.table.c.created_at.desc())
+                elif filter == "updated_at":
+                    # order by updated_at desc
+                    stmt = stmt.order_by(self.table.c.updated_at.desc())
                 # execute query
                 rows = sess.execute(stmt).fetchall()
                 for row in rows:
@@ -341,6 +357,7 @@ class SqlAssistantStorage:
                 run_data=row.run_data,
                 user_data=row.user_data,
                 task_data=row.task_data,
+                updated_at=current_datetime(),
             )
 
             # Define the upsert if the run_id already exists
@@ -357,6 +374,7 @@ class SqlAssistantStorage:
                     run_data=row.run_data,
                     user_data=row.user_data,
                     task_data=row.task_data,
+                    updated_at=current_datetime(),
                 ),  # The updated value for each column
             )
 

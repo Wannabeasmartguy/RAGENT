@@ -66,6 +66,14 @@ if "run_id" not in st.session_state:
     except:
         st.session_state.run_id = str(uuid4())
 
+try:
+    run_id_list = chat_history_storage.get_all_run_ids()
+    if st.session_state.run_id in run_id_list:
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.chat_history_list.memory.run_id)
+    else:
+        st.session_state.current_run_id_index = 0
+except:
+    st.session_state.current_run_id_index = 0
 
 with st.sidebar:
     st.image(logo_path)
@@ -181,20 +189,7 @@ with st.sidebar:
     cols = st.columns(2)
     export_button = cols[0].button(label=i18n("Export chat history"))
     clear_button = cols[1].button(label=i18n("Clear chat history"))
-    if clear_button:
-        st.session_state.chat_history = []
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.run_id,
-                run_name=st.session_state.run_name,
-                memory={
-                    "chat_history": st.session_state.chat_history
-                }
-            )
-        )
-        write_chat_history(st.session_state.chat_history)
-        st.rerun()
+    # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
@@ -214,10 +209,11 @@ with st.sidebar:
     )
     
     # 管理已有对话
-    saved_dialog = dialog_settings.selectbox(
+    saved_dialog = dialog_settings.radio(
         label=i18n("Saved dialog"),
         options=chat_history_storage.get_all_runs(),
         format_func=lambda x: x.run_name,
+        index=st.session_state.current_run_id_index,
         key="chat_history_list",
     )
     add_dialog_button = dialog_settings.button(
@@ -232,6 +228,7 @@ with st.sidebar:
     if saved_dialog:
         st.session_state.run_id = saved_dialog.run_id
         st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
     if add_dialog_button:
         chat_history_storage.upsert(
             AssistantRun(
@@ -248,6 +245,20 @@ with st.sidebar:
         chat_history_storage.delete_run(st.session_state.run_id)
         st.session_state.run_id = str(uuid4())
         st.session_state.chat_history = []
+        st.rerun()
+    if clear_button:
+        st.session_state.chat_history = []
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.run_id,
+                run_name=st.session_state.run_name,
+                memory={
+                    "chat_history": st.session_state.chat_history
+                }
+            )
+        )
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
         st.rerun()
 
     # 保存对话
