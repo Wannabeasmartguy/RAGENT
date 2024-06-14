@@ -81,7 +81,9 @@ with st.sidebar:
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
-    select_box0 = st.selectbox(
+
+    model_choosing_container = st.expander(label=i18n("Model Choosing"),expanded=True)
+    select_box0 = model_choosing_container.selectbox(
         label=i18n("Model type"),
         options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
@@ -89,19 +91,19 @@ with st.sidebar:
     )
 
     if select_box0 != "Llamafile":
-        select_box1 = st.selectbox(
+        select_box1 = model_choosing_container.selectbox(
             label=i18n("Model"),
             options=model_selector(st.session_state["model_type"]),
             key="model"
         )
     elif select_box0 == "Llamafile":
-        select_box1 = st.text_input(
+        select_box1 = model_choosing_container.text_input(
             label=i18n("Model"),
             value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
             key="model",
             placeholder=i18n("Fill in custom model name. (Optional)")
         )
-        with st.popover(label=i18n("Llamafile config"),use_container_width=True):
+        with model_choosing_container.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
                 value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
@@ -176,6 +178,12 @@ with st.sidebar:
             help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
         )
 
+    dialog_settings = st.popover(
+        label=i18n("Saved dialog settings"),
+        use_container_width=True,
+        # disabled=True,
+    )
+
     history_length = st.number_input(
         label=i18n("History length"),
         min_value=1,
@@ -187,8 +195,8 @@ with st.sidebar:
     max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
     cols = st.columns(2)
-    export_button = cols[0].button(label=i18n("Export chat history"))
-    clear_button = cols[1].button(label=i18n("Clear chat history"))
+    export_button = cols[0].button(label=i18n("Export chat history"),use_container_width=True)
+    clear_button = cols[1].button(label=i18n("Clear chat history"),use_container_width=True)
     # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
     if export_button:
         # 将聊天历史导出为Markdown
@@ -199,21 +207,17 @@ with st.sidebar:
             f.write(chat_history)
         st.toast(body="Chat history exported to chat_history.md",icon="🎉")
 
-    st.write("---")
 
-
-    dialog_settings = st.popover(
-        label=i18n("Saved dialog settings"),
-        use_container_width=True,
-        # disabled=True,
-    )
+    dialog_settings.write(i18n("Dialogues list"))
     
     # 管理已有对话
-    saved_dialog = dialog_settings.radio(
+    dialogs_container = dialog_settings.container(height=200,border=True)
+    saved_dialog = dialogs_container.radio(
         label=i18n("Saved dialog"),
         options=chat_history_storage.get_all_runs(),
         format_func=lambda x: x.run_name,
         index=st.session_state.current_run_id_index,
+        label_visibility="collapsed",
         key="chat_history_list",
     )
     add_dialog_button = dialog_settings.button(

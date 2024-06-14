@@ -1,11 +1,12 @@
 {
     "Chat type": "Chat type",
     "Model type": "Model type",
+    "Model Choosing": "Model Choosing",
     "Model": "Model",
     "History length": "History length",
     "Clear chat history": "Clear chat history",
     "Export chat history": "Export chat history",
-    "Saved dialog": "Saved dialog",
+    "Saved dialog": "Saved dialogues",
     "Sub pages":"Sub pages",
     "⚙️ AgentChat Setting": "⚙️ AgentChat Setting",
     "📖 Knowledge Base Setting": "📖 Knowledge Base Setting",
@@ -93,5 +94,6 @@
     "Get Coze Bot info": "Get Coze Bot info",
     "The content has been copied to the clipboard": "The content has been copied to the clipboard",
     "Function Call": "Function Call",
-    "Follow Up": "Follow Up"
+    "Follow Up": "Follow Up",
+    "Dialogues list": "Dialogues list"
 }
