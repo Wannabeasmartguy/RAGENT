@@ -28,9 +28,13 @@ requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
+chat_history_db_dir = os.path.join(os.path.dirname(__file__), "databases", "chat_history")
+chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
+if not os.path.exists(chat_history_db_dir):
+    os.makedirs(chat_history_db_dir)
 chat_history_storage = SqlAssistantStorage(
     table_name="chatbot_chat_history",
-    db_file = os.path.join(os.path.dirname(__file__), "chat_history.db")
+    db_file = chat_history_db_file,
 )
 if not chat_history_storage.table_exists():
     chat_history_storage.create()

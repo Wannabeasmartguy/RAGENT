@@ -368,8 +368,9 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
     def __init__(self):
-        # 如果本地没有custom_model_config.json文件，则创建
+        # 如果本地没有custom_model_config.json文件，则创建文件夹及文件
         if not os.path.exists(self.config_path):
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, "w") as f:
                 json.dump({}, f)
         

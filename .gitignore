@@ -10,7 +10,8 @@ chat_history.md
 
 # Embedding models and knowledge bases
 embeddings
-embedding_config.json
+dynamic_configs
+databases
 knowledge base
 knowledgebase
 
