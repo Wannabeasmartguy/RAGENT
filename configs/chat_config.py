@@ -365,7 +365,7 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     """
     处理 OAI-like 模型的配置的策略模式实现类
     """
-    config_path = "custom_model_config.json"
+    config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
     def __init__(self):
         # 如果本地没有custom_model_config.json文件，则创建

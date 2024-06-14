@@ -22,14 +22,16 @@ from configs.knowledge_base_config import ChromaCollectionProcessor
 from api.routers.knowledgebase import KNOWLEDGE_BASE_PATH
 
 import json
+import os
 
+embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
 def create_lc_embedding_model(
     # embedding_config: Dict[str, Any],
     collection_name: str,
 ) -> AzureOpenAIEmbeddings | SentenceTransformerEmbeddings:
     # 读取本地的 embedding_config.json
-    with open("embedding_config.json", "r") as f:
+    with open(embedding_config_file_path, "r") as f:
         embedding_config = json.load(f)
     
     if embedding_config[collection_name]["embedding_type"] == "openai":

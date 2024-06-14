@@ -13,8 +13,8 @@ from sqlite3 import OperationalError
 from typing import Optional, List, Literal, Any
 from loguru import logger
 
-from configs.pydantic_model.memory.base import MemoryRow
-from configs.pydantic_model.chat.assistant import AssistantRun
+from model.memory.base import MemoryRow
+from model.chat.assistant import AssistantRun
 from utils.basic_utils import current_datetime
 
 

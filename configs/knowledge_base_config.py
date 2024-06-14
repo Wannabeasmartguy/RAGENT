@@ -141,6 +141,7 @@ def create_embedding_model_config(
 
 
 class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
+    embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
     def __init__(
         self,
         embedding_model_type: Literal["openai", "huggingface"],
@@ -232,14 +233,14 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         # }
         
         # 更新 embedding_config.json，如果没有该文件，则创建
-        if not os.path.exists("embedding_config.json"):
-            with open("embedding_config.json", "w") as f:
+        if not os.path.exists(self.embedding_config_file_path):
+            with open(self.embedding_config_file_path, "w") as f:
                 json.dump({collection_name: self.embedding_model_config.dict()}, f)
         else:
-            with open("embedding_config.json", "r") as f:
+            with open(self.embedding_config_file_path, "r") as f:
                 collections_embedding_config = json.load(f)
             collections_embedding_config[collection_name] = self.embedding_model_config.dict()
-            with open("embedding_config.json", "w") as f:
+            with open(self.embedding_config_file_path, "w") as f:
                 json.dump(collections_embedding_config, f, indent=4)
     
 
@@ -257,10 +258,10 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         )
         
         # 删除 embedding_config.json 中的该 collection 的信息
-        with open("embedding_config.json", "r") as f:
+        with open(self.embedding_config_file_path, "r") as f:
             collections_embedding_config = json.load(f)
         del collections_embedding_config[collection_name]
-        with open("embedding_config.json", "w") as f:
+        with open(self.embedding_config_file_path, "w") as f:
             json.dump(collections_embedding_config, f, indent=4)
             
 

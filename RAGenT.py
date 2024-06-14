@@ -18,7 +18,7 @@ from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, save_basic_chat_history, oai_model_config_selector, write_chat_history
 from storage.db.sqlite import SqlAssistantStorage
-from configs.pydantic_model.chat.assistant import AssistantRun
+from model.chat.assistant import AssistantRun
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -232,7 +232,6 @@ with st.sidebar:
     if saved_dialog:
         st.session_state.run_id = saved_dialog.run_id
         st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
-        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
     if add_dialog_button:
         chat_history_storage.upsert(
             AssistantRun(

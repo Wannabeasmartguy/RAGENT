@@ -4,7 +4,7 @@ import uuid
 
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from configs.chat_config import CozeChatProcessor
-from configs.pydantic_model.coze.bot import Bot_Single_Agent
+from model.coze.bot import Bot_Single_Agent
 from storage.displayer.coze import display_cozebot_response, display_coze_conversation
 
 

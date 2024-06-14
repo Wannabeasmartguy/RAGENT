@@ -133,10 +133,11 @@ with collection_choose_placeholder.container():
             type="primary"
         )
 
+embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
 if embed_model_type_selectbox == "openai":
     # 读取 embedding_config.json 中该名称的配置
-    with open("embedding_config.json", "r", encoding="utf-8") as f:
+    with open(embedding_config_file_path, "r", encoding="utf-8") as f:
         embedding_config = json.load(f)
     collection_config = embedding_config.get(collection_choose, {})
     
@@ -152,7 +153,7 @@ if embed_model_type_selectbox == "openai":
     )
 
 elif embed_model_type_selectbox == "huggingface":
-    with open("embedding_config.json", "r", encoding="utf-8") as f:
+    with open(embedding_config_file_path, "r", encoding="utf-8") as f:
         embedding_config = json.load(f)
     collection_config = embedding_config.get(collection_choose, {})
 

@@ -3,7 +3,7 @@ import os
 
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from configs.chat_config import CozeChatProcessor
-from configs.pydantic_model.coze.bot import Bot
+from model.coze.bot import Bot
 from utils.coze_utils import display_bot_info
 
 
