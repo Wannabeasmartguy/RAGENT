@@ -231,7 +231,7 @@ with st.sidebar:
 
     if saved_dialog:
         st.session_state.run_id = saved_dialog.run_id
-        st.session_state.chat_history = saved_dialog.memory['chat_history']
+        st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
     if add_dialog_button:
         chat_history_storage.upsert(
             AssistantRun(

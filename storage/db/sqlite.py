@@ -306,6 +306,23 @@ class SqlAssistantStorage:
             logger.debug(f"Table does not exist: {self.table.name}")
             pass
         return conversations
+    
+    def get_specific_run(self, run_id: str, user_id: Optional[str] = None) -> AssistantRun:
+        try:
+            with self.Session() as sess:
+                # get specific run for this user
+                stmt = select(self.table).where(self.table.c.run_id == run_id)
+                if user_id is not None:
+                    stmt = stmt.where(self.table.c.user_id == user_id)
+                    
+                # execute query
+                row = sess.execute(stmt).first()
+                return AssistantRun.model_validate(row)
+            
+        except OperationalError:
+            logger.debug(f"Table does not exist: {self.table.name}")
+            pass
+        return None
 
     def upsert(self, row: AssistantRun) -> Optional[AssistantRun]:
         """
