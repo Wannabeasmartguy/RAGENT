@@ -30,7 +30,7 @@ class BgeRerank(BaseDocumentCompressor):
         self.define_model()
 
     def define_model(self):
-        model_path = os.path.join('embedding model',self.model_name)
+        model_path = os.path.join('embeddings',self.model_name)
         try:
             self.model:CrossEncoder = CrossEncoder(model_name=model_path)
         except:

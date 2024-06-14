@@ -15,6 +15,7 @@ from utils.text_splitter.text_splitter_utils import *
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
+embedding_dir = "embeddings"
 
 openai_embedding_model = ["text-embedding-ada-002"]
 local_embedding_model = ['bge-base-zh-v1.5','bge-base-en-v1.5',
@@ -92,12 +93,12 @@ if embed_model_type_selectbox == "openai":
     )
 elif embed_model_type_selectbox == "huggingface":
     chroma_vectorstore_processor = ChromaVectorStoreProcessor(
-        embedding_model_name_or_path="embedding model/" + embed_model_selectbox,
+        embedding_model_name_or_path=os.path.join(embedding_dir,embed_model_selectbox),
         embedding_model_type=embed_model_type_selectbox,
     )
     # 检查是否已有本地嵌入模型
     embed_model_situation = chroma_vectorstore_processor.model_dir_verify(
-        model_name_or_path="embedding model/" + embed_model_selectbox
+        model_name_or_path=os.path.join(embedding_dir,embed_model_selectbox)
     )
     if embed_model_situation:
         st.toast(embed_model_situation, icon="⚠️")
@@ -107,7 +108,7 @@ elif embed_model_type_selectbox == "huggingface":
 if embed_model_download_button and embed_model_type_selectbox == "huggingface":
     chroma_vectorstore_processor.download_model(
         repo_id=huggingface_repo_id_input,
-        model_name_or_path="embedding model/" + embed_model_selectbox
+        model_name_or_path=os.path.join(embedding_dir,embed_model_selectbox)
     )
     st.toast(i18n("Model downloaded successfully!"), icon="✅")
 
