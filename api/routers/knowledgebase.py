@@ -11,7 +11,7 @@ from langchain_core.documents.base import Document
 from typing import List, Dict, Literal
 
 
-KNOWLEDGE_BASE_PATH = "./knowledgebase"
+KNOWLEDGE_BASE_PATH = "./databases/knowledgebase"
 
 
 router = APIRouter(
