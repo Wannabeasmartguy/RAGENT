@@ -50,9 +50,12 @@ async def create_embedding_model(
             api_version=embedding_config.api_version
         )
     elif embedding_config.embedding_type == "huggingface":
-        embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=embedding_config.embedding_model_or_path
-        )
+        try:
+            embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=embedding_config.embedding_model_or_path
+            )
+        except OSError:
+            raise ValueError("Huggingface model not found, please use 'Local embedding model download' to download the model")
     else:
         raise ValueError("Unsupported embedding type")
     

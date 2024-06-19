@@ -11,6 +11,8 @@ from configs.knowledge_base_config import ChromaCollectionProcessor, ChromaVecto
 from utils.chroma_utils import *
 from utils.text_splitter.text_splitter_utils import *
 
+from api.routers.knowledgebase import KNOWLEDGE_BASE_PATH
+
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
@@ -137,6 +139,10 @@ with collection_choose_placeholder.container():
 embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
 if embed_model_type_selectbox == "openai":
+    if not os.path.exists(embedding_config_file_path):
+        # 创建 embedding_config.json
+        with open(embedding_config_file_path, "w", encoding="utf-8") as f:
+            json.dump({}, f)
     # 读取 embedding_config.json 中该名称的配置
     with open(embedding_config_file_path, "r", encoding="utf-8") as f:
         embedding_config = json.load(f)
@@ -154,6 +160,10 @@ if embed_model_type_selectbox == "openai":
     )
 
 elif embed_model_type_selectbox == "huggingface":
+    if not os.path.exists(embedding_config_file_path):
+        # 创建 embedding_config.json
+        with open(embedding_config_file_path, "w", encoding="utf-8") as f:
+            json.dump({}, f)
     with open(embedding_config_file_path, "r", encoding="utf-8") as f:
         embedding_config = json.load(f)
     collection_config = embedding_config.get(collection_choose, {})
@@ -323,7 +333,7 @@ delete_file_button = st.button(label=i18n("Delete the File"),use_container_width
 if get_knowledge_base_info_button:
     with st.spinner(i18n("Getting file info...")):
         chroma_info_html = get_chroma_file_info(
-            persist_path="./knowledgebase",
+            persist_path=KNOWLEDGE_BASE_PATH,
             collection_name=chroma_collection_processor.collection_name,
             file_name=file_names_inchroma,
             limit=len(chroma_collection_processor.list_collection_all_filechunks_content()),
