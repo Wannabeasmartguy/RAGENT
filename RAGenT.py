@@ -3,6 +3,7 @@ import streamlit as st
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
+from typing import Optional
 from uuid import uuid4
 from copy import deepcopy
 from dotenv import load_dotenv
@@ -211,6 +212,21 @@ with st.sidebar:
             f.write(chat_history)
         st.toast(body="Chat history exported to chat_history.md",icon="🎉")
 
+    def get_system_prompt(run_id: Optional[str]):
+        if run_id:
+            try:
+                return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
+            except:
+                return "You are a helpful assistant."
+        else:
+            return "You are a helpful assistant."
+
+    dialog_settings.text_area(
+        label=i18n("System Prompt"),
+        value=get_system_prompt(st.session_state.run_id),
+        height=100,
+        key="system_prompt",
+    )
 
     dialog_settings.write(i18n("Dialogues list"))
     
@@ -341,6 +357,7 @@ if prompt := st.chat_input("What is up?"):
         with st.spinner("Thinking..."):
             # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
+            processed_messages.insert(0,{"role": "system", "content": st.session_state.system_prompt})
 
             chatprocessor = ChatProcessor(
                 requesthandler=requesthandler,
@@ -407,6 +424,9 @@ if prompt := st.chat_input("What is up?"):
                             memory={
                                 "chat_history": st.session_state.chat_history
                             },
+                            assistant_data={
+                                "system_prompt": st.session_state.system_prompt,
+                            }
                         )
                     )
         # TODO：没有添加直接修改run_name的功能前，先使用rerun更新

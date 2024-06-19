@@ -95,5 +95,6 @@
     "The content has been copied to the clipboard": "The content has been copied to the clipboard",
     "Function Call": "Function Call",
     "Follow Up": "Follow Up",
-    "Dialogues list": "Dialogues list"
+    "Dialogues list": "Dialogues list",
+    "System Prompt": "**System Prompt**"
 }

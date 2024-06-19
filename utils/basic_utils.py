@@ -47,6 +47,11 @@ def oai_model_config_selector(oai_model_config:Dict):
 def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
     if chat_history:
         for message in chat_history:
+            try:
+                if message["role"] == "system":
+                    continue
+            except:
+                pass
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
