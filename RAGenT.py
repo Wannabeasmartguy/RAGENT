@@ -221,13 +221,6 @@ with st.sidebar:
         else:
             return "You are a helpful assistant."
 
-    dialog_settings.text_area(
-        label=i18n("System Prompt"),
-        value=get_system_prompt(st.session_state.run_id),
-        height=100,
-        key="system_prompt",
-    )
-
     dialog_settings.write(i18n("Dialogues list"))
     
     # 管理已有对话
@@ -284,6 +277,8 @@ with st.sidebar:
         st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
         st.rerun()
 
+    dialog_settings.write("---")
+
     # 保存对话
     def get_run_name():
         try:
@@ -299,7 +294,12 @@ with st.sidebar:
         value=get_run_name(),
         key="run_name",
     )
-
+    
+    dialog_settings.text_area(
+        label=i18n("System Prompt"),
+        value=get_system_prompt(saved_dialog.run_id),
+        height=100,
+    )
 
 if st.session_state["model_type"] == "OpenAI":
     pass
