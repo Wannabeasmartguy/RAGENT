@@ -298,7 +298,8 @@ with st.sidebar:
     dialog_settings.text_area(
         label=i18n("System Prompt"),
         value=get_system_prompt(saved_dialog.run_id),
-        height=100,
+        height=300,
+        key="system_prompt",
     )
 
 if st.session_state["model_type"] == "OpenAI":
