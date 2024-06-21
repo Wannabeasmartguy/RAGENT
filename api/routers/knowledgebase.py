@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 import chromadb
+import os
 import uuid
 from chromadb.utils import embedding_functions
 
@@ -12,6 +13,8 @@ from typing import List, Dict, Literal
 
 
 KNOWLEDGE_BASE_PATH = "./databases/knowledgebase"
+EMBEDDING_CONFIG_DB_FILE = os.path.join("databases", "configs","configs.db")
+EMBEDDING_CONFIG_DB_TABLE = "embedding_configs"
 
 
 router = APIRouter(

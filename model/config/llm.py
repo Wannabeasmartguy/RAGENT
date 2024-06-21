@@ -9,7 +9,7 @@ class OpenAIConfiguration(BaseModel):
     '''The model name to use for the llm'''
     api_key: Optional[str] = None
     '''The API key to use for the llm'''
-    model_data: Optional[Optional[Dict[str, Any]]] = None
+    model_data: Optional[Dict[str, Any]] = None
     '''Other model data to use for the llm'''
     created_at: Optional[datetime] = None
     '''The timestamp of when this run was created'''
@@ -37,7 +37,7 @@ class AzureOpenAILLMConfiguration(BaseModel):
     '''The API version to use for the llm'''
     api_type: Optional[Literal["azure"]] = None
     '''The API type to use for the llm'''
-    model_data: Optional[Optional[Dict[str, Any]]] = None
+    model_data: Optional[Dict[str, Any]] = None
     '''Other model data to use for the llm'''
     created_at: Optional[datetime] = None
     '''The timestamp of when this run was created'''
@@ -61,7 +61,7 @@ class OpenAILikeLLMConfiguration(BaseModel):
     '''The API key to use for the llm'''
     base_url: Optional[str] = None
     '''The API base to use for the llm'''
-    model_data: Optional[Optional[Dict[str, Any]]] = None
+    model_data: Optional[Dict[str, Any]] = None
     '''Other model data to use for the llm'''
     created_at: Optional[datetime] = None
     '''The timestamp of when this run was created'''
