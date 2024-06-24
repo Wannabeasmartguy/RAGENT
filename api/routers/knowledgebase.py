@@ -26,7 +26,7 @@ router = APIRouter(
 
 class EmbeddingModelConfig(BaseModel):
     embedding_type: Literal["openai", "huggingface"]
-    embedding_model_or_path: str
+    embedding_model_name_or_path: str
     api_key: str | None = Field(None)
     base_url: str | None = Field(None)
     api_type: str | None = Field(None)
@@ -46,7 +46,7 @@ async def create_embedding_model(
     '''根据embedding_type和embedding_model选择相应的模型'''
     if embedding_config.embedding_type == "openai":
         embedding_model = embedding_functions.OpenAIEmbeddingFunction(
-            model_name=embedding_config.embedding_model_or_path,
+            model_name=embedding_config.embedding_model_name_or_path,
             api_key=embedding_config.api_key,
             api_base=embedding_config.base_url,
             api_type=embedding_config.api_type,
@@ -55,7 +55,7 @@ async def create_embedding_model(
     elif embedding_config.embedding_type == "huggingface":
         try:
             embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name=embedding_config.embedding_model_or_path
+                model_name=embedding_config.embedding_model_name_or_path
             )
         except OSError:
             raise ValueError("Huggingface model not found, please use 'Local embedding model download' to download the model")

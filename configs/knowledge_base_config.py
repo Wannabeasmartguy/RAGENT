@@ -147,7 +147,7 @@ class BaseChromaInitEmbeddingConfig:
         '''根据embedding_type和embedding_model选择相应的模型'''
         if embedding_config.embedding_type == "openai":
             embedding_model = embedding_functions.OpenAIEmbeddingFunction(
-                model_name=embedding_config.embedding_model_or_path,
+                model_name=embedding_config.embedding_model_name_or_path,
                 api_key=embedding_config.api_key,
                 api_base=embedding_config.base_url,
                 api_type=embedding_config.api_type,
@@ -156,7 +156,7 @@ class BaseChromaInitEmbeddingConfig:
         elif embedding_config.embedding_type == "huggingface":
             try:
                 embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name=embedding_config.embedding_model_or_path
+                    model_name=embedding_config.embedding_model_name_or_path
                 )
             except OSError:
                 raise ValueError("Huggingface model not found, please use 'Local embedding model download' to download the model")
@@ -201,7 +201,7 @@ def create_embedding_model_config(
     if embedding_model_type == "openai":
         embedding_model_config = EmbeddingModelConfig(
             embedding_type="openai",
-            embedding_model_or_path=embedding_model_name_or_path,
+            embedding_model_name_or_path=embedding_model_name_or_path,
             api_key=openai_kwargs.get("api_key"),
             api_type=openai_kwargs.get("api_type"),
             base_url=openai_kwargs.get("base_url"),
@@ -210,7 +210,7 @@ def create_embedding_model_config(
     elif embedding_model_type == "huggingface":
         embedding_model_config = EmbeddingModelConfig(
             embedding_type="huggingface",
-            embedding_model_or_path=embedding_model_name_or_path,
+            embedding_model_name_or_path=embedding_model_name_or_path,
         )
     
     return embedding_model_config
@@ -540,7 +540,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaVe
         if embedding_model_type == "openai":
             self.embedding_model_config = EmbeddingConfiguration(
                 embedding_type="openai",
-                embedding_model_or_path=embedding_model_name_or_path,
+                embedding_model_name_or_path=embedding_model_name_or_path,
                 api_key=openai_kwargs.get("api_key"),
                 api_type=openai_kwargs.get("api_type"),
                 base_url=openai_kwargs.get("base_url"),
@@ -549,7 +549,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaVe
         elif embedding_model_type == "huggingface":
             self.embedding_model_config = EmbeddingConfiguration(
                 embedding_type="huggingface",
-                embedding_model_or_path=embedding_model_name_or_path,
+                embedding_model_name_or_path=embedding_model_name_or_path,
             )
         self.embedding_model: chromadb.EmbeddingFunction = self._create_embedding_model(self.embedding_model_config),
         self.knowledgebase_collections: List[str] = self._list_chroma_collections()
@@ -630,7 +630,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
         if embedding_model_type == "openai":
             self.embedding_model_config = EmbeddingConfiguration(
                 embedding_type="openai",
-                embedding_model_or_path=embedding_model_name_or_path,
+                embedding_model_name_or_path=embedding_model_name_or_path,
                 api_key=openai_kwargs.get("api_key"),
                 api_type=openai_kwargs.get("api_type"),
                 base_url=openai_kwargs.get("base_url"),
@@ -639,7 +639,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
         elif embedding_model_type == "huggingface":
             self.embedding_model_config = EmbeddingConfiguration(
                 embedding_type="huggingface",
-                embedding_model_or_path=embedding_model_name_or_path,
+                embedding_model_name_or_path=embedding_model_name_or_path,
             )
         self.collection = self._get_chroma_specific_collection(collection_name,self.embedding_model_config)
     

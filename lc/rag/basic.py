@@ -41,12 +41,12 @@ def create_lc_embedding_model(
             azure_endpoint=embedding_config_processed["base_url"],
             openai_api_key=embedding_config_processed["api_key"],
             openai_api_version=embedding_config_processed["api_version"],
-            azure_deployment=embedding_config_processed["embedding_model_or_path"],
+            azure_deployment=embedding_config_processed["embedding_model_name_or_path"],
         )
     elif embedding_config[collection_name]["embedding_type"] == "huggingface":
         embedding_config_processed = embedding_config[collection_name]
         embedding_model = CustomEmbeddings(
-            model_name=embedding_config[collection_name]["embedding_model_or_path"]
+            model_name=embedding_config[collection_name]["embedding_model_name_or_path"]
         )
 
     return embedding_model

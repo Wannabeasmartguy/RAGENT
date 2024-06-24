@@ -151,7 +151,7 @@ if embed_model_type_selectbox == "openai":
     # 创建 ChromaCollectionProcessor
     chroma_collection_processor = ChromaCollectionProcessor(
         collection_name=collection_choose,
-        embedding_model_name_or_path=collection_config.get("embedding_model_or_path", embed_model_selectbox),
+        embedding_model_name_or_path=collection_config.get("embedding_model_name_or_path", embed_model_selectbox),
         embedding_model_type=collection_config.get("embedding_type", embed_model_type_selectbox),
         api_key=collection_config.get("api_key", os.getenv("AZURE_OAI_KEY",default="OPENAI_API_KEY")),
         base_url=collection_config.get("base_url", os.getenv("AZURE_OAI_ENDPOINT",default=None)),
@@ -170,7 +170,7 @@ elif embed_model_type_selectbox == "huggingface":
 
     chroma_collection_processor = ChromaCollectionProcessor(
         collection_name=collection_choose,
-        embedding_model_name_or_path=collection_config.get("embedding_model_or_path", embed_model_selectbox),
+        embedding_model_name_or_path=collection_config.get("embedding_model_name_or_path", embed_model_selectbox),
         embedding_model_type=collection_config.get("embedding_type", embed_model_type_selectbox),
     )
 

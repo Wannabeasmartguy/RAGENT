@@ -7,7 +7,7 @@ class EmbeddingConfiguration(BaseModel):
     """embedding config that is stored in the database"""
     embedding_type: str
     '''The type of embedding to use'''
-    embedding_model_or_path: str
+    embedding_model_name_or_path: str
     '''The model name or path to use for the embedding'''
     device: Optional[str] = None
     '''The device to use for the embedding'''
@@ -21,7 +21,7 @@ class EmbeddingConfiguration(BaseModel):
     '''The API version to use for the embedding, only used in azure openai embeddings'''
     max_seq_length: Optional[int] = None
     '''The maximum sequence length for the embedding'''
-    model_data: Optional[str] = None
+    additional_model_data: Optional[str] = None
     '''Other model data to use for the embedding'''
     created_at: Optional[datetime] = None
     '''The timestamp of when this run was created'''
