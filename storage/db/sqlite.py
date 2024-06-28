@@ -361,21 +361,25 @@ class SqlAssistantStorage:
             )
 
             # Define the upsert if the run_id already exists
-            # See: https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#insert-on-conflict-upsert
+            update_dict = {
+                'name': row.name,
+                'run_name': row.run_name,
+                'user_id': row.user_id,
+                'llm': row.llm,
+                'memory': row.memory,
+                'assistant_data': row.assistant_data,
+                'run_data': row.run_data,
+                'user_data': row.user_data,
+                'task_data': row.task_data,
+                'updated_at': current_datetime(),
+            }
+
+            # Filter out None values if necessary
+            update_dict = {k: v for k, v in update_dict.items() if v is not None}
+
             stmt = stmt.on_conflict_do_update(
                 index_elements=["run_id"],
-                set_=dict(
-                    name=row.name,
-                    run_name=row.run_name,
-                    user_id=row.user_id,
-                    llm=row.llm,
-                    memory=row.memory,
-                    assistant_data=row.assistant_data,
-                    run_data=row.run_data,
-                    user_data=row.user_data,
-                    task_data=row.task_data,
-                    updated_at=current_datetime(),
-                ),  # The updated value for each column
+                set_=update_dict,  # The updated value for each column
             )
 
             try:
@@ -393,10 +397,11 @@ class SqlAssistantStorage:
                 except Exception as e:
                     logger.warning(f"Error during upsert: {e}")
                     sess.rollback()  # Rollback the session in case of any error
+                    return None
             except Exception as e:
                 logger.warning(f"Error during upsert: {e}")
                 sess.rollback()
-        return None
+                return None
 
     def delete_table(self) -> None:
         if self.table_exists():

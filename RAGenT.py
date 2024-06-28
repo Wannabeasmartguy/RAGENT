@@ -294,6 +294,13 @@ with st.sidebar:
         value=get_run_name(),
         key="run_name",
     )
+    if dialog_name:
+        chat_history_storage.upsert(
+            AssistantRun(
+                run_name=dialog_name,
+                run_id=st.session_state.run_id,
+            )
+        )
     
     dialog_settings.text_area(
         label=i18n("System Prompt"),
