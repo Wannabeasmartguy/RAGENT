@@ -10,6 +10,15 @@ SUPPORTED_LANGUAGES = {
     "简体中文": "zh-CN",
 }
 
+DATABASE_DIR = os.path.join("databases")
+
+KNOWLEDGE_BASE_DIR = os.path.join(DATABASE_DIR, "knowledgebase")
+
+CONFIGS_BASE_DIR = os.path.join(DATABASE_DIR, "configs")
+CONFIGS_DB_FILE = os.path.join(CONFIGS_BASE_DIR,"configs.db")
+EMBEDDING_CONFIGS_DB_TABLE = "embedding_configs"
+LLM_CONFIGS_DB_TABLE = "llm_configs"
+
 
 class I18nAuto:
     def __init__(self,**kwargs):

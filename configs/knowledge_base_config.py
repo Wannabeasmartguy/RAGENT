@@ -22,7 +22,7 @@ from configs.basic_config import I18nAuto
 from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig, 
-    KNOWLEDGE_BASE_PATH, 
+    KNOWLEDGE_BASE_DIR, 
     EMBEDDING_CONFIG_DB_FILE, 
     EMBEDDING_CONFIG_DB_TABLE,
 )
@@ -134,7 +134,7 @@ class BaseChromaInitEmbeddingConfig:
         Returns:
             List[str]: A list of collection names.
         """
-        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
         raw_collections = client.list_collections()
         collections = [collection.name for collection in raw_collections]
         return collections
@@ -182,7 +182,7 @@ class BaseChromaInitEmbeddingConfig:
         '''
         embedding_model: chromadb.EmbeddingFunction = cls._create_embedding_model(embedding_config),
         knowledgebase_collections: List[str] = cls._list_chroma_collections()
-        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
         
         # Check if collection exists
         if name not in knowledgebase_collections:

@@ -11,8 +11,8 @@ from langchain_core.documents.base import Document
 
 from typing import List, Dict, Literal
 
+from configs.basic_config import KNOWLEDGE_BASE_DIR
 
-KNOWLEDGE_BASE_PATH = "./databases/knowledgebase"
 EMBEDDING_CONFIG_DB_FILE = os.path.join("databases", "configs","configs.db")
 EMBEDDING_CONFIG_DB_TABLE = "embedding_configs"
 
@@ -34,7 +34,7 @@ class EmbeddingModelConfig(BaseModel):
 
 
 async def list_chroma_collections() -> List[str]:
-    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
     raw_collections = client.list_collections()
     collections = [collection.name for collection in raw_collections]
     return collections
@@ -81,7 +81,7 @@ async def get_chroma_specific_collection(
     Returns:
         chromadb.Collection: 知识库中名称为 name 的 collection
     '''
-    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
     
     # Check if collection exists
     if name not in knowledgebase_collections:
@@ -125,7 +125,7 @@ async def create_knowledge_base_collection(
     Returns:
         None
     '''
-    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
     # Check if collection already exists
     if name in knowledgebase_collections:
@@ -153,7 +153,7 @@ async def delete_knowledge_base_collection(
     Returns:
         None
     '''
-    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_PATH)
+    client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
     # Check if collection exists
     if name not in knowledgebase_collections:

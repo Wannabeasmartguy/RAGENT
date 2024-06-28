@@ -19,7 +19,7 @@ from lc.llm.openailike.completion import OpenAILikeLLM
 from lc.chain.embed import CustomEmbeddings
 from lc.chain.rerank import BgeRerank
 from configs.knowledge_base_config import ChromaCollectionProcessor
-from api.routers.knowledgebase import KNOWLEDGE_BASE_PATH
+from configs.basic_config import KNOWLEDGE_BASE_DIR
 
 import json
 import os
@@ -128,7 +128,7 @@ def create_conversational_retrieval_system(
     vectorstore = Chroma(
         collection_name=collection_name,
         embedding_function=embedding_function,
-        persist_directory=KNOWLEDGE_BASE_PATH
+        persist_directory=KNOWLEDGE_BASE_DIR
     )
 
     sparse_retrieve_kwargs = {
