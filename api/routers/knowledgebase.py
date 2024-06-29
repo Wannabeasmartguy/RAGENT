@@ -13,9 +13,6 @@ from typing import List, Dict, Literal
 
 from configs.basic_config import KNOWLEDGE_BASE_DIR
 
-EMBEDDING_CONFIG_DB_FILE = os.path.join("databases", "configs","configs.db")
-EMBEDDING_CONFIG_DB_TABLE = "embedding_configs"
-
 
 router = APIRouter(
     prefix="/knowledgebase",

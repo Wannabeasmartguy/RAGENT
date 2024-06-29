@@ -18,13 +18,10 @@ from langchain_core.documents.base import Document
 
 from utils.text_splitter.text_splitter_utils import simplify_filename
 
-from configs.basic_config import I18nAuto
+from configs.basic_config import I18nAuto, KNOWLEDGE_BASE_DIR
 from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig, 
-    KNOWLEDGE_BASE_DIR, 
-    EMBEDDING_CONFIG_DB_FILE, 
-    EMBEDDING_CONFIG_DB_TABLE,
 )
 from model.config.embeddings import EmbeddingConfiguration, CollectionEmbeddingConfiguration
 

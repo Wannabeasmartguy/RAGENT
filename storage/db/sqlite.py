@@ -5,18 +5,22 @@ try:
     from sqlalchemy.orm import Session, sessionmaker
     from sqlalchemy.schema import MetaData, Table, Column
     from sqlalchemy.sql.expression import text, select, delete
-    from sqlalchemy.types import DateTime, String
+    from sqlalchemy.types import DateTime, String, Integer
 except ImportError:
     raise ImportError("`sqlalchemy` not installed")
 
 from sqlite3 import OperationalError
-from typing import Optional, List, Literal, Any
+from typing import Optional, List, Literal, Union, Any
 from loguru import logger
+from sqlalchemy.schema import Table
 
+from model.config.llm import LLMConfiguration
+from model.config.embeddings import CollectionEmbeddingConfiguration
 from model.memory.base import MemoryRow
 from model.chat.assistant import AssistantRun
-from utils.basic_utils import current_datetime
+from model.config.llm import *
 
+LLM_Subclass_With_BaseUrl = Union[AzureOpenAILLMConfiguration, OpenAILikeLLMConfiguration]
 
 class SqliteMemoryDb:
     def __init__(
@@ -231,9 +235,9 @@ class SqlAssistantStorage:
             # Metadata associated with the assistant tasks
             Column("task_data", sqlite.JSON),
             # The timestamp of when this run was created.
-            Column("created_at", sqlite.DATETIME, default=current_datetime()),
+            Column("created_at", sqlite.DATETIME, default=datetime.now()),
             # The timestamp of when this run was last updated.
-            Column("updated_at", sqlite.DATETIME, onupdate=current_datetime()),
+            Column("updated_at", sqlite.DATETIME, onupdate=datetime.now()),
             extend_existing=True,
             sqlite_autoincrement=True,
         )
@@ -357,7 +361,7 @@ class SqlAssistantStorage:
                 run_data=row.run_data,
                 user_data=row.user_data,
                 task_data=row.task_data,
-                updated_at=current_datetime(),
+                updated_at=datetime.now(),
             )
 
             # Define the upsert if the run_id already exists
@@ -371,7 +375,7 @@ class SqlAssistantStorage:
                 'run_data': row.run_data,
                 'user_data': row.user_data,
                 'task_data': row.task_data,
-                'updated_at': current_datetime(),
+                'updated_at': datetime.now(),
             }
 
             # Filter out None values if necessary
@@ -413,3 +417,272 @@ class SqlAssistantStorage:
             stmt = delete(self.table).where(self.table.c.run_id == run_id)
             sess.execute(stmt)
             logger.info(f"Deleted assistant run: run_id = {run_id}")
+
+
+class SqlAssistantLLMConfigStorage(SqlAssistantStorage):
+    def get_table(self) -> Table:
+        return Table(
+            self.table_name,
+            self.metadata,
+            Column("model_id", String, primary_key=True),
+            # The model id to distinguish between different configurations of the same llm model
+            Column("model_name", String),
+            # llm model name
+            Column("user_id", String),
+            # The user id to distinguish between different users
+            Column("api_key", String),
+            Column("base_url", String),
+            Column("api_version", String),
+            # only azure openai will use
+            Column("api_type", String),
+            # only azure openai will use
+            Column("additional_model_data", sqlite.JSON),
+            # other data that is not be contained by the above columns
+            Column("created_at", sqlite.DATETIME, default=datetime.now()),
+            # The timestamp of when this run was created.
+            Column("updated_at", sqlite.DATETIME, onupdate=datetime.now()),
+            # The timestamp of when this run was last updated.
+            extend_existing=True,
+            sqlite_autoincrement=True,
+        )
+    
+    def get_all_model_ids(
+            self, 
+            user_id: Optional[str] = None, 
+            filter: Optional[Literal["created_at", "updated_at"]] = "created_at"
+        ) -> List[str]:
+        model_ids: List[str] = []
+        try:
+            with self.Session() as sess:
+                # get all run_ids for this user
+                stmt = select(self.table)
+                if user_id is not None:
+                    stmt = stmt.where(self.table.c.user_id == user_id)
+                if filter == "created_at":
+                    # order by created_at desc by default
+                    stmt = stmt.order_by(self.table.c.created_at.desc())
+                elif filter == "updated_at":
+                    # order by updated_at desc
+                    stmt = stmt.order_by(self.table.c.updated_at.desc())
+                # execute query
+                rows = sess.execute(stmt).fetchall()
+                for row in rows:
+                    if row is not None and row.model_id is not None:
+                        model_ids.append(row.model_id)
+        except OperationalError:
+            logger.debug(f"Table does not exist: {self.table.name}")
+            pass
+        return model_ids
+    
+    def get_all_models(
+            self, 
+            user_id: Optional[str] = None, 
+            filter: Optional[Literal["created_at", "updated_at"]] = "created_at"
+        ) -> List[LLMConfiguration]:
+        configurations: List[LLMConfiguration] = []
+        try:
+            with self.Session() as sess:
+                # get all runs for this user
+                stmt = select(self.table)
+                if user_id is not None:
+                    stmt = stmt.where(self.table.c.user_id == user_id)
+                if filter == "created_at":
+                    # order by created_at desc by default
+                    stmt = stmt.order_by(self.table.c.created_at.desc())
+                elif filter == "updated_at":
+                    # order by updated_at desc
+                    stmt = stmt.order_by(self.table.c.updated_at.desc())
+                # execute query
+                rows = sess.execute(stmt).fetchall()
+                for row in rows:
+                    if row.model_id is not None:
+                        configurations.append(AssistantRun.model_validate(row))
+        except OperationalError:
+            logger.debug(f"Table does not exist: {self.table.name}")
+            pass
+        return configurations
+    
+    def get_specific_model(self, model_id: str, user_id: Optional[str] = None) -> LLMConfiguration:
+        try:
+            with self.Session() as sess:
+                # get specific run for this user
+                stmt = select(self.table).where(self.table.c.model_id == model_id)
+                if user_id is not None:
+                    stmt = stmt.where(self.table.c.user_id == user_id)
+                    
+                # execute query
+                row = sess.execute(stmt).first()
+                return LLMConfiguration.model_validate(row)
+            
+        except OperationalError:
+            logger.debug(f"Table does not exist: {self.table.name}")
+            pass
+        return None
+    
+    def upsert(self, row: Union[LLMConfiguration]) -> Optional[LLMConfiguration]:
+        """
+        Create a new assistant run if it does not exist, otherwise update the existing conversation.
+        """
+        with self.Session() as sess:
+            # Create an insert statement
+            stmt = sqlite.insert(self.table).values(
+                model_id=row.model_id,
+                model_name=row.model_name,
+                user_id=row.user_id,
+                api_key=row.api_key,
+                base_url=row.base_url if isinstance(row,LLM_Subclass_With_BaseUrl) else None,
+                api_version=row.api_version if isinstance(row,AzureOpenAILLMConfiguration) else None,
+                api_type=row.api_type if isinstance(row,AzureOpenAILLMConfiguration) else None,
+                additional_model_data=row.additional_model_data,
+                updated_at=datetime.now(),
+            )
+
+            # Define the upsert if the run_id already exists
+            update_dict = {
+                'model_id': row.model_id,
+                'model_name': row.model_name,
+                'user_id': row.user_id,
+                'api_key': row.api_key,
+                'base_url': row.base_url if isinstance(row,LLM_Subclass_With_BaseUrl) else None,
+                'api_version': row.api_version if isinstance(row,AzureOpenAILLMConfiguration) else None,
+                'api_type': row.api_type if isinstance(row,AzureOpenAILLMConfiguration) else None,
+                'additional_model_data': row.additional_model_data,
+                'updated_at': datetime.now(),
+            }
+
+            # Filter out None values if necessary
+            update_dict = {k: v for k, v in update_dict.items() if v is not None}
+
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["model_id"],
+                set_=update_dict,  # The updated value for each column
+            )
+
+            try:
+                sess.execute(stmt)
+                sess.commit()  # Make sure to commit the changes to the database
+                logger.info(f"Upserted model: model_id = {row.model_id}, name = {row.model_name}")
+                return self.read(run_id=row.model_id)
+            except OperationalError as oe:
+                logger.debug(f"OperationalError occurred: {oe}")
+                self.create()  # This will only create the table if it doesn't exist
+                try:
+                    sess.execute(stmt)
+                    sess.commit()
+                    return self.read(run_id=row.model_id)
+                except Exception as e:
+                    logger.warning(f"Error during upsert: {e}")
+                    sess.rollback()  # Rollback the session in case of any error
+                    return None
+            except Exception as e:
+                logger.warning(f"Error during upsert: {e}")
+                sess.rollback()
+                return None
+
+
+class SqlEmbeddingConfigStorage(SqlAssistantLLMConfigStorage):
+    def get_table(self) -> Table:
+        return Table(
+            self.table_name,
+            self.metadata,
+            Column("model_id", String, primary_key=True),
+            # The model id to distinguish between different configurations of the same llm model
+            Column("embedding_type", String),
+            # The type of embedding to use, e.g. 'openai', 'huggingface'
+            Column("user_id", String),
+            # The user id to distinguish between different users
+            Column("collection_name", String),
+            # The name of the collection to use for the embedding model
+            Column("collection_id", String),
+            # The id of the collection to use for the embedding model
+            Column("embedding_model_name_or_path", String),
+            # The name or path of the embedding model to use
+            Column("device", String),
+            # The device to use for the embedding model, e.g. 'cpu', 'cuda'
+            Column("max_seq_length", Integer),
+            # The maximum sequence length for the embedding model
+            Column("api_key", String),
+            Column("base_url", String),
+            Column("api_version", String),
+            # only azure openai will use
+            Column("api_type", String),
+            # only azure openai will use
+            Column("additional_model_data", sqlite.JSON),
+            # other data that is not be contained by the above columns
+            Column("created_at", sqlite.DATETIME, default=datetime.now()),
+            # The timestamp of when this run was created.
+            Column("updated_at", sqlite.DATETIME, onupdate=datetime.now()),
+            # The timestamp of when this run was last updated.
+            extend_existing=True,
+            sqlite_autoincrement=True,
+        )
+    
+    def upsert(self, row: CollectionEmbeddingConfiguration) -> CollectionEmbeddingConfiguration | None:
+        """
+        Create a new assistant run if it does not exist, otherwise update the existing conversation.
+        """
+        with self.Session() as sess:
+            # Create an insert statement
+            stmt = sqlite.insert(self.table).values(
+                model_id=row.model_id,
+                embedding_type=row.embedding_type,
+                user_id=row.user_id,
+                collection_name=row.collection_name,
+                collection_id=row.collection_id,
+                embedding_model_name_or_path=row.embedding_model_name_or_path,
+                device=row.device,
+                max_seq_length=row.max_seq_length,
+                api_key=row.api_key,
+                base_url=row.base_url,
+                api_version=row.api_version,
+                api_type=row.api_type,
+                additional_model_data=row.additional_model_data,
+                updated_at=datetime.now(),
+            )
+
+            # Define the upsert if the run_id already exists
+            update_dict = {
+                'model_id': row.model_id,
+                'embedding_type': row.embedding_type,
+                'user_id': row.user_id,
+                'collection_name': row.collection_name,
+                'collection_id': row.collection_id,
+                'embedding_model_name_or_path': row.embedding_model_name_or_path,
+                'device': row.device,
+                'max_seq_length': row.max_seq_length,
+                'api_key': row.api_key,
+                'base_url': row.base_url,
+                'api_version': row.api_version,
+                'api_type': row.api_type,
+                'additional_model_data': row.additional_model_data,
+                'updated_at': datetime.now(),
+            }
+
+            # Filter out None values if necessary
+            update_dict = {k: v for k, v in update_dict.items() if v is not None}
+
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["model_id"],
+                set_=update_dict,  # The updated value for each column
+            )
+
+            try:
+                sess.execute(stmt)
+                sess.commit()  # Make sure to commit the changes to the database
+                logger.info(f"Upserted model: model_id = {row.model_id}, name = {row.embedding_model_name_or_path}")
+                return self.read(run_id=row.model_id)
+            except OperationalError as oe:
+                logger.debug(f"OperationalError occurred: {oe}")
+                self.create()  # This will only create the table if it doesn't exist
+                try:
+                    sess.execute(stmt)
+                    sess.commit()
+                    return self.read(run_id=row.model_id)
+                except Exception as e:
+                    logger.warning(f"Error during upsert: {e}")
+                    sess.rollback()  # Rollback the session in case of any error
+                    return None
+            except Exception as e:
+                logger.warning(f"Error during upsert: {e}")
+                sess.rollback()
+                return None
