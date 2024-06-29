@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_float import *
 
 from autogen.agentchat.contrib.capabilities import transforms
 
@@ -347,12 +348,26 @@ elif st.session_state["model_type"] == "Llamafile":
     )
 
 
+float_init()
+
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 
+chat_input_container = st.container()
+with chat_input_container:
+    character_input_column, voice_input_column = st.columns([0.9,0.1])
+    character_input_placeholder = character_input_column.empty()
+    voice_input_placeholder = voice_input_column.button(
+        label="🎤",
+    )
+
+chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
+# Float button container
+
 
 # Accept user input
-if prompt := st.chat_input("What is up?"):
+if prompt := character_input_placeholder.chat_input("What is up?"):
+# if prompt := st.chat_input("What is up?"):
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -439,3 +454,7 @@ if prompt := st.chat_input("What is up?"):
                     )
         # TODO：没有添加直接修改run_name的功能前，先使用rerun更新
         st.rerun()
+
+# 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
+# 所以放在最后
+chat_input_container.float(chat_input_css)
