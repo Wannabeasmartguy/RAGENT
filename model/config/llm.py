@@ -20,7 +20,7 @@ class LLMConfiguration(BaseModel):
     updated_at: Optional[datetime] = None
     '''The timestamp of when this run was last updated'''
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True,protected_namespaces=())
     
     def serializable_dict(self) -> Dict[str, Any]:
         _dict = self.model_dump(exclude={"created_at", "updated_at"})
