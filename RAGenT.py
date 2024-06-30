@@ -355,41 +355,41 @@ float_init()
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 
-chat_input_container = st.container()
-with chat_input_container:
-    character_input_column, voice_input_column = st.columns([0.9,0.1])
-    character_input_placeholder = character_input_column.empty()
-    voice_input_placeholder = voice_input_column.popover(
-        label="🎤"
-    )
-    voice_input_model_name = voice_input_placeholder.selectbox(
-        label=i18n("Voice input model"),
-        options=whisper.available_models(),
-        index=3,
-        key="voice_input_model"   
-    )
-    voice_input_model = whisper.load_model(
-        name=voice_input_model_name,
-        download_root="./tts_models"
-    )
-    audio_recorder_container =  voice_input_placeholder.container()
-    with audio_recorder_container:
-        # TODO:没有麦克风可能无法录音
-        audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
-        if len(audio_recorded) > 0:
-            # To play audio in frontend:
-            audio = audio_recorded.export().read()
-            st.audio(audio)
-            # TODO：未经测试的功能
-            st.write(voice_input_model.transcribe(audio=audio,word_timestamps=True,verbose=True))
+# chat_input_container = st.container()
+# with chat_input_container:
+#     character_input_column, voice_input_column = st.columns([0.9,0.1])
+#     character_input_placeholder = character_input_column.empty()
+#     voice_input_placeholder = voice_input_column.popover(
+#         label="🎤"
+#     )
+#     voice_input_model_name = voice_input_placeholder.selectbox(
+#         label=i18n("Voice input model"),
+#         options=whisper.available_models(),
+#         index=3,
+#         key="voice_input_model"   
+#     )
+#     voice_input_model = whisper.load_model(
+#         name=voice_input_model_name,
+#         download_root="./tts_models"
+#     )
+#     audio_recorder_container =  voice_input_placeholder.container()
+#     with audio_recorder_container:
+#         # TODO:没有麦克风可能无法录音
+#         audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
+#         if len(audio_recorded) > 0:
+#             # To play audio in frontend:
+#             audio = audio_recorded.export().read()
+#             st.audio(audio)
+#             # TODO：未经测试的功能
+#             st.write(voice_input_model.transcribe(audio=audio,word_timestamps=True,verbose=True))
 
-chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
+# chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
 # Float button container
 
 
 # Accept user input
-if prompt := character_input_placeholder.chat_input("What is up?"):
-# if prompt := st.chat_input("What is up?"):
+# if prompt := character_input_placeholder.chat_input("What is up?"):
+if prompt := st.chat_input("What is up?"):
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -479,4 +479,4 @@ if prompt := character_input_placeholder.chat_input("What is up?"):
 
 # 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
 # 所以放在最后
-chat_input_container.float(chat_input_css)
+# chat_input_container.float(chat_input_css)
