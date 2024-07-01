@@ -175,7 +175,9 @@ with st.sidebar:
     agent_type = st.selectbox(
         label=i18n("Agent type"),
         options=["Reflection","RAG_lc","Function Call"],
-        key="agent_type"
+        key="agent_type",
+        # 显示时删除掉下划线及以后的内容
+        format_func=lambda x: x.replace("_lc","")
     )
 
     if agent_type == "RAG_lc":

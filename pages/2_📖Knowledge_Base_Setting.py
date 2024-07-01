@@ -57,7 +57,7 @@ with st.sidebar:
 
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.write("---")
-    st.info(i18n("Please choose embedding model when creating the knowledge base"))
+    st.info(i18n("Please select the embedded model when creating a knowledge base, as well as Reinitialize it once when switching knowledge bases."))
 
     embed_model_type_selectbox = st.selectbox(
         label=i18n("Embed Model Type"),
