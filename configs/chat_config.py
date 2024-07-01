@@ -25,7 +25,7 @@ from storage.db.sqlite import (
     SqlEmbeddingConfigStorage
 )
 from model.config.llm import OpenAILikeLLMConfiguration
-from lc.rag.basic import LCOpenAILikeRAGManager
+from lc.rag.basic import LCOpenAILikeRAGManager, LCAzureOpenAIRAGManager
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -295,11 +295,25 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         llm_config = LLMConfig(**self.llm_config)
         llm_params = LLMParams(**self.llm_config.get("params", {}))
 
-        rag_manager = LCOpenAILikeRAGManager(
-            llm_config=llm_config.dict(),
-            llm_params=llm_params.dict(),
-            collection=name
-        )
+        # Azure OpenAI 需要指定 api_type 和 api_version
+        if (llm_config.api_type != None and llm_config.api_version != None) or llm_config.api_type == 'azure':
+            # 将 `model` 修改为 `azure_deployment`
+            llm_config_dict = llm_config.dict(exclude={"model","base_url","api_type","top_p"})
+            llm_config_dict["azure_deployment"] = llm_config.model.replace(".", "")
+            llm_config_dict["azure_endpoint"] = llm_config.base_url
+            llm_config_dict["model_version"] = llm_config.api_version
+            rag_manager = LCAzureOpenAIRAGManager(
+                llm_config=llm_config_dict,
+                llm_params=llm_params.dict(exclude="stream"),
+                collection=name
+            )
+        # 其他使用 OpenAI Like 尝试
+        else:
+            rag_manager = LCOpenAILikeRAGManager(
+                llm_config=llm_config.dict(),
+                llm_params=llm_params.dict(),
+                collection=name
+            )
 
         if len(messages) == 1:
             prompt = messages[0]["content"]

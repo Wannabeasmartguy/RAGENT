@@ -359,10 +359,10 @@ write_chat_history(st.session_state.chat_history)
 # with chat_input_container:
 #     character_input_column, voice_input_column = st.columns([0.9,0.1])
 #     character_input_placeholder = character_input_column.empty()
-#     voice_input_placeholder = voice_input_column.popover(
+#     voice_input_popover = voice_input_column.popover(
 #         label="🎤"
 #     )
-#     voice_input_model_name = voice_input_placeholder.selectbox(
+#     voice_input_model_name = voice_input_popover.selectbox(
 #         label=i18n("Voice input model"),
 #         options=whisper.available_models(),
 #         index=3,
@@ -372,19 +372,25 @@ write_chat_history(st.session_state.chat_history)
 #         name=voice_input_model_name,
 #         download_root="./tts_models"
 #     )
-#     audio_recorder_container =  voice_input_placeholder.container()
+#     audio_recorder_container =  voice_input_popover.container()
 #     with audio_recorder_container:
 #         # TODO:没有麦克风可能无法录音
-#         audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
+#         # audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
+#         audio_recorded = audiorecorder()
 #         if len(audio_recorded) > 0:
 #             # To play audio in frontend:
 #             audio = audio_recorded.export().read()
 #             st.audio(audio)
 #             # TODO：未经测试的功能
-#             st.write(voice_input_model.transcribe(audio=audio,word_timestamps=True,verbose=True))
+#             # 临时存储音频文件
+#             with open("dynamic_configs/temp.wav", "wb") as f:
+#                 f.write(audio)
+#             transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
+#             st.write(transcribe_result.get("text","No result."))
+#             # 删除临时文件
+#             os.remove("dynamic_configs/temp.wav")
 
 # chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
-# Float button container
 
 
 # Accept user input
@@ -479,4 +485,5 @@ if prompt := st.chat_input("What is up?"):
 
 # 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
 # 所以放在最后
+# Float container
 # chat_input_container.float(chat_input_css)

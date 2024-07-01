@@ -7,6 +7,7 @@ from langchain.chains.conversational_retrieval.base import ConversationalRetriev
 from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain_community.retrievers.bm25 import BM25Retriever
 from langchain_community.vectorstores.chroma import Chroma
+from langchain_community.chat_models.azure_openai import AzureChatOpenAI
 from langchain.schema.retriever import BaseRetriever
 from langchain.memory import ConversationBufferMemory
 
@@ -288,3 +289,28 @@ class LCOpenAILikeRAGManager:
             return BgeRerank()
         else:
             return None
+
+
+class LCAzureOpenAIRAGManager(LCOpenAILikeRAGManager):
+    """
+    A class for managing the Azure OpenAI API-based RAG system.
+    """
+    def __init__(
+            self, 
+            llm_config: Dict,
+            llm_params: Dict,
+            collection: str
+    ):
+        """
+        Initialize the LCAzureOpenAIRAGManager class.
+        
+        Args:
+            llm_config (Dict): Configuration parameters for the LLM.
+            llm_params (Dict): Parameters for the LLM.
+            collection (str): The name of the collection to use.
+        """
+        self.llm = AzureChatOpenAI(
+            **llm_config,
+            **llm_params
+        )
+        self.collection = collection
