@@ -21,6 +21,7 @@ from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, oai_model_config_selector, write_chat_history
+from utils.st_utils import float_chat_input_with_audio_recorder
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 
@@ -350,45 +351,7 @@ float_init()
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 
-chat_input_container = st.container()
-with chat_input_container:
-    character_input_column, voice_input_column = st.columns([0.9,0.1])
-    character_input_placeholder = character_input_column.empty()
-    prompt = character_input_placeholder.chat_input("What is up?")
-    voice_input_popover = voice_input_column.popover(
-        label="🎤"
-    )
-    voice_input_model_name = voice_input_popover.selectbox(
-        label=i18n("Voice input model"),
-        options=whisper.available_models(),
-        index=3,
-        key="voice_input_model"   
-    )
-    audio_recorder_container =  voice_input_popover.container()
-    with audio_recorder_container:
-        # TODO:没有麦克风可能无法录音
-        # audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
-        audio_recorded = audiorecorder()
-        if len(audio_recorded) > 0:
-            # To play audio in frontend:
-            audio = audio_recorded.export().read()
-            st.audio(audio)
-            # 临时存储音频文件
-            with open("dynamic_configs/temp.wav", "wb") as f:
-                f.write(audio)
-            # TODO：按下识别按钮后，才能识别语音
-            # 加载语音识别模型
-            voice_input_model = whisper.load_model(
-                name=voice_input_model_name,
-                download_root="./tts_models"
-            )
-            transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
-            st.write(transcribe_result.get("text","No result."))
-            # 删除临时文件
-            os.remove("dynamic_configs/temp.wav")
-
-chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
-
+prompt = float_chat_input_with_audio_recorder()
 
 # Accept user input
 if prompt:
@@ -480,4 +443,3 @@ if prompt:
 # 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
 # 所以放在最后
 # Float container
-chat_input_container.float(chat_input_css)

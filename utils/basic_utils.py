@@ -233,10 +233,6 @@ def copy_to_clipboard(content: str):
     st.toast(i18n("The content has been copied to the clipboard"), icon="✂️")
 
 
-def current_datetime() -> datetime:
-    return datetime.now()
-
-
 def current_datetime_utc() -> datetime:
     return datetime.now(timezone.utc)
 
