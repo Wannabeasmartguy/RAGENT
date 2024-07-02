@@ -297,6 +297,7 @@ with st.sidebar:
             )
         )
     if saved_dialog.run_name not in get_all_runnames():
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
         st.rerun()
 
     dialog_settings.text_area(
