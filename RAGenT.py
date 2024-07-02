@@ -43,6 +43,7 @@ chat_history_storage = SqlAssistantStorage(
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
+
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
 set_pages_configs_in_common(
@@ -54,10 +55,7 @@ set_pages_configs_in_common(
 
 # Initialize chat history
 if "chat_history" not in st.session_state:
-    try:
-        st.session_state.chat_history = deepcopy(st.session_state.chat_history_list.memory['chat_history'])
-    except:
-        st.session_state.chat_history = []
+    st.session_state.chat_history = []
 
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
@@ -69,18 +67,10 @@ if "oai_like_model_config_dict" not in st.session_state:
     }
 
 if "run_id" not in st.session_state:
-    try:
-        st.session_state.run_id = st.session_state.chat_history_list.memory.run_id
-    except:
-        st.session_state.run_id = str(uuid4())
+    st.session_state.run_id = str(uuid4())
 
-try:
-    run_id_list = chat_history_storage.get_all_run_ids()
-    if st.session_state.run_id in run_id_list:
-        st.session_state.current_run_id_index = run_id_list.index(st.session_state.chat_history_list.memory.run_id)
-    else:
-        st.session_state.current_run_id_index = 0
-except:
+run_id_list = chat_history_storage.get_all_run_ids()
+if st.session_state.run_id not in run_id_list:
     st.session_state.current_run_id_index = 0
 
 with st.sidebar:
@@ -234,7 +224,6 @@ with st.sidebar:
         format_func=lambda x: x.run_name,
         index=st.session_state.current_run_id_index,
         label_visibility="collapsed",
-        key="chat_history_list",
     )
     add_dialog_button = dialog_settings.button(
         label=i18n("Add a new dialog"),
@@ -289,9 +278,12 @@ with st.sidebar:
         except:
             run_name = "RAGenT"
         return run_name
-    def change_run_name():
-        # TODO: 修改对话名称
-        pass
+    def get_all_runnames():
+        runnames = []
+        runs = chat_history_storage.get_all_runs()
+        for run in runs:
+            runnames.append(run.run_name)
+        return runnames
     dialog_name = dialog_settings.text_input(
         label=i18n("Dialog name"),
         value=get_run_name(),
@@ -304,7 +296,9 @@ with st.sidebar:
                 run_id=st.session_state.run_id,
             )
         )
-    
+    if saved_dialog.run_name not in get_all_runnames():
+        st.rerun()
+
     dialog_settings.text_area(
         label=i18n("System Prompt"),
         value=get_system_prompt(saved_dialog.run_id),
@@ -450,8 +444,7 @@ if prompt:
                     )
                 else:
                     st.error(response)
-
-                
+ 
             else:
                 # 流式调用
                 # 获得 API 的响应，但是解码出来的乱且不完整
@@ -482,8 +475,6 @@ if prompt:
                             }
                         )
                     )
-        # TODO：没有添加直接修改run_name的功能前，先使用rerun更新
-        st.rerun()
 
 # 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
 # 所以放在最后
