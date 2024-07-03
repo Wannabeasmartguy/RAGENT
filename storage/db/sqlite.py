@@ -19,6 +19,7 @@ from model.config.embeddings import CollectionEmbeddingConfiguration
 from model.memory.base import MemoryRow
 from model.chat.assistant import AssistantRun
 from model.config.llm import *
+from storage.db.base import Sqlstorage
 
 LLM_Subclass_With_BaseUrl = Union[AzureOpenAILLMConfiguration, OpenAILikeLLMConfiguration]
 
@@ -165,7 +166,7 @@ class SqliteMemoryDb:
 
 
 
-class SqlAssistantStorage:
+class SqlAssistantStorage(Sqlstorage):
     def __init__(
         self,
         table_name: str,

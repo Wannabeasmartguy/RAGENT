@@ -5,6 +5,8 @@ from streamlit_float import *
 from audiorecorder import audiorecorder
 
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from storage.db.sqlite import SqlAssistantStorage
+from model.chat.assistant import AssistantRun
 
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -14,12 +16,27 @@ i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 def float_chat_input_with_audio_recorder() -> str:
     """
     Create a container with a floating chat input and an audio recorder.
-    """
+
+    Returns:
+        str: The text input from the user.
+    """        
+    # Create a container with a floating chat input and an audio recorder
     chat_input_container = st.container()
     with chat_input_container:
+        # divide_context_column, character_input_column, voice_input_column = st.columns([0.1,0.9,0.1])
         character_input_column, voice_input_column = st.columns([0.9,0.1])
+        # divide_context_placeholder = divide_context_column.empty()
+        # divide_context_button = divide_context_placeholder.button(
+        #     label="✂️",
+        # )
+        # if divide_context_button:
+        #     storage.upsert()
+
+        # the chat input in the middle
         character_input_placeholder = character_input_column.empty()
         prompt = character_input_placeholder.chat_input("What is up?")
+
+        # the button (actually popover) on the right side of the chat input is to record audio
         voice_input_popover = voice_input_column.popover(
             label="🎤"
         )

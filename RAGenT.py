@@ -440,7 +440,3 @@ if prompt:
                             }
                         )
                     )
-
-# 因为 streamlit_float 给 container 的 float 方法会让编译器提醒错误
-# 所以放在最后
-# Float container
