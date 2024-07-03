@@ -61,7 +61,7 @@ def float_chat_input_with_audio_recorder() -> str:
                         st.write(i18n("Transcribing"))
                         transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
                         st.write(i18n("Transcribed"))
-                    st.write(transcribe_result.get("text","No result."))
+                    st.code(transcribe_result.get("text","No result."))
                     # 删除临时文件
                     os.remove("dynamic_configs/temp.wav")
 

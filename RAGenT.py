@@ -134,6 +134,7 @@ with st.sidebar:
             )
             if load_oai_like_config_button:
                 st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
+                st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
                 st.rerun()
 
             delete_oai_like_config_button = st.button(
@@ -222,7 +223,7 @@ with st.sidebar:
     saved_dialog = dialogs_container.radio(
         label=i18n("Saved dialog"),
         options=chat_history_storage.get_all_runs(),
-        format_func=lambda x: x.run_name,
+        format_func=lambda x: x.run_name[:15]+'...' if len(x.run_name) > 15 else x.run_name,
         index=st.session_state.current_run_id_index,
         label_visibility="collapsed",
     )
