@@ -1,6 +1,6 @@
 from langchain_community.document_loaders.unstructured import UnstructuredFileLoader
 from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_text_splitters.markdown import MarkdownTextSplitter
 
 import streamlit as st
@@ -9,11 +9,30 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 import os
 import tempfile
 from pathlib import Path
+from typing import List
+
+
+_CHINESE_SEPARATORS = [
+    "\n\n",
+    "\n",
+    " ",
+    ".",
+    ",",
+    "\u200b",  # Zero-width space
+    "\uff0c",  # Fullwidth comma
+    "\u3001",  # Ideographic comma
+    "\uff0e",  # Fullwidth full stop
+    "\u3002",  # Ideographic full stop
+    "",
+]
+
 
 @st.cache_data
-def choose_text_splitter(file_path,
-                         chunk_size:int=1000,
-                         chunk_overlap:int=0):
+def choose_text_splitter(
+    file_path: List,
+    chunk_size: int=1000,
+    chunk_overlap: int=0
+):
     '''
     根据文件类型选择不同的文本分割器
     
@@ -34,13 +53,13 @@ def choose_text_splitter(file_path,
             if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             else:
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
         
@@ -52,7 +71,7 @@ def choose_text_splitter(file_path,
         if file_ext == '.pdf':
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
         elif file_ext =='.md':
             loader = UnstructuredMarkdownLoader(file_path.name)
@@ -62,7 +81,7 @@ def choose_text_splitter(file_path,
         else:
             loader = UnstructuredFileLoader(file_path.name)
             document = loader.load()
-            text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+            text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
             split_docs = text_splitter.split_documents(document)
 
         return split_docs

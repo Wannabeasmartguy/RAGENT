@@ -281,7 +281,7 @@ if file_upload:
             )
 
             pages.extend(splitted_docs)
-            st.session_state.pages = pages
+        st.session_state.pages = pages
 
     # 优化预览文件列表的显示效果
     # 仅取每个文件的前50个字符作预览
