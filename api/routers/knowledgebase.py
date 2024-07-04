@@ -105,6 +105,27 @@ async def list_knowledge_bases(
     return knowledgebase_collections
 
 
+@router.post("/get-max-seq-len")
+async def get_embedding_model_max_seq_len(
+    embedding_model: chromadb.EmbeddingFunction = Depends(create_embedding_model)
+) -> int | None:
+    '''
+    获取嵌入模型的最大序列长度
+    
+    Args:
+        embedding_model (chromadb.EmbeddingFunction, optional): 嵌入模型
+        
+    Returns:
+        int: 嵌入模型的最大序列长度
+    '''
+    if isinstance(embedding_model,embedding_functions.OpenAIEmbeddingFunction):
+        return 1500
+    if isinstance(embedding_model,embedding_functions.SentenceTransformerEmbeddingFunction):
+        model_path = list(embedding_model.models.keys())[0]
+        # model_name = model_path.split("/")[-1]
+        return embedding_model.models[model_path].max_seq_length
+
+
 @router.post("/create-knowledge-base",response_model_exclude_unset=True)
 async def create_knowledge_base_collection(
     name: str,

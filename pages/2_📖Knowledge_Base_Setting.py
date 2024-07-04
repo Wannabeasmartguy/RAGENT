@@ -238,7 +238,7 @@ with st.expander(label=i18n("File Handling Configuration"), expanded=False):
     with chunk_size_column:
         split_chunk_size = st.number_input(
             label=i18n("Chunk Size"),
-            value=1000,
+            value=chroma_collection_processor.get_embedding_model_max_seq_len(),
             step=1
         )
     with overlap_column:

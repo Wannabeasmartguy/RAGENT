@@ -355,6 +355,25 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
         )
 
 
+    def get_embedding_model_max_seq_len(self) -> int:
+        """
+        Get the max sequence length of the embedding model.
+
+        Args:
+            embedding_model_type (str): The type of the embedding model.
+            embedding_model_name_or_path (str): The name or path of the embedding model.
+            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
+        
+        Returns:
+            int: The max sequence length of the embedding model.
+        """
+        response = requesthandler.post(
+            "/knowledgebase/get-max-seq-len",
+            data=self.embedding_model_config.dict(),
+        )
+        return response
+
+
     def list_collection_all_filechunks_content(self) -> List[str]:
         """
         List all files content in a collection.
