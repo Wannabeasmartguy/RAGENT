@@ -10,6 +10,7 @@ from autogen.agentchat.contrib.capabilities import transform_messages, transform
 
 from llm.groq.completion import GroqClient
 from llm.llamafile.completion import LlamafileClient
+from llm.ollama.completion import OllamaClient
 from llm.aoai.tools.tools import TO_TOOLS
 from utils.basic_utils import dict_filter
 
@@ -97,6 +98,9 @@ def reflection_agent_with_nested_chat(
     if config_list[0].get("model_client_cls", None) == "LlamafileClient":
         writing_assistant.register_model_client(model_client_cls=LlamafileClient)
         reflection_assistant.register_model_client(model_client_cls=LlamafileClient)
+    if config_list[0].get("model_client_cls", None) == "OllamaClient":
+        writing_assistant.register_model_client(model_client_cls=OllamaClient)
+        reflection_assistant.register_model_client(model_client_cls=OllamaClient)
 
     return user_proxy, writing_assistant, reflection_assistant
 
@@ -118,7 +122,7 @@ def create_function_call_agent_response(
     assistant = ConversableAgent(
         name="Assistant",
         system_message="You are a helpful AI assistant. "
-        "You can help with web scraper. "
+        f"You can help with the following tools: {', '.join(selected_tools.keys())}. "
         "Return 'TERMINATE' when the task is done.",
         llm_config={
             "config_list": config_list,
@@ -140,6 +144,13 @@ def create_function_call_agent_response(
 
         # Register the tool function with the user proxy agent.
         user_proxy.register_for_execution(name=tool["name"])(tool["func"])
+
+    if config_list[0].get("model_client_cls", None) == "GroqClient":
+        assistant.register_model_client(model_client_cls=GroqClient)
+    if config_list[0].get("model_client_cls", None) == "LlamafileClient":
+        assistant.register_model_client(model_client_cls=LlamafileClient)
+    if config_list[0].get("model_client_cls", None) == "OllamaClient":
+        assistant.register_model_client(model_client_cls=OllamaClient)
 
     result = user_proxy.initiate_chat(
         assistant,
