@@ -639,12 +639,14 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
     def __init__(
         self,
         collection_name: str,
+        embedding_model_id: str,
         embedding_model_type: Literal["openai", "huggingface"],
         embedding_model_name_or_path: str,
         **openai_kwargs,
     ) -> EmbeddingConfiguration:
         if embedding_model_type == "openai":
             self.embedding_model_config = EmbeddingConfiguration(
+                model_id=embedding_model_id,
                 embedding_type="openai",
                 embedding_model_name_or_path=embedding_model_name_or_path,
                 api_key=openai_kwargs.get("api_key"),
@@ -654,6 +656,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
             )
         elif embedding_model_type == "huggingface":
             self.embedding_model_config = EmbeddingConfiguration(
+                model_id=embedding_model_id,
                 embedding_type="huggingface",
                 embedding_model_name_or_path=embedding_model_name_or_path,
             )

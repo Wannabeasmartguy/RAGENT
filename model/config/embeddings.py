@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class EmbeddingConfiguration(BaseModel):
     """embedding config that is stored in the database"""
-    user_id: str
+    user_id: Optional[str] = None
     '''The user id of the user who created this embedding'''
     model_id: str
     '''The model id of the model that this embedding is for'''
