@@ -45,7 +45,10 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
     `AZURE_OAI_KEY` : If you are using an Azure OpenAI model, fill in the api key here;
     `AZURE_OAI_ENDPOINT` : If you are using an OpenAI model, fill in the end_point here;
-    `GROQ_API_KEY` : if you are using Groq as a model source, fill in the api key here;
+    `API_VERSION`: If you are using an Azure OpenAI model, fill in the api version here;
+    `API_TYPE`: if you are using an Azure OpenAI model, fill in the api type here;
+    `GROQ_API_KEY` : if you are using Groq as the model source, fill in the api key here;
+    `COZE_ACCESS_TOKEN`: if you need to use the created Coze Bot, fill in the access token here;
 
 > If you are using Llamafile, please set the endpoint within the application after starting the Llamafile model.
 

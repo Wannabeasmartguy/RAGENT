@@ -1,5 +1,6 @@
 import os
 import json
+import uuid
 
 from typing import Literal, Optional, List, Dict
 from abc import ABC, abstractmethod
@@ -163,11 +164,7 @@ class BaseChromaInitEmbeddingConfig:
         return embedding_model
 
     @classmethod
-    def _get_chroma_specific_collection(
-        cls,
-        name: str,
-        embedding_config: EmbeddingConfiguration
-    ) -> chromadb.Collection:
+    def _get_chroma_specific_collection(cls, name: str, embedding_config: EmbeddingConfiguration) -> chromadb.Collection:
         '''
         获取知识库的特定 collection
         
@@ -177,16 +174,15 @@ class BaseChromaInitEmbeddingConfig:
         Returns:
             chromadb.Collection: 知识库中名称为 name 的 collection
         '''
-        embedding_model: chromadb.EmbeddingFunction = cls._create_embedding_model(embedding_config),
-        knowledgebase_collections: List[str] = cls._list_chroma_collections()
+        embedding_model = cls._create_embedding_model(embedding_config)
+        knowledgebase_collections = cls._list_chroma_collections()
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
         
         # Check if collection exists
         if name not in knowledgebase_collections:
             raise ValueError("Collection does not exist")
         
-        # Search documents in collection
-        collection = client.get_collection(name=name,embedding_function=embedding_model)
+        collection = client.get_collection(name=name, embedding_function=embedding_model)
         return collection
 
 
@@ -555,6 +551,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaVe
     ) -> EmbeddingConfiguration:
         if embedding_model_type == "openai":
             self.embedding_model_config = EmbeddingConfiguration(
+                model_id=str(uuid.uuid4()),
                 embedding_type="openai",
                 embedding_model_name_or_path=embedding_model_name_or_path,
                 api_key=openai_kwargs.get("api_key"),
@@ -564,6 +561,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaVe
             )
         elif embedding_model_type == "huggingface":
             self.embedding_model_config = EmbeddingConfiguration(
+                model_id=str(uuid.uuid4()),
                 embedding_type="huggingface",
                 embedding_model_name_or_path=embedding_model_name_or_path,
             )
@@ -661,7 +659,17 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
                 embedding_model_name_or_path=embedding_model_name_or_path,
             )
         self.collection = self._get_chroma_specific_collection(collection_name,self.embedding_model_config)
+        self.collection_name = collection_name
     
+    def get_embedding_model_max_seq_len(self) -> int:
+        embedding_model = self._create_embedding_model(self.embedding_model_config)
+        if isinstance(embedding_model,embedding_functions.OpenAIEmbeddingFunction):
+            return 1500
+        if isinstance(embedding_model,embedding_functions.SentenceTransformerEmbeddingFunction):
+            model_path = list(embedding_model.models.keys())[0]
+            # model_name = model_path.split("/")[-1]
+            return embedding_model.models[model_path].max_seq_length
+
     def list_collection_all_filechunks_content(self) -> List[str]:
         """
         List all filechunks content in the collection.
@@ -731,3 +739,69 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig,ChromaCol
         )
     
         return results
+
+    def add_documents(
+            self,
+            documents:List[Document],          
+    ) -> None:
+        """
+        向知识库中添加文档
+        
+        Args:
+            documents (List[Document]): 要添加的文档列表
+        """
+        # Document 类无法被 json 序列化，需要将其转换为字典
+        documents_dict = [dict(document) for document in documents]
+
+        # 使用列表推导式构造符合要求的text和metadata list
+        page_content = [doc["page_content"] for doc in documents_dict]
+        metadatas = [doc["metadata"] for doc in documents]
+        ids = [str(uuid.uuid4()) for _ in page_content]
+
+        # Add texts to collection
+        self.collection.add(
+            documents=page_content,
+            metadatas=metadatas,
+            ids=ids,
+        )
+
+    def delete_documents_from_same_metadata(
+            self,
+            files_name: str,
+    ) -> None:
+        """
+        从知识库中删除来自于同一个相同元文件的文档块
+
+        Args:
+            files_name (str): 元文件名称
+            
+        """
+        # Delete file from collection
+        # Initialize an empty list to store the ids
+        ids_for_target_file = []
+
+        # Get the documents from the collection
+        metadata = self.collection.get()
+        
+        # Loop over the metadata
+        for i in range(len(metadata['metadatas'])):
+            # Check if the source matches the target file
+            # We only compare the last part of the path (the actual file name)
+            if metadata['metadatas'][i]['source'].split('/')[-1].split('\\')[-1] == files_name:
+                # If it matches, add the corresponding id to the list
+                ids_for_target_file.append(metadata['ids'][i])
+
+        self.collection.delete(ids=ids_for_target_file)
+    
+    def delete_specific_documents(
+            self,
+            chunk_document_content: str,
+    ) -> None:
+        """
+        从知识库中删除特定的文档块
+
+        Args:
+            chunk_document_content (str): 要删除的文档块内容
+            
+        """
+        self.collection.delete(where_document={"$contains": chunk_document_content})

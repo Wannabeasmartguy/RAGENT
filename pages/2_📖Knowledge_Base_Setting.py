@@ -5,9 +5,10 @@ from pathlib import Path
 import os
 import tempfile
 import json
+import uuid
 
 from configs.basic_config import I18nAuto,SUPPORTED_LANGUAGES
-from configs.knowledge_base_config import ChromaCollectionProcessor, ChromaVectorStoreProcessor
+from configs.knowledge_base_config import ChromaCollectionProcessorWithNoApi, ChromaVectorStoreProcessorWithNoApi
 from utils.chroma_utils import *
 from utils.text_splitter.text_splitter_utils import *
 
@@ -85,7 +86,7 @@ with st.sidebar:
 
 # 根据嵌入模型的选择情况，创建ChromaVectorStoreProcessor
 if embed_model_type_selectbox == "openai":
-    chroma_vectorstore_processor = ChromaVectorStoreProcessor(
+    chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
         embedding_model_name_or_path=embed_model_selectbox,
         embedding_model_type=embed_model_type_selectbox,
         api_key=os.getenv("AZURE_OAI_KEY",default="OPENAI_API_KEY"),
@@ -94,7 +95,7 @@ if embed_model_type_selectbox == "openai":
         api_type=os.getenv("API_TYPE",default="openai"),
     )
 elif embed_model_type_selectbox == "huggingface":
-    chroma_vectorstore_processor = ChromaVectorStoreProcessor(
+    chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
         embedding_model_name_or_path=os.path.join(embedding_dir,embed_model_selectbox),
         embedding_model_type=embed_model_type_selectbox,
     )
@@ -149,7 +150,7 @@ if embed_model_type_selectbox == "openai":
     collection_config = embedding_config.get(collection_choose, {})
     
     # 创建 ChromaCollectionProcessor
-    chroma_collection_processor = ChromaCollectionProcessor(
+    chroma_collection_processor = ChromaCollectionProcessorWithNoApi(
         collection_name=collection_choose,
         embedding_model_name_or_path=collection_config.get("embedding_model_name_or_path", embed_model_selectbox),
         embedding_model_type=collection_config.get("embedding_type", embed_model_type_selectbox),
@@ -168,8 +169,9 @@ elif embed_model_type_selectbox == "huggingface":
         embedding_config = json.load(f)
     collection_config = embedding_config.get(collection_choose, {})
 
-    chroma_collection_processor = ChromaCollectionProcessor(
+    chroma_collection_processor = ChromaCollectionProcessorWithNoApi(
         collection_name=collection_choose,
+        embedding_model_id=str(uuid.uuid4()),
         embedding_model_name_or_path=collection_config.get("embedding_model_name_or_path", embed_model_selectbox),
         embedding_model_type=collection_config.get("embedding_type", embed_model_type_selectbox),
     )
