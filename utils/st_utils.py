@@ -1,5 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
+import time
 import whisper
 from streamlit_float import *
 from audiorecorder import audiorecorder
@@ -11,6 +13,50 @@ from model.chat.assistant import AssistantRun
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+
+
+def back_to_top(button = st.button("Back to top"),temp = st.empty()):
+    """
+    Scroll the page to the top.
+    
+    Args:
+        button (streamlit.button, optional): The button to trigger the scroll. Defaults to st.button("Back to top").
+        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+    """
+    js = '''
+    <script>
+        var body = window.parent.document.querySelector(".main");
+        console.log(body);
+        body.scrollTop = 0;
+    </script>
+    '''
+
+    if button:
+        with temp:
+            components.html(js)
+            time.sleep(.5) # To make sure the script can execute before being deleted
+        temp.empty()
+
+
+def back_to_button(button = st.button("Back to bottom"),temp = st.empty()):
+    """
+    Scroll the page to the bottom.
+    
+    Args:
+        button (streamlit.button, optional): The button to trigger the scroll. Defaults to st.button("Back to bottom").
+        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+    """
+    js = '''
+    <script>
+        var body = window.parent.document.querySelector(".main");
+        console.log(body);
+        body.scrollTop = body.scrollHeight;
+    </script>
+    '''
+
+    if button:
+        with temp:
+            components.html(js)
 
 
 def float_chat_input_with_audio_recorder() -> str:
