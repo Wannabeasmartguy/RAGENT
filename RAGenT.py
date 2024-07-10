@@ -21,7 +21,7 @@ from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, oai_model_config_selector, write_chat_history
-from utils.st_utils import float_chat_input_with_audio_recorder
+from utils.st_utils import float_chat_input_with_audio_recorder, back_to_top, back_to_bottom
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 
@@ -351,7 +351,8 @@ float_init()
 
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
-
+back_to_top()
+back_to_bottom()
 prompt = float_chat_input_with_audio_recorder()
 
 # Accept user input

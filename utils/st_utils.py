@@ -15,12 +15,11 @@ from model.chat.assistant import AssistantRun
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 
-def back_to_top(button = st.button("Back to top"),temp = st.empty()):
+def back_to_top(temp = st.empty()):
     """
     Scroll the page to the top.
     
     Args:
-        button (streamlit.button, optional): The button to trigger the scroll. Defaults to st.button("Back to top").
         temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
     """
     js = '''
@@ -30,20 +29,23 @@ def back_to_top(button = st.button("Back to top"),temp = st.empty()):
         body.scrollTop = 0;
     </script>
     '''
+    top_container = st.container()
+    top_css = float_css_helper(width="2.2rem", right="10rem", bottom="13rem")
+    top_container.float(top_css)
+    with top_container:
+        up_button = st.button("⭱", key="up_button")
+        if up_button:
+            with temp:
+                components.html(js)
+                time.sleep(.5) # To make sure the script can execute before being deleted
+            temp.empty()
 
-    if button:
-        with temp:
-            components.html(js)
-            time.sleep(.5) # To make sure the script can execute before being deleted
-        temp.empty()
 
-
-def back_to_button(button = st.button("Back to bottom"),temp = st.empty()):
+def back_to_bottom(temp = st.empty()):
     """
     Scroll the page to the bottom.
     
     Args:
-        button (streamlit.button, optional): The button to trigger the scroll. Defaults to st.button("Back to bottom").
         temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
     """
     js = '''
@@ -54,9 +56,16 @@ def back_to_button(button = st.button("Back to bottom"),temp = st.empty()):
     </script>
     '''
 
-    if button:
-        with temp:
-            components.html(js)
+    bottom_container = st.container()
+    bottom_css = float_css_helper(width="2.2rem", right="10rem", bottom="10rem")
+    bottom_container.float(bottom_css)
+    with bottom_container:
+        bottom_button = st.button("⭳", key="bottom_button")
+        if bottom_button:
+            with temp:
+                components.html(js)
+                time.sleep(.5) # To make sure the script can execute before being deleted
+            temp.empty()
 
 
 def float_chat_input_with_audio_recorder() -> str:
