@@ -1,9 +1,7 @@
 import streamlit as st
 from streamlit_float import *
-from audiorecorder import audiorecorder
 
 from autogen.agentchat.contrib.capabilities import transforms
-import whisper
 
 import os
 from typing import Optional

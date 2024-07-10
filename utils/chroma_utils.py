@@ -1,15 +1,6 @@
 import chromadb
 import tabulate
-import os
 import pandas as pd
-
-from typing import Literal
-from huggingface_hub import snapshot_download
-from langchain_community.embeddings.sentence_transformer import (
-    SentenceTransformerEmbeddings,
-)
-from langchain_openai.embeddings import AzureOpenAIEmbeddings
-from langchain_community.vectorstores import chroma
 
 from configs.basic_config import I18nAuto
 

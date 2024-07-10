@@ -10,21 +10,14 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from huggingface_hub import snapshot_download
-from langchain_community.embeddings.sentence_transformer import (
-    SentenceTransformerEmbeddings,
-)
-from langchain_openai.embeddings import AzureOpenAIEmbeddings
-from langchain_community.vectorstores import chroma
 from langchain_core.documents.base import Document
-
-from utils.text_splitter.text_splitter_utils import simplify_filename
 
 from configs.basic_config import I18nAuto, KNOWLEDGE_BASE_DIR
 from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig, 
 )
-from model.config.embeddings import EmbeddingConfiguration, CollectionEmbeddingConfiguration
+from model.config.embeddings import EmbeddingConfiguration
 
 i18n = I18nAuto()
 
