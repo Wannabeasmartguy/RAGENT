@@ -45,11 +45,16 @@ if not chat_history_storage.table_exists():
 
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
-set_pages_configs_in_common(
-    version=VERSION,
-    title="RAGenT",
-    page_icon_path=logo_path
-)
+# Solve set_pages error caused by "Go to top/bottom of page" button.
+# Only need st.rerun once to fix it, and it works fine thereafter.
+try:
+    set_pages_configs_in_common(
+        version=VERSION,
+        title="RAGenT",
+        page_icon_path=logo_path
+    )
+except:
+    st.rerun()
 
 
 # Initialize chat history

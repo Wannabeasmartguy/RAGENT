@@ -31,7 +31,6 @@ def back_to_top(temp = st.empty()):
     '''
     top_container = st.container()
     top_css = float_css_helper(width="2.2rem", right="10rem", bottom="13rem")
-    top_container.float(top_css)
     with top_container:
         up_button = st.button("⭱", key="up_button")
         if up_button:
@@ -39,6 +38,7 @@ def back_to_top(temp = st.empty()):
                 components.html(js)
                 time.sleep(.5) # To make sure the script can execute before being deleted
             temp.empty()
+    top_container.float(top_css)
 
 
 def back_to_bottom(temp = st.empty()):
@@ -58,7 +58,6 @@ def back_to_bottom(temp = st.empty()):
 
     bottom_container = st.container()
     bottom_css = float_css_helper(width="2.2rem", right="10rem", bottom="10rem")
-    bottom_container.float(bottom_css)
     with bottom_container:
         bottom_button = st.button("⭳", key="bottom_button")
         if bottom_button:
@@ -66,6 +65,7 @@ def back_to_bottom(temp = st.empty()):
                 components.html(js)
                 time.sleep(.5) # To make sure the script can execute before being deleted
             temp.empty()
+    bottom_container.float(bottom_css)
 
 
 def float_chat_input_with_audio_recorder() -> str:
