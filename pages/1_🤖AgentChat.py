@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+from loguru import logger
+
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from llm.Agent.pre_built import reflection_agent_with_nested_chat
 from llm.aoai.completion import aoai_config_generator
@@ -349,6 +351,7 @@ elif st.session_state["model_type"] == "Llamafile":
         base_url = st.session_state["llamafile_endpoint"],
         api_key = custom_api_key,
     )
+# logger.debug(f"Config List: {config_list}")
 
 
 agentchat_processor = AgentChatProcessor(

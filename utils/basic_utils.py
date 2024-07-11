@@ -6,9 +6,13 @@ import os
 import json
 import uuid
 from datetime import datetime, timezone
+from loguru import logger
 from typing import List, Dict, Optional
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 from llm.ollama.completion import get_ollama_model_list
+from llm.groq.completion import get_groq_models
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from configs.chat_config import OAILikeConfigProcessor
 
@@ -24,7 +28,19 @@ def model_selector(model_type):
         except:
             return ["qwen:7b-chat"]
     elif model_type == "Groq":
-        return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
+        try:
+            groq_api_key = os.getenv("GROQ_API_KEY")
+            model_list = get_groq_models(api_key=groq_api_key,only_id=True)
+
+            # exclude tts model
+            model_list_exclude_tts = [model for model in model_list if "whisper" not in model]
+            excluded_models = [model for model in model_list if model not in model_list_exclude_tts]
+
+            logger.info(f"Groq model list: {model_list}, excluded models:{excluded_models}")
+            return model_list_exclude_tts
+        except:
+            logger.info("Failed to get Groq model list, using default model list")
+            return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
     elif model_type == "Llamafile":
         return ["Noneed"]
     else:

@@ -7,14 +7,15 @@ import os
 from typing import Optional
 from uuid import uuid4
 from copy import deepcopy
+from loguru import logger
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 from api.dependency import APIRequestHandler
 
 from llm.aoai.completion import aoai_config_generator
 from llm.ollama.completion import ollama_config_generator
-from llm.groq.completion import groq_config_generator
+from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
@@ -330,8 +331,12 @@ elif st.session_state["model_type"] == "Ollama":
         stream = if_stream,
     )
 elif st.session_state["model_type"] == "Groq":
-    config_list = groq_config_generator(
-        model = st.session_state["model"]
+    config_list = groq_openai_config_generator(
+        model = st.session_state["model"],
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
     )
 elif st.session_state["model_type"] == "Llamafile":
     # 避免因为API_KEY为空字符串导致的请求错误（500）
@@ -348,7 +353,7 @@ elif st.session_state["model_type"] == "Llamafile":
         top_p = top_p,
         stream = if_stream,
     )
-
+# logger.debug(f"Config List: {config_list}")
 
 float_init()
 
@@ -431,16 +436,16 @@ if prompt:
 
                 st.session_state.chat_history.append({"role": "assistant", "content": total_response})
                 chat_history_storage.upsert(
-                        AssistantRun(
-                            name="assistant",
-                            run_id=st.session_state.run_id,
-                            run_name=st.session_state.run_name,
-                            llm=config_list[0],
-                            memory={
-                                "chat_history": st.session_state.chat_history
-                            },
-                            assistant_data={
-                                "system_prompt": st.session_state.system_prompt,
-                            }
-                        )
+                    AssistantRun(
+                        name="assistant",
+                        run_id=st.session_state.run_id,
+                        run_name=st.session_state.run_name,
+                        llm=config_list[0],
+                        memory={
+                            "chat_history": st.session_state.chat_history
+                        },
+                        assistant_data={
+                            "system_prompt": st.session_state.system_prompt,
+                        }
                     )
+                )

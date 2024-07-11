@@ -1,7 +1,9 @@
 import os
+import requests
 
 from groq import Groq
 from types import SimpleNamespace
+from typing import Dict
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,6 +34,72 @@ def groq_config_generator(**kwargs):
         "model_client_cls": "GroqClient",
     }
     return [config]
+
+def groq_openai_config_generator(**kwargs):
+    '''
+    使用openai的SDK所需要的配置生成器
+
+    Args:
+        kwargs (dict): 配置参数
+            model (str): 模型名称
+            api_key (str): API Key
+            temperature (float): 温度
+            top_p (float): Top P
+            stream (bool): 是否流式输出
+        
+    Returns:
+        config (list): 配置列表
+    '''
+    config = {
+        "model": kwargs.get("model", "llama3-8b-8192"),
+        "api_key": os.getenv("GROQ_API_KEY",default=kwargs.get("api_key","nogroqkey")),
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_type": "groq",
+        "params": {
+            "temperature": kwargs.get("temperature", 0.5),
+            "top_p": kwargs.get("top_p", 1.0),
+            "stream": kwargs.get("stream", False),
+        },
+    }
+    return [config]
+
+
+def get_groq_models(api_key:str,only_id:bool=False):
+    """
+    Args:
+        api_key (str): API Key
+        
+    Returns:
+        Dict: 包含模型信息的字典
+            {
+                "object": "list",
+                "data": [
+                    {
+                        "id": "llama3-8b-8192",
+                        "object": "model",
+                        "created": 1704287481,
+                        "owned_by": "openai",
+                        ...
+                    }
+                ]
+            }
+    """
+    url = "https://api.groq.com/openai/v1/models"
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        if only_id:
+            return [model['id'] for model in response.json()['data']]
+        return response.json()
+    
+    else:
+        raise ValueError(f"Error fetching Groq models: {response.status_code}")
 
 class GroqClient:
     '''符合 Autogen 规范的Groq Completion Client.'''

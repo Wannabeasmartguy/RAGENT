@@ -5,6 +5,7 @@ import json
 import requests
 
 from autogen import OpenAIWrapper
+from groq import Groq
 
 from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
 from api.routers.chat import LLMConfig, LLMParams
@@ -131,6 +132,27 @@ class ChatProcessor(ChatProcessStrategy):
                 )
 
             return response
+        
+        # elif SUPPORTED_SOURCES["sources"][source] == "groq":
+        #     client = Groq(
+        #         api_key=llm_config.api_key,
+        #     )
+
+        #     if llm_params:
+        #         response = client.chat.completions.create(
+        #             messages = messages,
+        #             model = llm_config.model,
+        #             temperature = llm_params.temperature,
+        #             top_p = llm_params.top_p,
+        #             max_tokens = llm_params.max_tokens
+        #         )
+        #     else:
+        #         response = client.chat.completions.create(
+        #             messages = messages,
+        #             model = llm_config.model,
+        #         )
+            
+        #     return response
 
     def create_completion_stream_api(
             self, 

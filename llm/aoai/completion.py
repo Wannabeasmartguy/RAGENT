@@ -3,7 +3,8 @@ import autogen
 from typing import List, Dict, Union, Literal
 from llm.aoai.Agent.Agent import *
 from autogen.oai import OpenAIWrapper
-from autogen.oai.openai_utils import config_list_from_dotenv
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 # def create_completion(prompt: str,
 #                       model_type: Literal["OpenAI","Ollama"],
@@ -16,7 +17,7 @@ from autogen.oai.openai_utils import config_list_from_dotenv
 
 def aoai_config_generator(**kwargs):
     '''
-    生成符合 Autogen 规范的Groq Completion Client配置
+    生成符合 Autogen 规范的Azure OpenAI Completion Client配置
 
     Args:
         kwargs (dict): 配置参数
