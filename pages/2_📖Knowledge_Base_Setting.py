@@ -13,8 +13,8 @@ from utils.text_splitter.text_splitter_utils import *
 from configs.basic_config import KNOWLEDGE_BASE_DIR
 
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 embedding_dir = "embeddings"
 

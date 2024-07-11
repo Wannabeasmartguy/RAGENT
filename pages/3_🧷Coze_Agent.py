@@ -13,8 +13,8 @@ parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')
 set_pages_configs_in_common(version=VERSION,title="Coze-Agent",page_icon_path=logo_path)
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 if "coze_chat_history_display" not in st.session_state:
     st.session_state.coze_chat_history_display = []

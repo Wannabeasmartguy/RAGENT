@@ -65,8 +65,8 @@ vectorstore_processor = ChromaVectorStoreProcessor(
 )
 
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 # Initialize chat history, to avoid error when reloading the page
 if "agent_chat_history_displayed" not in st.session_state:

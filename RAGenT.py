@@ -20,13 +20,16 @@ from llm.llamafile.completion import llamafile_config_generator
 from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
 from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import model_selector, oai_model_config_selector, write_chat_history
-from utils.st_utils import float_chat_input_with_audio_recorder, back_to_top, back_to_bottom
+try:
+    from utils.st_utils import float_chat_input_with_audio_recorder, back_to_top, back_to_bottom
+except:
+    st.rerun()
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
