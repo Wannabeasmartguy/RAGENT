@@ -82,7 +82,6 @@ def process_api_params(is_enable:bool=False,
         return kwargs
     
 
-@st.cache_data(show_spinner=False)
 def get_ollama_model_list(url:str="http://localhost:11434/api/"):
     """
     获取模型标签列表

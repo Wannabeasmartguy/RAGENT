@@ -7,6 +7,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 from loguru import logger
+from functools import lru_cache
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -18,6 +19,7 @@ from configs.chat_config import OAILikeConfigProcessor
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
+@lru_cache(maxsize=10)
 def model_selector(model_type):
     if model_type == "OpenAI" or model_type == "AOAI":
         return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]

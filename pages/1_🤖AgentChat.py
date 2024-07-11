@@ -5,7 +5,7 @@ from loguru import logger
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from llm.Agent.pre_built import reflection_agent_with_nested_chat
 from llm.aoai.completion import aoai_config_generator
-from llm.groq.completion import groq_config_generator
+from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.fake.completion import fake_agent_chat_completion
@@ -340,7 +340,7 @@ if st.session_state["model_type"] == "OpenAI":
 if st.session_state["model_type"] == "Ollama":
     config_list = ollama_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Groq":
-    config_list = groq_config_generator(model=st.session_state["model"])
+    config_list = groq_openai_config_generator(model=st.session_state["model"])
 elif st.session_state["model_type"] == "Llamafile":
     if st.session_state["llamafile_api_key"] == "":
         custom_api_key = "noneed"
