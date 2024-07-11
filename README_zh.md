@@ -43,12 +43,13 @@ Agent 对话：
 
 1. 配置模型依赖项：修改 `.env_sample` 文件为 `.env` 并填写以下内容：
 
-   `AZURE_OAI_KEY` : 如果你使用 Azure OpenAI 模型，请在此处填写 api key；
-   `AZURE_OAI_ENDPOINT` : 如果你使用 OpenAI 模型，请在此处填写 end_point；
-   `API_VERSION`: 如果你使用 Azure OpenAI 模型，请在此处填写 api version；
-   `API_TYPE`: 如果你使用 Azure OpenAI 模型，请在此处填写 api type；
-   `GROQ_API_KEY` : 如果你使用 Groq 作为模型来源，请在此处填写 api key；
-   `COZE_ACCESS_TOKEN`: 如果你需要使用创建的 Coze Bot ，请在此处填写 access token；
+   - `LANGUAGE`: 支持`English`和`简体中文`，默认为`English`。
+   - `AZURE_OAI_KEY` : 如果你使用 Azure OpenAI 模型，请在此处填写 api key；
+   - `AZURE_OAI_ENDPOINT` : 如果你使用 OpenAI 模型，请在此处填写 end_point；
+   - `API_VERSION`: 如果你使用 Azure OpenAI 模型，请在此处填写 api version；
+   - `API_TYPE`: 如果你使用 Azure OpenAI 模型，请在此处填写 api type；
+   - `GROQ_API_KEY` : 如果你使用 Groq 作为模型来源，请在此处填写 api key；
+   - `COZE_ACCESS_TOKEN`: 如果你需要使用创建的 Coze Bot ，请在此处填写 access token；
 
 > 使用 Llamafile 及其他 OpenAI-Like 模型（支持 OpenAI 接口）或本地 OpenAI API 服务，请在应用内设置 api key 和 endpoint ，并自行启动 Llamafile 等本地服务。
 
