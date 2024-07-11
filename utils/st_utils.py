@@ -1,5 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
+import time
 import whisper
 from streamlit_float import *
 from audiorecorder import audiorecorder
@@ -11,6 +13,59 @@ from model.chat.assistant import AssistantRun
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+
+
+def back_to_top(temp = st.empty()):
+    """
+    Scroll the page to the top.
+    
+    Args:
+        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+    """
+    js = '''
+    <script>
+        var body = window.parent.document.querySelector(".main");
+        console.log(body);
+        body.scrollTop = 0;
+    </script>
+    '''
+    top_container = st.container()
+    top_css = float_css_helper(width="2.2rem", right="10rem", bottom="13rem")
+    top_container.float(top_css)
+    with top_container:
+        up_button = st.button("⭱", key="up_button")
+        if up_button:
+            with temp:
+                components.html(js)
+                time.sleep(.5) # To make sure the script can execute before being deleted
+            temp.empty()
+
+
+def back_to_bottom(temp = st.empty()):
+    """
+    Scroll the page to the bottom.
+    
+    Args:
+        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+    """
+    js = '''
+    <script>
+        var body = window.parent.document.querySelector(".main");
+        console.log(body);
+        body.scrollTop = body.scrollHeight;
+    </script>
+    '''
+
+    bottom_container = st.container()
+    bottom_css = float_css_helper(width="2.2rem", right="10rem", bottom="10rem")
+    bottom_container.float(bottom_css)
+    with bottom_container:
+        bottom_button = st.button("⭳", key="bottom_button")
+        if bottom_button:
+            with temp:
+                components.html(js)
+                time.sleep(.5) # To make sure the script can execute before being deleted
+            temp.empty()
 
 
 def float_chat_input_with_audio_recorder() -> str:
