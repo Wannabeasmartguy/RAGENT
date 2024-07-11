@@ -1,8 +1,42 @@
 import requests
 import json
 import streamlit as st
+from openai import OpenAI
 
 from typing import List, Dict, Union, Optional
+
+
+def ollama_config_generator(**kwargs):
+    '''
+    生成符合 Autogen 规范的llamafile Completion Client配置
+
+    Args:
+        kwargs (dict): 配置参数
+            model (str): 模型名称
+            api_key (str): API Key
+            base_url (str): Base URL
+            params (dict): 其他请求参数
+                temperature (float): 温度
+                top_p (float): Top P
+                stream (bool): 是否流式输出
+        
+    Returns:
+        config (list): 配置列表
+    '''
+    config = {
+        "model": kwargs.get("model", "noneed"),
+        "api_key": kwargs.get("api_key", "noneed"),
+        "base_url": kwargs.get("base_url","http://localhost:11434/v1"),
+        "params": {
+            "temperature": kwargs.get("temperature", 0.5),
+            "top_p": kwargs.get("top_p", 0.5),
+            "max_tokens": kwargs.get("max_tokens", 4096),
+            "stream": kwargs.get("stream", False),
+        },
+        "model_client_cls": "OllamaClient",
+    }
+    return [config]
+
 
 def process_chat_response(response):
     """
@@ -79,6 +113,59 @@ class OllamaResponse():
     def __init__(self,response:dict):
         self.response:dict = response
         self.cost:float = 0
+
+
+class OllamaClient:
+    '''符合 Autogen 规范的 llamafile Completion Client .'''
+    def __init__(self,config: dict):
+        self.model = config.get("model","noneed")
+        self.client = OpenAI(
+            base_url=config.get("base_url","http://localhost:11434/v1"),
+            api_key=config.get("api_key","noneed")
+        )
+
+        get_config_param:dict = config.get("params",{})
+        self.temperature = get_config_param.get("temperature",0.5)
+        # self.max_tokens = get_config_param.get("max_tokens",4000)
+        self.top_p = get_config_param.get("top_p",1.0)
+        self.stream = get_config_param.get("stream",False)
+
+    def create(self,config:dict) -> dict:
+        '''
+        创建一个会话
+        
+        Args:
+            config (dict): 配置参数，必须要包含 'messages' 键，其值为一个包含对话消息的列表
+            
+        Returns:
+            dict: 包含会话结果的响应
+        '''
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=config["messages"],
+            temperature=config.get("temperature",self.temperature),
+            top_p=config.get("top_p",self.top_p),
+            stream=config.get("stream",self.stream),
+        )
+        return response
+    
+    def message_retrieval(self,response):
+        '''从响应中提取消息'''
+        choices = response.choices
+        return [choice.message.content for choice in choices]
+    
+    def cost(self,response) -> float:
+        '''
+        计算成本       
+        '''
+        response.cost = 0
+        return response.cost
+    
+    @staticmethod
+    def get_usage(response):
+        # returns a dict of prompt_tokens, completion_tokens, total_tokens, cost, model
+        # if usage needs to be tracked, else None
+        return {}
 
 
 class OllamaCompletionClient:

@@ -5,3 +5,6 @@ showSidebarNavigation = false
 base="light"
 primaryColor="#1c6ff2"
 secondaryBackgroundColor="#f3f4f6"
+
+[server]
+enableXsrfProtection=false

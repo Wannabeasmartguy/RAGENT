@@ -4,6 +4,22 @@ import logging
 import locale
 import streamlit as st
 
+
+SUPPORTED_LANGUAGES = {
+    "English": "en-US",
+    "简体中文": "zh-CN",
+}
+
+DATABASE_DIR = os.path.join("databases")
+
+KNOWLEDGE_BASE_DIR = os.path.join(DATABASE_DIR, "knowledgebase")
+
+CONFIGS_BASE_DIR = os.path.join(DATABASE_DIR, "configs")
+CONFIGS_DB_FILE = os.path.join(CONFIGS_BASE_DIR,"configs.db")
+EMBEDDING_CONFIGS_DB_TABLE = "embedding_configs"
+LLM_CONFIGS_DB_TABLE = "llm_configs"
+
+
 class I18nAuto:
     def __init__(self,**kwargs):
         if os.path.exists("config.json"):
@@ -14,7 +30,6 @@ class I18nAuto:
         else:
             config = {}
         language = config.get("language", "auto")
-        language = os.environ.get("LANGUAGE", language)
         language = language.replace("-", "_")
         if language == "auto":
             language = locale.getdefaultlocale()[0] # get the language code of the system (ex. zh_CN)

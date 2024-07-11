@@ -1,13 +1,38 @@
 from langchain_community.document_loaders.unstructured import UnstructuredFileLoader
 from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_text_splitters.markdown import MarkdownTextSplitter
 
-import os
+import streamlit as st
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
-def choose_text_splitter(file_path,
-                         chunk_size:int=1000,
-                         chunk_overlap:int=0):
+import os
+import tempfile
+from pathlib import Path
+from typing import List
+
+
+_CHINESE_SEPARATORS = [
+    "\n\n",
+    "\n",
+    " ",
+    ".",
+    ",",
+    "\u200b",  # Zero-width space
+    "\uff0c",  # Fullwidth comma
+    "\u3001",  # Ideographic comma
+    "\uff0e",  # Fullwidth full stop
+    "\u3002",  # Ideographic full stop
+    "",
+]
+
+
+@st.cache_data
+def choose_text_splitter(
+    file_path: List,
+    chunk_size: int=1000,
+    chunk_overlap: int=0
+):
     '''
     根据文件类型选择不同的文本分割器
     
@@ -28,13 +53,13 @@ def choose_text_splitter(file_path,
             if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             else:
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
         
@@ -46,7 +71,7 @@ def choose_text_splitter(file_path,
         if file_ext == '.pdf':
                 loader = UnstructuredFileLoader(file_path.name)
                 document = loader.load()
-                text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
         elif file_ext =='.md':
             loader = UnstructuredMarkdownLoader(file_path.name)
@@ -56,7 +81,7 @@ def choose_text_splitter(file_path,
         else:
             loader = UnstructuredFileLoader(file_path.name)
             document = loader.load()
-            text_splitter = CharacterTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+            text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
             split_docs = text_splitter.split_documents(document)
 
         return split_docs
@@ -80,3 +105,32 @@ def simplify_filename(original_name):
     new_name = f"{base_name}.{extension}"
     
     return new_name
+
+
+@st.cache_data
+def text_split_execute(
+    file: UploadedFile,
+    split_chunk_size: int = 1000,
+    split_overlap: int = 0,
+):
+    # 获取文件类型，以在创建临时文件时使用正确的后缀
+    file_suffix = Path(file.name).suffix
+    # 获取文件名，不包含后缀
+    file_name_without_suffix = Path(file.name).stem
+
+    # delete 设置为 False,才能在解除绑定后使用 temp_file 进行分割
+    with tempfile.NamedTemporaryFile(prefix=file_name_without_suffix + "__",suffix=file_suffix,delete=False) as temp_file:
+        # stringio = StringIO(file.getvalue().decode())
+        temp_file.write(file.getvalue())
+        temp_file.seek(0)
+        # st.write(temp_file.name)
+        # st.write("File contents:")
+        # st.write(temp_file.read())
+    
+        splitted_docs = choose_text_splitter(file_path=temp_file,chunk_size=split_chunk_size,chunk_overlap=split_overlap)
+    # 手动删除临时文件
+    os.remove(temp_file.name)
+    # st.write(splitted_docs[0].page_content)
+    # st.write(splitted_docs)
+
+    return splitted_docs

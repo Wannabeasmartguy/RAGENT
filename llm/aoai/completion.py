@@ -3,7 +3,8 @@ import autogen
 from typing import List, Dict, Union, Literal
 from llm.aoai.Agent.Agent import *
 from autogen.oai import OpenAIWrapper
-from autogen.oai.openai_utils import config_list_from_dotenv
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 # def create_completion(prompt: str,
 #                       model_type: Literal["OpenAI","Ollama"],
@@ -16,7 +17,7 @@ from autogen.oai.openai_utils import config_list_from_dotenv
 
 def aoai_config_generator(**kwargs):
     '''
-    生成符合 Autogen 规范的Groq Completion Client配置
+    生成符合 Autogen 规范的Azure OpenAI Completion Client配置
 
     Args:
         kwargs (dict): 配置参数
@@ -30,11 +31,16 @@ def aoai_config_generator(**kwargs):
         config (list): 配置列表
     '''
     config = {
-        "model": kwargs.get("model", "gpt-3.5-turbo"),
+        "model": kwargs.get("model", "gpt-3.5-turbo").replace(".", ""),
         "api_key": os.getenv("AZURE_OAI_KEY",default=kwargs.get("api_key","noaoaikey")),
         "base_url": os.getenv("AZURE_OAI_ENDPOINT",default=kwargs.get("base_url","noaoaiendpoint")),
         "api_type": os.getenv("API_TYPE",default=kwargs.get("api_type","azure")),
         "api_version": os.getenv("API_VERSION",default=kwargs.get("api_version","2024-02-15-preview")),
+        "params": {
+            "temperature": kwargs.get("temperature", 0.5),
+            "top_p": kwargs.get("top_p", 1.0),
+            "stream": kwargs.get("stream", False),
+        }
     }
     return [config]
 

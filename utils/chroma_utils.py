@@ -1,15 +1,6 @@
 import chromadb
 import tabulate
-import os
 import pandas as pd
-
-from typing import Literal
-from huggingface_hub import snapshot_download
-from langchain_community.embeddings.sentence_transformer import (
-    SentenceTransformerEmbeddings,
-)
-from langchain_openai.embeddings import AzureOpenAIEmbeddings
-from langchain_community.vectorstores import chroma
 
 from configs.basic_config import I18nAuto
 
@@ -154,7 +145,7 @@ def get_chroma_file_info(persist_path:str,
         client = chromadb.PersistentClient(path=persist_path)
         collection_lang = client.get_collection(collection_name)
     except ValueError:
-        raise i18n("“Knowledge Base path” is empty, Please enter the path")
+        raise BaseException(i18n("“Knowledge Base path” is empty, Please enter the path"))
     metadata_pre10 = collection_lang.peek(limit=limit)  
     
     #get data for the first <limit> files 

@@ -10,20 +10,23 @@ def llamafile_config_generator(**kwargs):
         kwargs (dict): 配置参数
             model (str): 模型名称
             api_key (str): API Key
-            temperature (float): 温度
-            top_p (float): Top P
-            stream (bool): 是否流式输出
+            base_url (str): Base URL
+            params (dict): 其他请求参数
+                temperature (float): 温度
+                top_p (float): Top P
+                stream (bool): 是否流式输出
         
     Returns:
         config (list): 配置列表
     '''
     config = {
-        "model": "noneed",
-        "api_key": "noneed",
+        "model": kwargs.get("model", "noneed"),
+        "api_key": kwargs.get("api_key", "noneed"),
         "base_url": kwargs.get("base_url","http://127.0.0.1:8080/v1"),
         "params": {
             "temperature": kwargs.get("temperature", 0.5),
-            "top_p": kwargs.get("top_p", 1.0),
+            "top_p": kwargs.get("top_p", 0.5),
+            "max_tokens": kwargs.get("max_tokens", 4096),
             "stream": kwargs.get("stream", False),
         },
         "model_client_cls": "LlamafileClient",
@@ -34,10 +37,10 @@ def llamafile_config_generator(**kwargs):
 class LlamafileClient:
     '''符合 Autogen 规范的 llamafile Completion Client .'''
     def __init__(self,config: dict):
-        self.model = "noneed"
+        self.model = config.get("model","noneed")
         self.client = OpenAI(
             base_url=config.get("base_url","http://127.0.0.1:8080/v1"),
-            api_key="noneed"
+            api_key=config.get("api_key","noneed")
         )
 
         get_config_param:dict = config.get("params",{})

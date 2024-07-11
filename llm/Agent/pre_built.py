@@ -1,15 +1,19 @@
 import os
 
-from typing import List,Union
+from typing import List, Union, Dict, Callable
 from pathlib import Path
 
-from autogen import AssistantAgent, UserProxyAgent
+from autogen import AssistantAgent, UserProxyAgent, ConversableAgent, ChatResult
 from autogen.cache import Cache
 from autogen.coding import DockerCommandLineCodeExecutor, LocalCommandLineCodeExecutor
 from autogen.agentchat.contrib.capabilities import transform_messages, transforms
 
 from llm.groq.completion import GroqClient
 from llm.llamafile.completion import LlamafileClient
+from llm.ollama.completion import OllamaClient
+from llm.aoai.tools.tools import TO_TOOLS
+from utils.basic_utils import dict_filter
+
 
 def reflection_agent_with_nested_chat(
         config_list: List[dict],
@@ -94,5 +98,64 @@ def reflection_agent_with_nested_chat(
     if config_list[0].get("model_client_cls", None) == "LlamafileClient":
         writing_assistant.register_model_client(model_client_cls=LlamafileClient)
         reflection_assistant.register_model_client(model_client_cls=LlamafileClient)
+    if config_list[0].get("model_client_cls", None) == "OllamaClient":
+        writing_assistant.register_model_client(model_client_cls=OllamaClient)
+        reflection_assistant.register_model_client(model_client_cls=OllamaClient)
 
     return user_proxy, writing_assistant, reflection_assistant
+
+
+def create_function_call_agent_response(
+    message: str | Dict ,
+    config_list: List[Dict[str, str]],
+    tools: List = [],
+) -> ChatResult:
+    '''
+    创建一个agentchat的function call响应
+    '''
+    if "stream" in config_list[0]:
+        del config_list[0]["stream"]
+
+    all_tools = TO_TOOLS
+    selected_tools = dict_filter(dict_data=all_tools, filter_keys=tools)
+
+    assistant = ConversableAgent(
+        name="Assistant",
+        system_message="You are a helpful AI assistant. "
+        f"You can help with the following tools: {', '.join(selected_tools.keys())}. "
+        "Return 'TERMINATE' when the task is done.",
+        llm_config={
+            "config_list": config_list,
+            "cache_seed": None,
+        }
+    )
+
+    user_proxy = ConversableAgent(
+        name="User",
+        llm_config=False,
+        is_termination_msg=lambda msg: msg.get("content") is not None and "TERMINATE" in msg["content"],
+        human_input_mode="NEVER",
+    )
+    
+    for tool_name in selected_tools:
+        tool = selected_tools[tool_name]
+        # Register the tool signature with the assistant agent.
+        assistant.register_for_llm(name=tool["name"], description=tool["description"])(tool["func"])
+
+        # Register the tool function with the user proxy agent.
+        user_proxy.register_for_execution(name=tool["name"])(tool["func"])
+
+    if config_list[0].get("model_client_cls", None) == "GroqClient":
+        assistant.register_model_client(model_client_cls=GroqClient)
+    if config_list[0].get("model_client_cls", None) == "LlamafileClient":
+        assistant.register_model_client(model_client_cls=LlamafileClient)
+    if config_list[0].get("model_client_cls", None) == "OllamaClient":
+        assistant.register_model_client(model_client_cls=OllamaClient)
+
+    result = user_proxy.initiate_chat(
+        assistant,
+        message=message,
+        max_turns=10
+    )
+    
+    return result

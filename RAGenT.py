@@ -1,90 +1,195 @@
 import streamlit as st
-import autogen
+from streamlit_float import *
 
-from autogen.oai.openai_utils import config_list_from_dotenv
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
-from dotenv import load_dotenv
-load_dotenv()
-
-from llm.aoai.completion import AzureOpenAICompletionClient
-from llm.ollama.completion import OllamaCompletionClient,get_ollama_model_list
-from llm.groq.completion import GroqCompletionClient,groq_config_generator
-from llm.llamafile.completion import LlamafileCompletionClient,llamafile_config_generator
-from configs.basic_config import I18nAuto,set_pages_configs_in_common
+from typing import Optional
+from uuid import uuid4
 from copy import deepcopy
+from loguru import logger
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
+from api.dependency import APIRequestHandler
+
+from llm.aoai.completion import aoai_config_generator
+from llm.ollama.completion import ollama_config_generator
+from llm.groq.completion import groq_openai_config_generator
+from llm.llamafile.completion import llamafile_config_generator
+from configs.basic_config import I18nAuto,set_pages_configs_in_common,SUPPORTED_LANGUAGES
+from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
+from utils.basic_utils import model_selector, oai_model_config_selector, write_chat_history
+try:
+    from utils.st_utils import float_chat_input_with_audio_recorder, back_to_top, back_to_bottom
+except:
+    st.rerun()
+from storage.db.sqlite import SqlAssistantStorage
+from model.chat.assistant import AssistantRun
 
 
-# i18n = I18nAuto(language="en-US")
-i18n = I18nAuto()
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+
+requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
+
+oailike_config_processor = OAILikeConfigProcessor()
+
+chat_history_db_dir = os.path.join(os.path.dirname(__file__), "databases", "chat_history")
+chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
+if not os.path.exists(chat_history_db_dir):
+    os.makedirs(chat_history_db_dir)
+chat_history_storage = SqlAssistantStorage(
+    table_name="chatbot_chat_history",
+    db_file = chat_history_db_file,
+)
+if not chat_history_storage.table_exists():
+    chat_history_storage.create()
+
 
 VERSION = "0.0.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
-set_pages_configs_in_common(
-    version=VERSION,
-    title="RAGenT",
-    page_icon_path=logo_path
-)
+# Solve set_pages error caused by "Go to top/bottom of page" button.
+# Only need st.rerun once to fix it, and it works fine thereafter.
+try:
+    set_pages_configs_in_common(
+        version=VERSION,
+        title="RAGenT",
+        page_icon_path=logo_path
+    )
+except:
+    st.rerun()
 
-st.title("RAGenT")
- 
 
 # Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Display chat messages from history on app rerun
-def write_chat_history(chat_history):
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+# Initialize openai-like model config
+if "oai_like_model_config_dict" not in st.session_state:
+    st.session_state.oai_like_model_config_dict = {
+        "noneed":{
+            "base_url": "http://127.0.0.1:8080/v1",
+            "api_key": "noneed"
+        }
+    }
 
-write_chat_history(st.session_state.chat_history)
-            
+if "run_id" not in st.session_state:
+    st.session_state.run_id = str(uuid4())
 
-def model_selector(model_type):
-    if model_type == "OpenAI":
-        return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "Ollama":
-        try:
-           model_list = get_ollama_model_list() 
-           return model_list
-        except:
-            return ["qwen:7b-chat"]
-    elif model_type == "Groq":
-        return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif model_type == "Llamafile":
-        return ["Noneed"]
-    else:
-        return None
-
+run_id_list = chat_history_storage.get_all_run_ids()
+if st.session_state.run_id not in run_id_list:
+    st.session_state.current_run_id_index = 0
 
 with st.sidebar:
     st.image(logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
-    select_box0 = st.selectbox(
+    st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+
+    model_choosing_container = st.expander(label=i18n("Model Choosing"),expanded=True)
+    select_box0 = model_choosing_container.selectbox(
         label=i18n("Model type"),
-        options=["OpenAI","Ollama","Groq","Llamafile"],
+        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
 
-    select_box1 = st.selectbox(
-        label=i18n("Model"),
-        options=model_selector(st.session_state["model_type"]),
-        key="model"
-    )
-
-    if select_box0 == "Llamafile":
-        with st.expander(label=i18n("Llamafile config")):
+    if select_box0 != "Llamafile":
+        select_box1 = model_choosing_container.selectbox(
+            label=i18n("Model"),
+            options=model_selector(st.session_state["model_type"]),
+            key="model"
+        )
+    elif select_box0 == "Llamafile":
+        select_box1 = model_choosing_container.text_input(
+            label=i18n("Model"),
+            value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
+            key="model",
+            placeholder=i18n("Fill in custom model name. (Optional)")
+        )
+        with model_choosing_container.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
-                value="http://127.0.0.1:8080/v1",
+                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
                 key="llamafile_endpoint"
             )
+            llamafile_api_key = st.text_input(
+                label=i18n("Llamafile API key"),
+                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[2],
+                key="llamafile_api_key",
+                placeholder=i18n("Fill in your API key. (Optional)")
+            )
+            save_oai_like_config_button = st.button(
+                label=i18n("Save model config"),
+                on_click=oailike_config_processor.update_config,
+                args=(select_box1,llamafile_endpoint,llamafile_api_key),
+                use_container_width=True
+            )
+            
+            st.write("---")
+
+            oai_like_config_list = st.selectbox(
+                label=i18n("Select model config"),
+                options=oailike_config_processor.get_config()
+            )
+            load_oai_like_config_button = st.button(
+                label=i18n("Load model config"),
+                use_container_width=True,
+                type="primary"
+            )
+            if load_oai_like_config_button:
+                st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
+                st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+                st.rerun()
+
+            delete_oai_like_config_button = st.button(
+                label=i18n("Delete model config"),
+                use_container_width=True,
+                on_click=oailike_config_processor.delete_model_config,
+                args=(oai_like_config_list,)
+            )
+
+    with st.expander(label=i18n("Model config")):
+        max_tokens = st.number_input(
+            label=i18n("Max tokens"),
+            min_value=1,
+            value=1900,
+            step=1,
+            key="max_tokens",
+            help=i18n("Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000).")
+        )
+        temperature = st.slider(
+            label=i18n("Temperature"),
+            min_value=0.0,
+            max_value=2.0,
+            value=0.5,
+            step=0.1,
+            key="temperature",
+            help=i18n("'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5.")
+        )
+        top_p = st.slider(
+            label=i18n("Top p"),
+            min_value=0.0,
+            max_value=1.0,
+            value=0.5,
+            step=0.1,
+            key="top_p",
+            help=i18n("Similar to 'temperature', but don't change it at the same time as temperature")
+        )
+        if_stream = st.toggle(
+            label=i18n("Stream"),
+            value=True,
+            key="if_stream",
+            help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
+        )
+
+    dialog_settings = st.popover(
+        label=i18n("Saved dialog settings"),
+        use_container_width=True,
+        # disabled=True,
+    )
 
     history_length = st.number_input(
         label=i18n("History length"),
@@ -97,11 +202,9 @@ with st.sidebar:
     max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
     cols = st.columns(2)
-    export_button = cols[0].button(label=i18n("Export chat history"))
-    clear_button = cols[1].button(label=i18n("Clear chat history"))
-    if clear_button:
-        st.session_state.chat_history = []
-        write_chat_history(st.session_state.chat_history)
+    export_button = cols[0].button(label=i18n("Export chat history"),use_container_width=True)
+    clear_button = cols[1].button(label=i18n("Clear chat history"),use_container_width=True)
+    # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
@@ -111,51 +214,161 @@ with st.sidebar:
             f.write(chat_history)
         st.toast(body="Chat history exported to chat_history.md",icon="🎉")
 
-    st.write("---")
+    def get_system_prompt(run_id: Optional[str]):
+        if run_id:
+            try:
+                return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
+            except:
+                return "You are a helpful assistant."
+        else:
+            return "You are a helpful assistant."
 
-    saved_dialog = st.selectbox(
+    dialog_settings.write(i18n("Dialogues list"))
+    
+    # 管理已有对话
+    dialogs_container = dialog_settings.container(height=200,border=True)
+    saved_dialog = dialogs_container.radio(
         label=i18n("Saved dialog"),
-        options=["None"],
+        options=chat_history_storage.get_all_runs(),
+        format_func=lambda x: x.run_name[:15]+'...' if len(x.run_name) > 15 else x.run_name,
+        index=st.session_state.current_run_id_index,
+        label_visibility="collapsed",
+    )
+    add_dialog_button = dialog_settings.button(
+        label=i18n("Add a new dialog"),
+        use_container_width=True,
+    )
+    delete_dialog_button = dialog_settings.button(
+        label=i18n("Delete selected dialog"),
+        use_container_width=True,
     )
 
-# load config list from .env file
-# config_list = config_list_from_dotenv(
-#     dotenv_file_path=".env",
-#     model_api_key_map={
-#         "gpt-4":{
-#             "api_key_env_var":"AZURE_OAI_KEY",
-#             "api_type": "API_TYPE",
-#             "base_url": "AZURE_OAI_ENDPOINT",
-#             "api_version": "API_VERSION",
-#         },
-#         "gpt-3.5-turbo":{
-#             "api_key_env_var":"AZURE_OAI_KEY",
-#             "api_type": "API_TYPE",
-#             "base_url": "AZURE_OAI_ENDPOINT",
-#             "api_version": "API_VERSION",
-#         }
-#     }
-# )
+    if saved_dialog:
+        st.session_state.run_id = saved_dialog.run_id
+        st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+    if add_dialog_button:
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=str(uuid4()),
+                run_name="New dialog",
+                memory={
+                    "chat_history": []
+                }
+            )
+        )
+        st.rerun()
+    if delete_dialog_button:
+        chat_history_storage.delete_run(st.session_state.run_id)
+        st.session_state.run_id = str(uuid4())
+        st.session_state.chat_history = []
+        st.rerun()
+    if clear_button:
+        st.session_state.chat_history = []
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.run_id,
+                run_name=st.session_state.run_name,
+                memory={
+                    "chat_history": st.session_state.chat_history
+                }
+            )
+        )
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+        st.rerun()
+
+    dialog_settings.write("---")
+
+    # 保存对话
+    def get_run_name():
+        try:
+            run_name = saved_dialog.run_name
+        except:
+            run_name = "RAGenT"
+        return run_name
+    def get_all_runnames():
+        runnames = []
+        runs = chat_history_storage.get_all_runs()
+        for run in runs:
+            runnames.append(run.run_name)
+        return runnames
+    dialog_name = dialog_settings.text_input(
+        label=i18n("Dialog name"),
+        value=get_run_name(),
+        key="run_name",
+    )
+    if dialog_name:
+        chat_history_storage.upsert(
+            AssistantRun(
+                run_name=dialog_name,
+                run_id=st.session_state.run_id,
+            )
+        )
+    if saved_dialog.run_name not in get_all_runnames():
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+        st.rerun()
+
+    dialog_settings.text_area(
+        label=i18n("System Prompt"),
+        value=get_system_prompt(saved_dialog.run_id),
+        height=300,
+        key="system_prompt",
+    )
 
 if st.session_state["model_type"] == "OpenAI":
-    client = AzureOpenAICompletionClient()
-elif st.session_state["model_type"] == "Ollama":
-    client = OllamaCompletionClient()
-elif st.session_state["model_type"] == "Groq":
-    config_list = groq_config_generator(
-        model = st.session_state["model"]
+    pass
+elif st.session_state["model_type"] == "AOAI":
+    config_list = aoai_config_generator(
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
     )
-    client = GroqCompletionClient(
-        config=config_list[0]
+elif st.session_state["model_type"] == "Ollama":
+    config_list = ollama_config_generator(
+        model = st.session_state["model"],
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
+    )
+elif st.session_state["model_type"] == "Groq":
+    config_list = groq_openai_config_generator(
+        model = st.session_state["model"],
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
     )
 elif st.session_state["model_type"] == "Llamafile":
-    config_list = llamafile_config_generator(base_url=st.session_state["llamafile_endpoint"])
-    client = LlamafileCompletionClient(
-        config=config_list[0]
+    # 避免因为API_KEY为空字符串导致的请求错误（500）
+    if st.session_state["llamafile_api_key"] == "":
+        custom_api_key = "noneed"
+    else:
+        custom_api_key = st.session_state["llamafile_api_key"]
+    config_list = llamafile_config_generator(
+        model = st.session_state["model"],
+        base_url = st.session_state["llamafile_endpoint"],
+        api_key = custom_api_key,
+        max_tokens = max_tokens,
+        temperature = temperature,
+        top_p = top_p,
+        stream = if_stream,
     )
+# logger.debug(f"Config List: {config_list}")
+
+float_init()
+
+st.title(st.session_state.run_name)
+write_chat_history(st.session_state.chat_history)
+back_to_top()
+back_to_bottom()
+prompt = float_chat_input_with_audio_recorder()
 
 # Accept user input
-if prompt := st.chat_input("What is up?"):
+if prompt:
+# if prompt := st.chat_input("What is up?"):
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -166,33 +379,76 @@ if prompt := st.chat_input("What is up?"):
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
+            # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
+            processed_messages.insert(0,{"role": "system", "content": st.session_state.system_prompt})
+
+            chatprocessor = ChatProcessor(
+                requesthandler=requesthandler,
+                model_type=st.session_state["model_type"],
+                llm_config=config_list[0],
+            )
+
+            # 非流式调用
             if not config_list[0].get("params",{}).get("stream",False):
-                raw_response = client.create_completion(
-                    model=st.session_state["model"],
+
+                # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
+                # 一般都是在的
+                response = chatprocessor.create_completion_noapi(
                     messages=processed_messages
                 )
-                # 根据 Client 的不同，解析方法有小不同
-                if isinstance(client, AzureOpenAICompletionClient):
-                    response = client.client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, OllamaCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, GroqCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
-                elif isinstance(client, LlamafileCompletionClient):
-                    response = client.extract_text_or_completion_object(raw_response)[0]
+
+                if "error" not in response:
+                    # st.write(response)
+                    response_content = response.choices[0].message.content
+                    st.write(response_content)
+                    cost = response.cost
+                    st.write(f"response cost: ${cost}")
+
+                    st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
+
+                    # 保存聊天记录
+                    chat_history_storage.upsert(
+                        AssistantRun(
+                            name="assistant",
+                            run_name=st.session_state.run_name,
+                            run_id=st.session_state.run_id,
+                            llm=config_list[0],
+                            memory={
+                                "chat_history": st.session_state.chat_history
+                            },
+                        )
+                    )
                 else:
-                    raise NotImplementedError("Unsupported client type")
+                    st.error(response)
+ 
             else:
-                response = client.create_completion_stream(
-                    model=st.session_state["model"],
+                # 流式调用
+                # 获得 API 的响应，但是解码出来的乱且不完整
+                # response = chatprocessor.create_completion_stream_api(
+                #     messages=processed_messages
+                # )
+                # for chunk in response:
+                #     st.write(chunk.decode("utf-8","ignore"))
+                #     time.sleep(0.1)
+
+                response = chatprocessor.create_completion_stream_noapi(
                     messages=processed_messages
                 )
-                # st.write_stream(response)
+                total_response = st.write_stream(response)
 
-        if not config_list[0].get("params",{}).get("stream",False):
-            st.write(response)
-            st.write(f"response cost: ${raw_response.cost}")
-            
-    st.session_state.chat_history.append({"role": "assistant", "content": response})
-
+                st.session_state.chat_history.append({"role": "assistant", "content": total_response})
+                chat_history_storage.upsert(
+                    AssistantRun(
+                        name="assistant",
+                        run_id=st.session_state.run_id,
+                        run_name=st.session_state.run_name,
+                        llm=config_list[0],
+                        memory={
+                            "chat_history": st.session_state.chat_history
+                        },
+                        assistant_data={
+                            "system_prompt": st.session_state.system_prompt,
+                        }
+                    )
+                )
