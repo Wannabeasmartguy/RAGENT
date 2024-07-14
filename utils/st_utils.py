@@ -7,9 +7,7 @@ from streamlit_float import *
 from audiorecorder import audiorecorder
 
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from storage.db.sqlite import SqlAssistantStorage
-from model.chat.assistant import AssistantRun
-
+from utils.basic_utils import copy_to_clipboard
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
@@ -133,7 +131,9 @@ def float_chat_input_with_audio_recorder() -> str:
                         st.write(i18n("Transcribing"))
                         transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
                         st.write(i18n("Transcribed"))
-                    st.code(transcribe_result.get("text","No result."))
+                    content = transcribe_result.get("text","No result.")
+                    copy_to_clipboard(content)
+                    st.code(content)
                     # 删除临时文件
                     os.remove("dynamic_configs/temp.wav")
 
