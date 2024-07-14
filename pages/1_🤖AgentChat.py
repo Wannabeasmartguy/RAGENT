@@ -9,6 +9,7 @@ from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.fake.completion import fake_agent_chat_completion
+from llm.litellm.completion import litellm_config_generator
 from utils.basic_utils import (
     model_selector, 
     split_list_by_key_value, 
@@ -226,7 +227,7 @@ with st.sidebar:
 
     select_box0 = st.selectbox(
         label=i18n("Model type"),
-        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
+        options=["AOAI","OpenAI","Ollama","Groq","Llamafile","LiteLLM"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
@@ -351,6 +352,8 @@ elif st.session_state["model_type"] == "Llamafile":
         base_url = st.session_state["llamafile_endpoint"],
         api_key = custom_api_key,
     )
+elif st.session_state["model_type"] == "LiteLLM":
+    config_list = litellm_config_generator(model=st.session_state["model"])
 # logger.debug(f"Config List: {config_list}")
 
 

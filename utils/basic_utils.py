@@ -45,6 +45,8 @@ def model_selector(model_type):
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
     elif model_type == "Llamafile":
         return ["Noneed"]
+    elif model_type == "LiteLLM":
+        return ["Noneed"]
     else:
         return None
 
