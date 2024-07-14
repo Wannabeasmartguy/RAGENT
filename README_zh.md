@@ -11,6 +11,7 @@
 聊天及 Agent 交互：
 - [x] 💭 简洁易用的聊天框界面
 - [x] 🌏️ 语言可选（简体中文、English）
+- [x] 🎤 语音输入（本地 whisper 提供 TTS 服务）
 - [x] 🔧 多种（本地）模型来源的推理支持（Azure OpenAI, Groq, ollama, llamafile/OpenAI Like）
 - [x] 🤖 预置多种 Agent 模式
 
@@ -23,9 +24,17 @@
 
 ## 更多细节
 
-Agent 对话：
+### 通用
+
+语音输入
+
+![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
+
+### Agent Chat
 
 1. 工具调用：
+
+可自定义工具并选择是否使用
 
 ![image](https://github.com/Wannabeasmartguy/RAGenT/assets/107250451/72699ed9-e837-4443-9dd6-75cf093f1324)
 
@@ -33,6 +42,14 @@ Agent 对话：
 2. Reflection：可以查看具体的思考内容：
 
 ![agentchat_expand_thought-en](https://github.com/Wannabeasmartguy/GPT-Gradio-Agent/assets/107250451/ed33578e-e463-4eb6-996a-786c0d517eb3)
+
+3. Function call（工具调用）
+
+Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure OpenAI, Groq 以及本地模型（[通过 LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
+
+![openai function call](https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67)
+
+
 
 ## 快速开始
 
@@ -55,9 +72,9 @@ Agent 对话：
 
 2. 启动应用：
 
-   命令行运行：`python startup.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
+   命令行运行：`python startup_onefile.py` 或 `streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
-> 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 000 。
+~> 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 8000 。~
 
 ## Todo
 
