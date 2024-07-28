@@ -11,6 +11,7 @@ from chromadb.utils import embedding_functions
 
 from huggingface_hub import snapshot_download
 from langchain_core.documents.base import Document
+from loguru import logger
 
 from configs.basic_config import I18nAuto, KNOWLEDGE_BASE_DIR
 from api.dependency import APIRequestHandler
@@ -356,11 +357,23 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
         Returns:
             int: The max sequence length of the embedding model.
         """
+        if self.embedding_model_config is None or self.embedding_model_config == {}:
+            logger.warning("Embedding model config is empty")
+            return None
+        
+        logger.debug(f"Getting max sequence length for {self.embedding_model_config}")
         response = requesthandler.post(
             "/knowledgebase/get-max-seq-len",
             data=self.embedding_model_config.dict(),
         )
-        return response
+
+        if isinstance(response, int):
+            logger.debug(response)
+            return response
+        elif isinstance(response, Dict):
+            if response.get("error"):
+                logger.warning(f"Error getting max sequence length for {self.embedding_model_config}")
+                return None
 
 
     def list_collection_all_filechunks_content(self) -> List[str]:
