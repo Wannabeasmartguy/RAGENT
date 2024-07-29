@@ -199,14 +199,19 @@ with st.sidebar:
                 value=False,
                 key="is_hybrid_retrieve"
             )
-            hybrid_retrieve_weight = st.slider(
-                label=i18n("Hybrid retrieve weight"),
-                min_value=0.0,
-                max_value=1.0,
-                value=0.5,
-                step=0.1,
-                key="hybrid_retrieve_weight"
-            )
+            hybrid_retrieve_weight_placeholder = st.empty()
+            if is_hybrid_retrieve:
+                hybrid_retrieve_weight = hybrid_retrieve_weight_placeholder.slider(
+                    label=i18n("Hybrid retrieve weight"),
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=0.5,
+                    step=0.1,
+                    key="hybrid_retrieve_weight"
+                )
+            else:
+                # Prevent error when the checkbox is unchecked
+                hybrid_retrieve_weight = 0.0
     
     if agent_type == "Function Call":
         with st.expander(label=i18n("Function Call Setting")):
@@ -225,27 +230,28 @@ with st.sidebar:
                             st.write("#### " + tool_name.replace("tool_",""))
                             st.write(TO_TOOLS[tool_name]["description"])
 
-    select_box0 = st.selectbox(
+    model_choosing_container = st.expander(label=i18n("Model Choosing"),expanded=True)
+    select_box0 = model_choosing_container.selectbox(
         label=i18n("Model type"),
-        options=["AOAI","OpenAI","Ollama","Groq","Llamafile","LiteLLM"],
+        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
         key="model_type",
         # on_change=lambda: model_selector(st.session_state["model_type"])
     )
-    
+
     if select_box0 != "Llamafile":
-        select_box1 = st.selectbox(
+        select_box1 = model_choosing_container.selectbox(
             label=i18n("Model"),
             options=model_selector(st.session_state["model_type"]),
             key="model"
         )
     elif select_box0 == "Llamafile":
-        select_box1 = st.text_input(
+        select_box1 = model_choosing_container.text_input(
             label=i18n("Model"),
             value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
             key="model",
             placeholder=i18n("Fill in custom model name. (Optional)")
         )
-        with st.popover(label=i18n("Llamafile config"),use_container_width=True):
+        with model_choosing_container.popover(label=i18n("Llamafile config"),use_container_width=True):
             llamafile_endpoint = st.text_input(
                 label=i18n("Llamafile endpoint"),
                 value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
@@ -277,6 +283,7 @@ with st.sidebar:
             )
             if load_oai_like_config_button:
                 st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
+                # st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
                 st.rerun()
 
             delete_oai_like_config_button = st.button(
@@ -285,6 +292,13 @@ with st.sidebar:
                 on_click=oailike_config_processor.delete_model_config,
                 args=(oai_like_config_list,)
             )
+
+    reset_model_button = model_choosing_container.button(
+        label=i18n("Reset model info"),
+        on_click=lambda x: x.cache_clear(),
+        args=(model_selector,),
+        use_container_width=True
+    )
 
     history_length = st.number_input(
         label=i18n("History length"),

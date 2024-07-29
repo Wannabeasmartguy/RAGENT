@@ -151,6 +151,13 @@ with st.sidebar:
                 args=(oai_like_config_list,)
             )
 
+    reset_model_button = model_choosing_container.button(
+        label=i18n("Reset model info"),
+        on_click=lambda x: x.cache_clear(),
+        args=(model_selector,),
+        use_container_width=True
+    )
+
     with st.expander(label=i18n("Model config")):
         max_tokens = st.number_input(
             label=i18n("Max tokens"),

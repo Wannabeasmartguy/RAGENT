@@ -56,7 +56,7 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
 2. launch the application:
 
-Run: Both `streamlit run RAGenT.py` and `python startup_onfile.py` on the command line can start it.
+Run: Run `python startup_onfile.py` on the command line can start it.
 
 ## Route
 

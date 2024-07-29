@@ -13,5 +13,6 @@ if __name__ == "__main__":
         "run",
         resolve_path("RAGenT.py"),
         "--global.developmentMode=false",
+        "--server.port=8501",
     ]
     sys.exit(stcli.main())

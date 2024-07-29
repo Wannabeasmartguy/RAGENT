@@ -96,5 +96,6 @@
     "Function Call": "Function Call",
     "Follow Up": "Follow Up",
     "Dialogues list": "Dialogues list",
-    "System Prompt": "**System Prompt**"
+    "System Prompt": "**System Prompt**",
+    "Reset model info": "Reset model info"
 }

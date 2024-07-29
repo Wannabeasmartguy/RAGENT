@@ -72,7 +72,7 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 
 2. 启动应用：
 
-   命令行运行：`python startup_onefile.py` 或 `streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
+   命令行运行：`python startup.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
 ~> 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 8000 。~
 
