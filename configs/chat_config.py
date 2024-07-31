@@ -1,4 +1,5 @@
 from typing import Literal, List, Dict, Any, Generator, Optional
+from functools import partial
 from uuid import uuid4
 import os
 import json
@@ -27,6 +28,8 @@ from storage.db.sqlite import (
 )
 from model.config.llm import OpenAILikeLLMConfiguration
 from lc.rag.basic import LCOpenAILikeRAGManager, LCAzureOpenAIRAGManager
+from utils.tool_utils import create_tools_call_completion
+from tools.toolkits import TOOLS_LIST, TOOLS_MAP
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -42,6 +45,7 @@ class ChatProcessor(ChatProcessStrategy):
         self.requesthandler = requesthandler
         self.model_type = model_type
         self.llm_config = llm_config
+        self.create_tools_call_completion = partial(create_tools_call_completion, tools=TOOLS_LIST, function_map=TOOLS_MAP, config_list=[llm_config])
 
     def create_completion(
             self, 
