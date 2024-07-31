@@ -127,7 +127,7 @@ def create_tools_call_completion(
     :param api_key: API密钥
     :param base_url: API 终结点
     :param stream: 是否流式输出
-    :param config_list: 模型的配置列表，如果非空，则使用该列表中的配置，`model`、`api_key`、`base_url`参数将被忽略
+    :param config_list: 模型的配置列表，如果非空，则使用该列表中的配置，`model`、`api_key`、`base_url`和`stream`参数将被忽略
     :return: 包含工具调用参数的一轮完整对话
     """
     parser = ToolsParameterOutputParser()

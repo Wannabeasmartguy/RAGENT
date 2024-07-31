@@ -8,6 +8,7 @@ from typing import Optional
 from uuid import uuid4
 from copy import deepcopy
 from loguru import logger
+from utils.log.logger_config import setup_logger
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -26,6 +27,7 @@ except:
     st.rerun()
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
+from utils.chat.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 
 
 language = os.getenv("LANGUAGE", "简体中文")
@@ -191,6 +193,13 @@ with st.sidebar:
             key="if_stream",
             help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
         )
+        if_tools_call = st.toggle(
+            label=i18n("Tools call"),
+            value=False,
+            key="if_tools_call",
+            help=i18n("Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."),
+            on_change=lambda: logger.info(f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}")
+        )
 
     dialog_settings = st.popover(
         label=i18n("Saved dialog settings"),
@@ -226,7 +235,10 @@ with st.sidebar:
             try:
                 return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
             except:
-                return "You are a helpful assistant."
+                if if_tools_call:
+                    return ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
+                else:
+                    return "You are a helpful assistant."
         else:
             return "You are a helpful assistant."
 
@@ -401,16 +413,24 @@ if prompt:
 
                 # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
                 # 一般都是在的
-                response = chatprocessor.create_completion_noapi(
-                    messages=processed_messages
-                )
+                if not if_tools_call:
+                    response = chatprocessor.create_completion_noapi(
+                        messages=processed_messages
+                    )
+                else:
+                    response = chatprocessor.create_tools_call_completion(
+                        messages=processed_messages
+                    )
 
                 if "error" not in response:
                     # st.write(response)
                     response_content = response.choices[0].message.content
                     st.write(response_content)
-                    cost = response.cost
-                    st.write(f"response cost: ${cost}")
+                    try:
+                        cost = response.cost
+                        st.write(f"response cost: ${cost}")
+                    except:
+                        pass
 
                     st.session_state.chat_history.append({"role": "assistant", "content": response_content})    
 
@@ -439,9 +459,14 @@ if prompt:
                 #     st.write(chunk.decode("utf-8","ignore"))
                 #     time.sleep(0.1)
 
-                response = chatprocessor.create_completion_stream_noapi(
-                    messages=processed_messages
-                )
+                if not if_tools_call:
+                    response = chatprocessor.create_completion_stream_noapi(
+                        messages=processed_messages
+                    )
+                else:
+                    response = chatprocessor.create_tools_call_completion(
+                        messages=processed_messages
+                    )
                 total_response = st.write_stream(response)
 
                 st.session_state.chat_history.append({"role": "assistant", "content": total_response})

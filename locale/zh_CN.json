@@ -97,5 +97,7 @@
     "Follow Up": "后续问题",
     "Dialogues list": "**对话列表**",
     "System Prompt": "**系统指令**",
-    "Reset model info": "重置模型信息"
+    "Reset model info": "重置模型信息",
+    "Tools call": "工具调用",
+    "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "是否启用工具调用。仅对部分模型有效。对于不支持的工具调用功能的模型，默认使用普通聊天模式。"
 }

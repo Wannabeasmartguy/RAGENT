@@ -20,6 +20,7 @@ from model.memory.base import MemoryRow
 from model.chat.assistant import AssistantRun
 from model.config.llm import *
 from storage.db.base import Sqlstorage
+from utils.log.logger_config import setup_logger
 
 LLM_Subclass_With_BaseUrl = Union[AzureOpenAILLMConfiguration, OpenAILikeLLMConfiguration]
 

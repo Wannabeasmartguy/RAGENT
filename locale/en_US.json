@@ -97,5 +97,7 @@
     "Follow Up": "Follow Up",
     "Dialogues list": "Dialogues list",
     "System Prompt": "**System Prompt**",
-    "Reset model info": "Reset model info"
+    "Reset model info": "Reset model info",
+    "Tools call": "Tools call",
+    "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."
 }
