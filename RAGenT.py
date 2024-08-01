@@ -235,10 +235,7 @@ with st.sidebar:
             try:
                 return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
             except:
-                if if_tools_call:
-                    return ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
-                else:
-                    return "You are a helpful assistant."
+                return "You are a helpful assistant."
         else:
             return "You are a helpful assistant."
 
@@ -400,7 +397,9 @@ if prompt:
         with st.spinner("Thinking..."):
             # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(deepcopy(st.session_state.chat_history))
-            processed_messages.insert(0,{"role": "system", "content": st.session_state.system_prompt})
+
+            # 如果是工具调用，则将用户输入的 system prompt 并入工具调用系统提示
+            processed_messages.insert(0, {"role": "system", "content": ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(user_system_prompt=st.session_state.system_prompt) if if_tools_call else st.session_state.system_prompt})
 
             chatprocessor = ChatProcessor(
                 requesthandler=requesthandler,
