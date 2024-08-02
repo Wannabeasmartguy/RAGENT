@@ -10,9 +10,10 @@ Experience the power of Agent-powered models and Agent-driven knowledge bases in
 
 Chat and Agent interactions:
 - [x] 💭 Simple, easy-to-use chat box interface.
-- [x] 💭 🌏️ Language options (Simplified Chinese, English)
+- [x] 🌏️ Language options (Simplified Chinese, English)
 - [x] 🔧 Inference support for multiple (local) model sources (Azure OpenAI, Groq, ollama, llamafile)
 - [x] 🤖 Multiple Agent modes on-premises
+- [x] 🖥️ Local storage of dialog data and management
 
 Knowledgebase:
 - [x] Optional embedding models (Hugging Face/OpenAI)
@@ -56,7 +57,7 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
 2. launch the application:
 
-Run: Run `python startup_onfile.py` on the command line can start it.
+Run: Run `python startup.py` on the command line can start it.
 
 ## Route
 
