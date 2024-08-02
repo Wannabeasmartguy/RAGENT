@@ -4,6 +4,8 @@
 
 无需进行复杂配置，即可一键体验 Agent 加持下不同模型能力的强大提升。
 
+> 如果你喜欢这个项目，请为它点一个 star ，这对我很重要！
+
 ![image](https://github.com/Wannabeasmartguy/RAGenT/assets/107250451/380a08a6-e48a-4535-82cb-eea7c3de6a46)
 
 ## 特点
@@ -14,6 +16,7 @@
 - [x] 🎤 语音输入（本地 whisper 提供 TTS 服务）
 - [x] 🔧 多种（本地）模型来源的推理支持（Azure OpenAI, Groq, ollama, llamafile/OpenAI Like）
 - [x] 🤖 预置多种 Agent 模式
+- [x] 🖥️ 对话数据的本地存储和管理
 
 知识库：
 - [x] 可供选择的嵌入模型（Hugging Face/OpenAI）
@@ -74,7 +77,7 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 
    命令行运行：`python startup.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
-~> 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 8000 。~
+> 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 8000 。
 
 ## Todo
 
