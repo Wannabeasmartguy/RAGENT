@@ -28,6 +28,7 @@ except:
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 from utils.chat.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
+from tools.toolkits import filter_out_selected_tools_dict, filter_out_selected_tools_list
 
 
 language = os.getenv("LANGUAGE", "简体中文")
@@ -49,7 +50,7 @@ if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
 
-VERSION = "0.0.1"
+VERSION = "0.1.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
 # Solve set_pages error caused by "Go to top/bottom of page" button.
 # Only need st.rerun once to fix it, and it works fine thereafter.
@@ -380,7 +381,9 @@ st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 back_to_top()
 back_to_bottom()
-prompt = float_chat_input_with_audio_recorder()
+prompt = float_chat_input_with_audio_recorder(if_tools_call=if_tools_call)
+# # st.write(filter_out_selected_tools_list(st.session_state.tools_popover))
+# st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))
 
 # Accept user input
 if prompt:
@@ -417,8 +420,14 @@ if prompt:
                         messages=processed_messages
                     )
                 else:
+                    tools_list_selected = filter_out_selected_tools_list(st.session_state.tools_popover)
+                    tools_map_selected = filter_out_selected_tools_dict(st.session_state.tools_popover)
+                    logger.debug(f"tools_list_selected: {tools_list_selected}")
+                    logger.debug(f"tools_map_selected: {tools_map_selected}")
                     response = chatprocessor.create_tools_call_completion(
-                        messages=processed_messages
+                        messages=processed_messages,
+                        tools=tools_list_selected,
+                        function_map=tools_map_selected
                     )
 
                 if "error" not in response:
@@ -463,8 +472,14 @@ if prompt:
                         messages=processed_messages
                     )
                 else:
+                    tools_list_selected = filter_out_selected_tools_list(st.session_state.tools_popover)
+                    tools_map_selected = filter_out_selected_tools_dict(st.session_state.tools_popover)
+                    logger.debug(f"tools_list_selected: {tools_list_selected}")
+                    logger.debug(f"tools_map_selected: {tools_map_selected}")
                     response = chatprocessor.create_tools_call_completion(
-                        messages=processed_messages
+                        messages=processed_messages,
+                        tools=tools_list_selected,
+                        function_map=tools_map_selected
                     )
                 total_response = st.write_stream(response)
 

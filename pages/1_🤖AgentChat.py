@@ -95,7 +95,7 @@ if "function_call_agent_chat_history_displayed" not in st.session_state:
     st.session_state.function_call_agent_chat_history_displayed = []
 
 
-VERSION = "0.0.1"
+VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')

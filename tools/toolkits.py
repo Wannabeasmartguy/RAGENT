@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Dict, Callable, Union
+from typing import Annotated, Literal, List, Dict, Callable, Union
 from trafilatura import fetch_url, extract
 from utils.tool_utils import function_to_json
 from utils.log.logger_config import setup_logger
@@ -89,6 +89,11 @@ def tool_web_scraper(url: str) -> str:
     return extract(fetch_url(url),url=url,include_links=True)
 
 
+# ************************************
+# Write all the tool functions above
+# ************************************
+
+
 # 自动将所有整个py文件里的tool添加到to_tools字典中
 TO_TOOLS: Dict[str, Dict[str, Union[Callable, str]]] = {
     tool.__name__: {
@@ -106,3 +111,28 @@ TOOLS_MAP = {
     tool["name"]: tool["func"]
     for tool in TO_TOOLS.values()
 }
+
+
+# ************************************
+# other tools would be used in codes write below
+# ************************************
+
+
+def filter_out_selected_tools_list(selected_tools: List[str]):
+    """
+    筛选出所有被选中的工具
+
+    :param selected_tools: 被选中的工具名称列表
+    :return: 从 TOOLS_LIST 中筛选出的工具列表
+    """
+    return [tool for tool in TOOLS_LIST if tool['function']['name'] in selected_tools]
+
+
+def filter_out_selected_tools_dict(selected_tools: List[str]):
+    """
+    筛选出所有被选中的工具，获得一个工具名称到工具的映射
+
+    :param selected_tools: 被选中的工具名称列表
+    :return: 从 TOOLS_MAP 中筛选出的工具列表
+    """
+    return {tool['function']['name']: TOOLS_MAP[tool['function']['name']] for tool in TOOLS_LIST if tool['function']['name'] in selected_tools}

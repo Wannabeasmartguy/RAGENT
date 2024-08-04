@@ -45,7 +45,7 @@ class ChatProcessor(ChatProcessStrategy):
         self.requesthandler = requesthandler
         self.model_type = model_type
         self.llm_config = llm_config
-        self.create_tools_call_completion = partial(create_tools_call_completion, tools=TOOLS_LIST, function_map=TOOLS_MAP, config_list=[llm_config])
+        self.create_tools_call_completion = partial(create_tools_call_completion, config_list=[llm_config])
 
     def create_completion(
             self, 

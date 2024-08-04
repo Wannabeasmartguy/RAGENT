@@ -8,6 +8,7 @@ from audiorecorder import audiorecorder
 
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from utils.basic_utils import copy_to_clipboard
+from tools.toolkits import TO_TOOLS
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
@@ -66,7 +67,7 @@ def back_to_bottom(temp = st.empty()):
     bottom_container.float(bottom_css)
 
 
-def float_chat_input_with_audio_recorder() -> str:
+def float_chat_input_with_audio_recorder(if_tools_call: str = False) -> str:
     """
     Create a container with a floating chat input and an audio recorder.
 
@@ -77,6 +78,17 @@ def float_chat_input_with_audio_recorder() -> str:
     chat_input_container = st.container()
     with chat_input_container:
         # divide_context_column, character_input_column, voice_input_column = st.columns([0.1,0.9,0.1])
+        if if_tools_call:
+            tools_popover = st.popover(label="🔧")
+            tools_popover.multiselect(
+                label=i18n("Functions"),
+                options=TO_TOOLS.keys(),
+                default=list(TO_TOOLS.keys())[:2],
+                help=i18n("Select functions you want to use."),
+                # format_func 将所有名称开头的"tool_"去除
+                format_func=lambda x: x.replace("tool_",""),
+                key="tools_popover"
+            )
         character_input_column, voice_input_column = st.columns([0.9,0.1])
         # divide_context_placeholder = divide_context_column.empty()
         # divide_context_button = divide_context_placeholder.button(

@@ -5,7 +5,7 @@ from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTE
 from utils.coze_utils import display_bot_info
 
 
-VERSION = "0.0.1"
+VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')
