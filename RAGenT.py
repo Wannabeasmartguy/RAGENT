@@ -91,247 +91,255 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
-    model_choosing_container = st.expander(label=i18n("Model Choosing"),expanded=True)
-    select_box0 = model_choosing_container.selectbox(
-        label=i18n("Model type"),
-        options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
-        key="model_type",
-        # on_change=lambda: model_selector(st.session_state["model_type"])
-    )
+    dialog_settings_tab, model_settings_tab= st.tabs([i18n("Dialog Settings"), i18n("Model Settings")])
 
-    if select_box0 != "Llamafile":
-        select_box1 = model_choosing_container.selectbox(
-            label=i18n("Model"),
-            options=model_selector(st.session_state["model_type"]),
-            key="model"
+    with model_settings_tab:
+        model_choosing_container = st.expander(label=i18n("Model Choosing"),expanded=True)
+        select_box0 = model_choosing_container.selectbox(
+            label=i18n("Model type"),
+            options=["AOAI","OpenAI","Ollama","Groq","Llamafile"],
+            key="model_type",
+            # on_change=lambda: model_selector(st.session_state["model_type"])
         )
-    elif select_box0 == "Llamafile":
-        select_box1 = model_choosing_container.text_input(
-            label=i18n("Model"),
-            value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
-            key="model",
-            placeholder=i18n("Fill in custom model name. (Optional)")
-        )
-        with model_choosing_container.popover(label=i18n("Llamafile config"),use_container_width=True):
-            llamafile_endpoint = st.text_input(
-                label=i18n("Llamafile endpoint"),
-                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
-                key="llamafile_endpoint"
+
+        if select_box0 != "Llamafile":
+            select_box1 = model_choosing_container.selectbox(
+                label=i18n("Model"),
+                options=model_selector(st.session_state["model_type"]),
+                key="model"
             )
-            llamafile_api_key = st.text_input(
-                label=i18n("Llamafile API key"),
-                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[2],
-                key="llamafile_api_key",
-                placeholder=i18n("Fill in your API key. (Optional)")
+        elif select_box0 == "Llamafile":
+            select_box1 = model_choosing_container.text_input(
+                label=i18n("Model"),
+                value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[0],
+                key="model",
+                placeholder=i18n("Fill in custom model name. (Optional)")
             )
-            save_oai_like_config_button = st.button(
-                label=i18n("Save model config"),
-                on_click=oailike_config_processor.update_config,
-                args=(select_box1,llamafile_endpoint,llamafile_api_key),
-                use_container_width=True
-            )
-            
-            st.write("---")
+            with model_choosing_container.popover(label=i18n("Llamafile config"),use_container_width=True):
+                llamafile_endpoint = st.text_input(
+                    label=i18n("Llamafile endpoint"),
+                    value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[1],
+                    key="llamafile_endpoint"
+                )
+                llamafile_api_key = st.text_input(
+                    label=i18n("Llamafile API key"),
+                    value=oai_model_config_selector(st.session_state.oai_like_model_config_dict)[2],
+                    key="llamafile_api_key",
+                    placeholder=i18n("Fill in your API key. (Optional)")
+                )
+                save_oai_like_config_button = st.button(
+                    label=i18n("Save model config"),
+                    on_click=oailike_config_processor.update_config,
+                    args=(select_box1,llamafile_endpoint,llamafile_api_key),
+                    use_container_width=True
+                )
+                
+                st.write("---")
 
-            oai_like_config_list = st.selectbox(
-                label=i18n("Select model config"),
-                options=oailike_config_processor.get_config()
-            )
-            load_oai_like_config_button = st.button(
-                label=i18n("Load model config"),
-                use_container_width=True,
-                type="primary"
-            )
-            if load_oai_like_config_button:
-                st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
-                st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-                st.rerun()
+                oai_like_config_list = st.selectbox(
+                    label=i18n("Select model config"),
+                    options=oailike_config_processor.get_config()
+                )
+                load_oai_like_config_button = st.button(
+                    label=i18n("Load model config"),
+                    use_container_width=True,
+                    type="primary"
+                )
+                if load_oai_like_config_button:
+                    st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
+                    st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+                    st.rerun()
 
-            delete_oai_like_config_button = st.button(
-                label=i18n("Delete model config"),
-                use_container_width=True,
-                on_click=oailike_config_processor.delete_model_config,
-                args=(oai_like_config_list,)
-            )
+                delete_oai_like_config_button = st.button(
+                    label=i18n("Delete model config"),
+                    use_container_width=True,
+                    on_click=oailike_config_processor.delete_model_config,
+                    args=(oai_like_config_list,)
+                )
 
-    reset_model_button = model_choosing_container.button(
-        label=i18n("Reset model info"),
-        on_click=lambda x: x.cache_clear(),
-        args=(model_selector,),
-        use_container_width=True
-    )
-
-    with st.expander(label=i18n("Model config")):
-        max_tokens = st.number_input(
-            label=i18n("Max tokens"),
-            min_value=1,
-            value=1900,
-            step=1,
-            key="max_tokens",
-            help=i18n("Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000).")
-        )
-        temperature = st.slider(
-            label=i18n("Temperature"),
-            min_value=0.0,
-            max_value=2.0,
-            value=0.5,
-            step=0.1,
-            key="temperature",
-            help=i18n("'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5.")
-        )
-        top_p = st.slider(
-            label=i18n("Top p"),
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.1,
-            key="top_p",
-            help=i18n("Similar to 'temperature', but don't change it at the same time as temperature")
-        )
-        if_stream = st.toggle(
-            label=i18n("Stream"),
-            value=True,
-            key="if_stream",
-            help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
-        )
-        if_tools_call = st.toggle(
-            label=i18n("Tools call"),
-            value=False,
-            key="if_tools_call",
-            help=i18n("Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."),
-            on_change=lambda: logger.info(f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}")
+        reset_model_button = model_choosing_container.button(
+            label=i18n("Reset model info"),
+            on_click=lambda x: x.cache_clear(),
+            args=(model_selector,),
+            use_container_width=True
         )
 
-    dialog_settings = st.popover(
-        label=i18n("Saved dialog settings"),
-        use_container_width=True,
-        # disabled=True,
-    )
+        with st.expander(label=i18n("Model config"),expanded=True):
+            max_tokens = st.number_input(
+                label=i18n("Max tokens"),
+                min_value=1,
+                value=1900,
+                step=1,
+                key="max_tokens",
+                help=i18n("Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000).")
+            )
+            temperature = st.slider(
+                label=i18n("Temperature"),
+                min_value=0.0,
+                max_value=2.0,
+                value=0.5,
+                step=0.1,
+                key="temperature",
+                help=i18n("'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5.")
+            )
+            top_p = st.slider(
+                label=i18n("Top p"),
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.1,
+                key="top_p",
+                help=i18n("Similar to 'temperature', but don't change it at the same time as temperature")
+            )
+            if_stream = st.toggle(
+                label=i18n("Stream"),
+                value=True,
+                key="if_stream",
+                help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
+            )
+            if_tools_call = st.toggle(
+                label=i18n("Tools call"),
+                value=False,
+                key="if_tools_call",
+                help=i18n("Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."),
+                on_change=lambda: logger.info(f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}")
+            )
 
-    history_length = st.number_input(
-        label=i18n("History length"),
-        min_value=1,
-        value=16,
-        step=1,
-        key="history_length"
-    )
-    # 根据历史对话消息数，创建 MessageHistoryLimiter 
-    max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
-
-    cols = st.columns(2)
-    export_button = cols[0].button(label=i18n("Export chat history"),use_container_width=True)
-    clear_button = cols[1].button(label=i18n("Clear chat history"),use_container_width=True)
-    # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
-    if export_button:
-        # 将聊天历史导出为Markdown
-        chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
-        # st.markdown(chat_history)
-        # 将Markdown保存到本地文件夹中
-        with open("chat_history.md", "w") as f:
-            f.write(chat_history)
-        st.toast(body="Chat history exported to chat_history.md",icon="🎉")
-
-    def get_system_prompt(run_id: Optional[str]):
-        if run_id:
-            try:
-                return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
-            except:
+    with dialog_settings_tab:
+        def get_system_prompt(run_id: Optional[str]):
+            if run_id:
+                try:
+                    return chat_history_storage.get_specific_run(run_id).assistant_data['system_prompt']
+                except:
+                    return "You are a helpful assistant."
+            else:
                 return "You are a helpful assistant."
-        else:
-            return "You are a helpful assistant."
-
-    dialog_settings.write(i18n("Dialogues list"))
-    
-    # 管理已有对话
-    dialogs_container = dialog_settings.container(height=200,border=True)
-    saved_dialog = dialogs_container.radio(
-        label=i18n("Saved dialog"),
-        options=chat_history_storage.get_all_runs(),
-        format_func=lambda x: x.run_name[:15]+'...' if len(x.run_name) > 15 else x.run_name,
-        index=st.session_state.current_run_id_index,
-        label_visibility="collapsed",
-    )
-    add_dialog_button = dialog_settings.button(
-        label=i18n("Add a new dialog"),
-        use_container_width=True,
-    )
-    delete_dialog_button = dialog_settings.button(
-        label=i18n("Delete selected dialog"),
-        use_container_width=True,
-    )
-
-    if saved_dialog:
-        st.session_state.run_id = saved_dialog.run_id
-        st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
-    if add_dialog_button:
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=str(uuid4()),
-                run_name="New dialog",
-                memory={
-                    "chat_history": []
-                }
-            )
+        
+        st.write(i18n("Dialogues list"))
+        
+        # 管理已有对话
+        dialogs_container = st.container(height=300,border=True)
+        saved_dialog = dialogs_container.radio(
+            label=i18n("Saved dialog"),
+            options=chat_history_storage.get_all_runs(),
+            format_func=lambda x: x.run_name[:15]+'...' if len(x.run_name) > 15 else x.run_name,
+            index=st.session_state.current_run_id_index,
+            label_visibility="collapsed",
         )
-        st.rerun()
-    if delete_dialog_button:
-        chat_history_storage.delete_run(st.session_state.run_id)
-        st.session_state.run_id = str(uuid4())
-        st.session_state.chat_history = []
-        st.rerun()
-    if clear_button:
-        st.session_state.chat_history = []
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.run_id,
-                run_name=st.session_state.run_name,
-                memory={
-                    "chat_history": st.session_state.chat_history
-                }
+
+        add_dialog_column, delete_dialog_column = st.columns([1, 1])
+        with add_dialog_column:
+            add_dialog_button = st.button(
+                label=i18n("Add a new dialog"),
+                use_container_width=True,
             )
-        )
-        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-        st.rerun()
-
-    dialog_settings.write("---")
-
-    # 保存对话
-    def get_run_name():
-        try:
-            run_name = saved_dialog.run_name
-        except:
-            run_name = "RAGenT"
-        return run_name
-    def get_all_runnames():
-        runnames = []
-        runs = chat_history_storage.get_all_runs()
-        for run in runs:
-            runnames.append(run.run_name)
-        return runnames
-    dialog_name = dialog_settings.text_input(
-        label=i18n("Dialog name"),
-        value=get_run_name(),
-        key="run_name",
-    )
-    if dialog_name:
-        chat_history_storage.upsert(
-            AssistantRun(
-                run_name=dialog_name,
-                run_id=st.session_state.run_id,
+        with delete_dialog_column:
+            delete_dialog_button = st.button(
+                label=i18n("Delete selected dialog"),
+                use_container_width=True,
             )
-        )
-    if saved_dialog.run_name not in get_all_runnames():
-        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-        st.rerun()
 
-    dialog_settings.text_area(
-        label=i18n("System Prompt"),
-        value=get_system_prompt(saved_dialog.run_id),
-        height=300,
-        key="system_prompt",
-    )
+        if saved_dialog:
+            st.session_state.run_id = saved_dialog.run_id
+            st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+        if add_dialog_button:
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_id=str(uuid4()),
+                    run_name="New dialog",
+                    memory={
+                        "chat_history": []
+                    }
+                )
+            )
+            st.rerun()
+        if delete_dialog_button:
+            chat_history_storage.delete_run(st.session_state.run_id)
+            st.session_state.run_id = str(uuid4())
+            st.session_state.chat_history = []
+            st.rerun()
+
+
+        # 保存对话
+        def get_run_name():
+            try:
+                run_name = saved_dialog.run_name
+            except:
+                run_name = "RAGenT"
+            return run_name
+        def get_all_runnames():
+            runnames = []
+            runs = chat_history_storage.get_all_runs()
+            for run in runs:
+                runnames.append(run.run_name)
+            return runnames
+        
+        st.write(i18n("Dialogues details"))
+
+        dialog_details_settings_popover = st.expander(
+            label=i18n("Dialogues details"),
+            # use_container_width=True
+        )
+        dialog_name = dialog_details_settings_popover.text_input(
+            label=i18n("Dialog name"),
+            value=get_run_name(),
+            key="run_name",
+        )
+        if dialog_name:
+            chat_history_storage.upsert(
+                AssistantRun(
+                    run_name=dialog_name,
+                    run_id=st.session_state.run_id,
+                )
+            )
+        if saved_dialog.run_name not in get_all_runnames():
+            st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+            st.rerun()
+
+        dialog_details_settings_popover.text_area(
+            label=i18n("System Prompt"),
+            value=get_system_prompt(saved_dialog.run_id),
+            height=300,
+            key="system_prompt",
+        )
+        history_length = dialog_details_settings_popover.number_input(
+            label=i18n("History length"),
+            min_value=1,
+            value=16,
+            step=1,
+            key="history_length"
+        )
+
+        # 根据历史对话消息数，创建 MessageHistoryLimiter 
+        max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
+
+        cols = dialog_details_settings_popover.columns(2)
+        export_button = cols[0].button(label=i18n("Export chat history"),use_container_width=True)
+        clear_button = cols[1].button(label=i18n("Clear chat history"),use_container_width=True)
+        # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
+        if export_button:
+            # 将聊天历史导出为Markdown
+            chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
+            # st.markdown(chat_history)
+            # 将Markdown保存到本地文件夹中
+            with open("chat_history.md", "w") as f:
+                f.write(chat_history)
+            st.toast(body="Chat history exported to chat_history.md",icon="🎉")
+        if clear_button:
+            st.session_state.chat_history = []
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_id=st.session_state.run_id,
+                    run_name=st.session_state.run_name,
+                    memory={
+                        "chat_history": st.session_state.chat_history
+                    }
+                )
+            )
+            st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+            st.rerun()
 
 if st.session_state["model_type"] == "OpenAI":
     pass
