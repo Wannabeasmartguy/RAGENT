@@ -311,35 +311,42 @@ with st.sidebar:
             key="history_length"
         )
 
-        # 根据历史对话消息数，创建 MessageHistoryLimiter 
-        max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
+    # 根据历史对话消息数，创建 MessageHistoryLimiter 
+    max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
-        cols = dialog_details_settings_popover.columns(2)
-        export_button = cols[0].button(label=i18n("Export chat history"),use_container_width=True)
-        clear_button = cols[1].button(label=i18n("Clear chat history"),use_container_width=True)
-        # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
-        if export_button:
-            # 将聊天历史导出为Markdown
-            chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
-            # st.markdown(chat_history)
-            # 将Markdown保存到本地文件夹中
-            with open("chat_history.md", "w") as f:
-                f.write(chat_history)
-            st.toast(body="Chat history exported to chat_history.md",icon="🎉")
-        if clear_button:
-            st.session_state.chat_history = []
-            chat_history_storage.upsert(
-                AssistantRun(
-                    name="assistant",
-                    run_id=st.session_state.run_id,
-                    run_name=st.session_state.run_name,
-                    memory={
-                        "chat_history": st.session_state.chat_history
-                    }
-                )
+    export_button_col, clear_button_col = st.columns(2)
+    export_button = export_button_col.button(label=i18n("Export chat history"),use_container_width=True)
+    clear_button = clear_button_col.button(label=i18n("Clear chat history"),use_container_width=True)
+    # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
+    if export_button:
+        # 将聊天历史导出为Markdown
+        chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.chat_history])
+        # st.markdown(chat_history)
+        # 将Markdown保存到本地文件夹中
+        with open("chat_history.md", "w") as f:
+            f.write(chat_history)
+        st.toast(body="Chat history exported to chat_history.md",icon="🎉")
+    if clear_button:
+        st.session_state.chat_history = []
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.run_id,
+                run_name=st.session_state.run_name,
+                memory={
+                    "chat_history": st.session_state.chat_history
+                }
             )
-            st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-            st.rerun()
+        )
+        st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+        st.rerun()
+    
+    # Fix the bug: "Go to top/bottom of page" cause problem that will make `write_chat_history` can't correctly show the chat history during `write_stream`
+    back_to_top_placeholder0 = st.empty()
+    back_to_top_placeholder1 = st.empty()
+    back_to_top_bottom_placeholder0 = st.empty()
+    back_to_top_bottom_placeholder1 = st.empty()
+
 
 if st.session_state["model_type"] == "OpenAI":
     pass
@@ -387,8 +394,8 @@ float_init()
 
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
-back_to_top()
-back_to_bottom()
+back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
+back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 prompt = float_chat_input_with_audio_recorder(if_tools_call=if_tools_call)
 # # st.write(filter_out_selected_tools_list(st.session_state.tools_popover))
 # st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))

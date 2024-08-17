@@ -14,12 +14,13 @@ from tools.toolkits import TO_TOOLS
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 
-def back_to_top(temp = st.empty()):
+def back_to_top(script_container = st.empty(), buttom_container = st.empty()):
     """
     Scroll the page to the top.
     
     Args:
-        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+        script_container (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+        buttom_container (streamlit.empty, optional): The container to hold the button. Defaults to st.empty().
     """
     js = '''
     <script>
@@ -28,24 +29,25 @@ def back_to_top(temp = st.empty()):
         body.scrollTop = 0;
     </script>
     '''
-    top_container = st.container()
+    top_container = buttom_container.container()
     top_css = float_css_helper(width="2.2rem", right="10rem", bottom="13rem")
     with top_container:
         up_button = st.button("⭱", key="up_button")
         if up_button:
-            with temp:
+            with script_container:
                 components.html(js)
                 time.sleep(.5) # To make sure the script can execute before being deleted
-            temp.empty()
+            script_container.empty()
     top_container.float(top_css)
 
 
-def back_to_bottom(temp = st.empty()):
+def back_to_bottom(script_container = st.empty(), buttom_container = st.empty()):
     """
     Scroll the page to the bottom.
     
     Args:
-        temp (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+        script_container (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
+        buttom_container (streamlit.empty, optional): The container to hold the button. Defaults to st.empty().
     """
     js = '''
     <script>
@@ -55,15 +57,15 @@ def back_to_bottom(temp = st.empty()):
     </script>
     '''
 
-    bottom_container = st.container()
+    bottom_container = buttom_container.container()
     bottom_css = float_css_helper(width="2.2rem", right="10rem", bottom="10rem")
     with bottom_container:
         bottom_button = st.button("⭳", key="bottom_button")
         if bottom_button:
-            with temp:
+            with script_container:
                 components.html(js)
                 time.sleep(.5) # To make sure the script can execute before being deleted
-            temp.empty()
+            script_container.empty()
     bottom_container.float(bottom_css)
 
 
