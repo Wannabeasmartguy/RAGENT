@@ -218,7 +218,7 @@ with st.sidebar:
         st.write(i18n("Dialogues list"))
         
         # 管理已有对话
-        dialogs_container = st.container(height=300,border=True)
+        dialogs_container = st.container(height=250,border=True)
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
             options=chat_history_storage.get_all_runs(),
