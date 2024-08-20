@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Sequence
+from typing import List, Dict, Union, Optional, Sequence
 from sentence_transformers import CrossEncoder
 from huggingface_hub import snapshot_download
 from modules.types.document import Document
@@ -18,8 +18,12 @@ class BgeRerank(BaseDocumentCompressor):
     model:CrossEncoder = None
     """CrossEncoder instance to use for reranking."""
 
-    def __init__(self):
+    def __init__(self, model_name: Optional[str] = None, top_n: Optional[int] = None):
         super().__init__()
+        if model_name is not None:
+            self.model_name = model_name
+        if top_n is not None:
+            self.top_n = top_n
         self.define_model()
 
     def define_model(self):
@@ -45,10 +49,10 @@ class BgeRerank(BaseDocumentCompressor):
 
     def compress_documents(
         self,
-        documents: Sequence[Document],
+        documents: Union[Sequence[Document], List[Dict[str, Union[str, Dict]]]],
         query: str,
         callbacks = None,
-    ) -> Sequence[Document]:
+    ) -> Sequence[Document] | List[Dict[str, Union[str, Dict]]]:
         """
         Compress documents using BAAI/bge-reranker models.
 
@@ -63,12 +67,18 @@ class BgeRerank(BaseDocumentCompressor):
         if len(documents) == 0:  # to avoid empty api call
             return []
         doc_list = list(documents)
-        _docs = [d.page_content for d in doc_list]
+        try:
+            _docs = [d.page_content for d in doc_list]
+        except:
+            _docs = [d["page_content"] for d in doc_list]
         results = self.bge_rerank(query, _docs)
         final_results = []
         for r in results:
             doc = doc_list[r[0]]
-            doc.metadata["relevance_score"] = r[1]
+            try:
+                doc.metadata["relevance_score"] = r[1]
+            except:
+                doc["metadata"]["relevance_score"] = r[1]
             final_results.append(doc)
         return final_results
     
