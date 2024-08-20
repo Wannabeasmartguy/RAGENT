@@ -65,21 +65,25 @@ class BasicRAG(BaseRAG):
             query: str, 
             system_prompt: Optional[str] = None,
             stream: bool = False
-        ) -> Union[str, Generator[str, None, None]]:
-        documents = self.retriever.invoke_format_to_str(
+        ) -> Dict[str, Any]:
+        retrieve_result = self.retriever.invoke_format_to_str(
             query_texts=[query],
         )
+        documents = retrieve_result.get('result')
         system_prompt = self._build_system_prompt_with_documents(
             documents=documents,
             system_prompt=system_prompt if system_prompt is not None else None
         )
         logger.info(f"System prompt: {system_prompt}")
-        return self.llm.invoke(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": query}
-            ],
-            stream=stream
+        return dict(
+            awswer=self.llm.invoke(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ],
+                stream=stream
+            ), 
+            source_documents = retrieve_result
         )
     
     def invoke_with_wrapped_prompt(
@@ -88,9 +92,10 @@ class BasicRAG(BaseRAG):
         system_prompt: Optional[str] = None,
         stream: bool = False
     ) -> Dict[str, Any]:
-        documents = self.retriever.invoke_format_to_str(
+        retrieve_result = self.retriever.invoke_format_to_str(
             query_texts=[query],
         )
+        documents = retrieve_result.get('result')
         if system_prompt is None:
             system_prompt = self.default_system_prompt
         prompt = self._build_query_prompt_with_documents(
@@ -98,10 +103,13 @@ class BasicRAG(BaseRAG):
             documents=documents,
         )
         logger.info(f"Prompt is wrapped, actual prompt: {prompt}")
-        return self.llm.invoke(
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            stream=stream
+        return dict(
+                answer = self.llm.invoke(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=stream
+            ), 
+            source_documents = retrieve_result
         )

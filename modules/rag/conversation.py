@@ -80,11 +80,12 @@ class ConversationRAG:
         messages: List[Dict[str, Any]],
         system_prompt: Optional[str] = None,
         stream: bool = False,
-    ) -> Union[str, Generator[str, None, None]]:
-        documents = self.retriever.invoke_format_to_str(
+    ) -> Dict[str, Any]:
+        retrieve_result = self.retriever.invoke_format_to_str(
             query=query,
             messages=messages,
         )
+        documents = retrieve_result.get('result')
         system_prompt = self._build_system_prompt_with_documents_and_messages(
             documents=documents,
             messages=messages,
@@ -95,9 +96,12 @@ class ConversationRAG:
         # 在ConversationRAG中，messages是不包含query的，所以这里需要将query添加到messages中
         messages.append({"role": "user", "content": query})
 
-        return self.llm.invoke(
-            messages=messages,
-            stream=stream,
+        return dict(
+            answer = self.llm.invoke(
+                messages=messages,
+                stream=stream,
+            ),
+            source_documents = retrieve_result
         )
     
     def invoke_with_wrapped_prompt(
@@ -107,10 +111,11 @@ class ConversationRAG:
         system_prompt: Optional[str] = None,
         stream: bool = False,
     ) -> Dict[str, Any]:
-        documents = self.retriever.invoke_format_to_str(
+        retrieve_result = self.retriever.invoke_format_to_str(
             query=query,
             messages=messages,
         )
+        documents = retrieve_result.get('result')
 
         if system_prompt is None:
             system_prompt = self.default_system_prompt
@@ -133,7 +138,10 @@ class ConversationRAG:
         if not any(message["role"] == "system" for message in messages):
             messages.insert(0, {"role": "system", "content": system_prompt})
         
-        return self.llm.invoke(
-            messages=messages,
-            stream=stream,
+        return dict(
+            answer = self.llm.invoke(
+                messages=messages,
+                stream=stream,
+            ),
+            source_documents = retrieve_result
         )

@@ -50,13 +50,16 @@ class ChromaRetriever(BaseRetriever):
     def invoke_format_to_str(
             self, 
             query_texts: List[str], 
-        ) -> str:
+        ) -> Dict[str, Any]:
         """Format the results to a string"""
         results = self._invoke(
             query_texts=query_texts
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
-        return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        page_content = results['documents'][0]
+        matadatas = results['metadatas'][0]
+        return dict(result=results_str, page_content=page_content, matadatas=matadatas)
     
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
         return super().ainvoke(query)
@@ -124,13 +127,16 @@ class ChromaContextualRetriever(BaseContextualRetriever):
     def invoke_format_to_str(
         self,
         query: str
-    ) -> str:
+    ) -> Dict[str, Any]:
         """重写query,使用新query进行检索，返回格式化后的字符串"""
         results = self._invoke(
             query=query
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
-        return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        page_content = results['documents'][0]
+        matadatas = results['metadatas'][0]
+        return dict(result=results_str, page_content=page_content, matadatas=matadatas)
 
     @classmethod
     def transform_to_documents(
