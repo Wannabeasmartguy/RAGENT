@@ -15,6 +15,9 @@ class BaseRetriever(ABC):
     def invoke(self, query: str) -> List[Dict[str, Any]]:
         return self.docs
 
+    def _invoke(self, query: str):
+        pass
+
     @abstractmethod
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
         return self.docs
@@ -22,6 +25,8 @@ class BaseRetriever(ABC):
 
 class BaseContextualRetriever(BaseRetriever):
     """综合聊天记录与用户的最新问题，重写query,使用新query进行检索"""
+    context_messages = None
+    """不包括最新问题的聊天记录"""
     def __init__(
             self, 
             llm: OpenAILLM, 
@@ -44,16 +49,15 @@ class BaseContextualRetriever(BaseRetriever):
         self.where_document = where_document
         
     def invoke(self, query: str) -> List[Dict[str, Any]]:
-        results = self._invoke(query)
+        results = self._invoke(query, self.context_messages)
         return self.transform_to_documents(results)
 
     def _invoke(
             self, 
-            query: str, 
-            messages: List[Dict[str, Any]],
+            query: str
         ) -> Dict[str, Any]:
         """重写query,使用新query进行检索"""
-        new_query = self._build_contextual_query(query, messages)
+        new_query = self._build_contextual_query(query, self.context_messages)
         logger.info(f"New query: {new_query}")
         return self.retriever._invoke(
             query_texts=[new_query],
@@ -61,13 +65,11 @@ class BaseContextualRetriever(BaseRetriever):
     
     def invoke_format_to_str(
         self,
-        query: str,
-        messages: List[Dict[str, Any]],
+        query: str
     ) -> str:
         """重写query,使用新query进行检索，返回格式化后的字符串"""
         results = self._invoke(
-            query=query, 
-            messages=messages,
+            query=query
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
@@ -119,3 +121,10 @@ class BaseContextualRetriever(BaseRetriever):
             })
         
         return result
+    
+    def update_context_messages(
+        self,
+        messages: List[Dict[str, Any]],
+    ):
+        """更新messages"""
+        self.context_messages = messages

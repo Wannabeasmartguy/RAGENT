@@ -106,17 +106,16 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         )
         self.rewrite_by_llm = rewrite_by_llm
     
-    def invoke(self, query: str, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        results = self._invoke(query, messages)
+    def invoke(self, query: str) -> List[Dict[str, Any]]:
+        results = self._invoke(query)
         return self.transform_to_documents(results)
 
     def _invoke(
             self, 
             query: str, 
-            messages: List[Dict[str, Any]],
         ) -> Dict[str, Any]:
         """重写query,使用新query进行检索"""
-        new_query = self._build_contextual_query(query, messages, use_llm=self.rewrite_by_llm)
+        new_query = self._build_contextual_query(query, self.context_messages, use_llm=self.rewrite_by_llm)
         logger.info(f"New query: {new_query}")
         return self.retriever._invoke(
             query_texts=[new_query],
@@ -124,13 +123,11 @@ class ChromaContextualRetriever(BaseContextualRetriever):
     
     def invoke_format_to_str(
         self,
-        query: str,
-        messages: List[Dict[str, Any]],
+        query: str
     ) -> str:
         """重写query,使用新query进行检索，返回格式化后的字符串"""
         results = self._invoke(
-            query=query, 
-            messages=messages,
+            query=query
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
