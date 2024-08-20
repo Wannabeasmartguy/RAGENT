@@ -11,7 +11,11 @@ class ChromaRetriever(BaseRetriever):
             self, 
             collection_name: str, 
             embedding_model: str, 
-            device: Literal['mps', 'cuda', 'cpu'] = 'cpu'
+            device: Literal['mps', 'cuda', 'cpu'] = 'cpu',
+            *,
+            n_results: int = 6,
+            where: Optional[Dict] = None,
+            where_document: Optional[Dict] = None
         ):
         self.client = PersistentClient('./databases/knowledgebase')
         self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -22,19 +26,23 @@ class ChromaRetriever(BaseRetriever):
             collection_name,
             embedding_function=self.embedding_model
         )
+        self.n_results = n_results
+        self.where = where
+        self.where_document = where_document
 
-    def invoke(
+    def invoke(self, query: str) -> List[Dict[str, Any]]:
+        results = self._invoke(query)
+        return self.transform_to_documents(results)
+    
+    def _invoke(
             self, 
             query_texts: List[str], 
-            n_results: int, 
-            where: Optional[Dict] = None, 
-            where_document: Optional[Dict] = None
         ) -> List[List[Dict[str,Any]]]:
         result =  self.collection.query(
             query_texts=query_texts, 
-            n_results=n_results, 
-            where=where, 
-            where_document=where_document
+            n_results=self.n_results, 
+            where=self.where, 
+            where_document=self.where_document
         )
         logger.info(f"Retrieved {len(result['documents'][0])} documents")
         return result
@@ -42,22 +50,34 @@ class ChromaRetriever(BaseRetriever):
     def invoke_format_to_str(
             self, 
             query_texts: List[str], 
-            n_results: int = 6, 
-            where: Optional[Dict] = None, 
-            where_document: Optional[Dict] = None
         ) -> str:
         """Format the results to a string"""
-        results = self.invoke(
-            query_texts=query_texts, 
-            n_results=n_results, 
-            where=where, 
-            where_document=where_document
+        results = self._invoke(
+            query_texts=query_texts
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
     
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
         return super().ainvoke(query)
+    
+    @classmethod
+    def transform_to_documents(
+            cls,
+            query_results: Dict[str, Any]
+        ):
+        """Transform the origin query results to a list of documents"""
+        result = []
+        documents = query_results['documents'][0]
+        metadatas = query_results['metadatas'][0]
+        
+        for doc, meta in zip(documents, metadatas):
+            result.append({
+                'page_content': doc,
+                'metadata': meta
+            })
+        
+        return result
 
 
 class ChromaContextualRetriever(BaseContextualRetriever):
@@ -66,52 +86,69 @@ class ChromaContextualRetriever(BaseContextualRetriever):
             collection_name: str, 
             embedding_model: str, 
             llm: OpenAILLM, 
-            device: Literal['mps', 'cuda', 'cpu'] = 'cpu'
-        ):
-        super().__init__(llm, ChromaRetriever(collection_name=collection_name, embedding_model=embedding_model))
-        self.client = PersistentClient('./databases/knowledgebase')
-        self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=embedding_model,
-            device=device
-        )
-        self.collection = self.client.get_collection(
-            collection_name,
-            embedding_function=self.embedding_model
-        )
-    
-    def invoke(
-            self, 
-            query: str, 
-            messages: List[Dict[str, Any]],
+            device: Literal['mps', 'cuda', 'cpu'] = 'cpu',
+            *,
+            rewrite_by_llm: bool = True,
             n_results: int = 6,
             where: Optional[Dict] = None,
             where_document: Optional[Dict] = None
+        ):
+        super().__init__(
+            llm, 
+            ChromaRetriever(
+                collection_name=collection_name, 
+                embedding_model=embedding_model, 
+                device=device, 
+                n_results=n_results, 
+                where=where, 
+                where_document=where_document
+            )
+        )
+        self.rewrite_by_llm = rewrite_by_llm
+    
+    def invoke(self, query: str, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        results = self._invoke(query, messages)
+        return self.transform_to_documents(results)
+
+    def _invoke(
+            self, 
+            query: str, 
+            messages: List[Dict[str, Any]],
         ) -> Dict[str, Any]:
         """重写query,使用新query进行检索"""
-        new_query = self._build_contextual_query(query, messages)
+        new_query = self._build_contextual_query(query, messages, use_llm=self.rewrite_by_llm)
         logger.info(f"New query: {new_query}")
-        return self.retriever.invoke(
+        return self.retriever._invoke(
             query_texts=[new_query],
-            n_results=n_results,
-            where=where,
-            where_document=where_document
         )
     
     def invoke_format_to_str(
         self,
         query: str,
         messages: List[Dict[str, Any]],
-        n_results: int = 6,
-        where: Optional[Dict] = None,
-        where_document: Optional[Dict] = None
     ) -> str:
         """重写query,使用新query进行检索，返回格式化后的字符串"""
-        results = self.invoke(
+        results = self._invoke(
             query=query, 
             messages=messages,
-            n_results=n_results, 
-            where=where, 
-            where_document=where_document
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+
+    @classmethod
+    def transform_to_documents(
+            cls,
+            query_results: Dict[str, Any]
+        ):
+        """Transform the origin query results to a list of documents"""
+        result = []
+        documents = query_results['documents'][0]
+        metadatas = query_results['metadatas'][0]
+        
+        for doc, meta in zip(documents, metadatas):
+            result.append({
+                'page_content': doc,
+                'metadata': meta
+            })
+        
+        return result

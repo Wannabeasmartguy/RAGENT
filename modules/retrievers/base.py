@@ -22,7 +22,14 @@ class BaseRetriever(ABC):
 
 class BaseContextualRetriever(BaseRetriever):
     """综合聊天记录与用户的最新问题，重写query,使用新query进行检索"""
-    def __init__(self, llm: OpenAILLM, retriever: BaseRetriever):
+    def __init__(
+            self, 
+            llm: OpenAILLM, 
+            retriever: BaseRetriever,
+            n_results: int = 6,
+            where: Optional[Dict] = None,
+            where_document: Optional[Dict] = None
+        ):
         self.llm = llm
         self.retriever = retriever
         self.contextualize_q_system_prompt = (
@@ -32,24 +39,38 @@ class BaseContextualRetriever(BaseRetriever):
             "without the chat history. Do NOT answer the question, "
             "just reformulate it if needed and otherwise return it as is."
         )
-    
-    def invoke(
+        self.n_results = n_results
+        self.where = where
+        self.where_document = where_document
+        
+    def invoke(self, query: str) -> List[Dict[str, Any]]:
+        results = self._invoke(query)
+        return self.transform_to_documents(results)
+
+    def _invoke(
             self, 
             query: str, 
             messages: List[Dict[str, Any]],
-            n_results: int = 6,
-            where: Optional[Dict] = None,
-            where_document: Optional[Dict] = None
         ) -> Dict[str, Any]:
         """重写query,使用新query进行检索"""
         new_query = self._build_contextual_query(query, messages)
         logger.info(f"New query: {new_query}")
-        return self.retriever.invoke(
+        return self.retriever._invoke(
             query_texts=[new_query],
-            n_results=n_results,
-            where=where,
-            where_document=where_document
         )
+    
+    def invoke_format_to_str(
+        self,
+        query: str,
+        messages: List[Dict[str, Any]],
+    ) -> str:
+        """重写query,使用新query进行检索，返回格式化后的字符串"""
+        results = self._invoke(
+            query=query, 
+            messages=messages,
+        )
+        logger.info(f"Retrieved {len(results['documents'][0])} documents")
+        return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
 
     def _build_contextual_query(
             self, 
@@ -81,21 +102,20 @@ class BaseContextualRetriever(BaseRetriever):
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
         return super().ainvoke(query)
     
-    def invoke_format_to_str(
-        self,
-        query: str,
-        messages: List[Dict[str, Any]],
-        n_results: int = 6,
-        where: Optional[Dict] = None,
-        where_document: Optional[Dict] = None
-    ) -> str:
-        """重写query,使用新query进行检索，返回格式化后的字符串"""
-        results = self.invoke(
-            query=query, 
-            messages=messages,
-            n_results=n_results, 
-            where=where, 
-            where_document=where_document
-        )
-        logger.info(f"Retrieved {len(results['documents'][0])} documents")
-        return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+    @classmethod
+    def transform_to_documents(
+            cls,
+            query_results: Dict[str, Any]
+        ):
+        """Transform the origin query results to a list of documents"""
+        result = []
+        documents = query_results['documents'][0]
+        metadatas = query_results['metadatas'][0]
+        
+        for doc, meta in zip(documents, metadatas):
+            result.append({
+                'page_content': doc,
+                'metadata': meta
+            })
+        
+        return result
