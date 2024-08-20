@@ -27,7 +27,7 @@ class RAGBuilder:
         self.rag_type = rag_type
         return self
 
-    def build(self) -> BaseRAG:
+    def build(self):
         if self.llm is None:
             raise ValueError("LLM must be provided")
         if self.retriever is None:

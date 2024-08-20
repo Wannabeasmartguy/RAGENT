@@ -77,7 +77,7 @@ class BasicRAG(BaseRAG):
         )
         logger.info(f"System prompt: {system_prompt}")
         return BaseRAGResponse(
-            awswer=self.llm.invoke(
+            answer=self.llm.invoke(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": query}
