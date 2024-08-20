@@ -3,6 +3,7 @@ from typing import List, Dict, Optional, Union, Any, Generator
 from modules.llm.openai import OpenAILLM
 from modules.rag.base import BaseRAG
 from modules.retrievers.vector.chroma import ChromaRetriever
+from modules.types.rag import BaseRAGResponse
 
 class BasicRAG(BaseRAG):
     def __init__(self, llm: OpenAILLM, retriever: ChromaRetriever):
@@ -75,7 +76,7 @@ class BasicRAG(BaseRAG):
             system_prompt=system_prompt if system_prompt is not None else None
         )
         logger.info(f"System prompt: {system_prompt}")
-        return dict(
+        return BaseRAGResponse(
             awswer=self.llm.invoke(
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -103,7 +104,7 @@ class BasicRAG(BaseRAG):
             documents=documents,
         )
         logger.info(f"Prompt is wrapped, actual prompt: {prompt}")
-        return dict(
+        return BaseRAGResponse(
                 answer = self.llm.invoke(
                 messages=[
                     {"role": "system", "content": system_prompt},

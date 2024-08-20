@@ -58,8 +58,8 @@ class ChromaRetriever(BaseRetriever):
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
         page_content = results['documents'][0]
-        matadatas = results['metadatas'][0]
-        return dict(result=results_str, page_content=page_content, matadatas=matadatas)
+        metadatas = results['metadatas'][0]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
     
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
         return super().ainvoke(query)
@@ -135,8 +135,8 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
         page_content = results['documents'][0]
-        matadatas = results['metadatas'][0]
-        return dict(result=results_str, page_content=page_content, matadatas=matadatas)
+        metadatas = results['metadatas'][0]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     @classmethod
     def transform_to_documents(

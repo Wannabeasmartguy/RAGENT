@@ -19,6 +19,10 @@ class BaseRetriever(ABC):
         pass
 
     @abstractmethod
+    def invoke_format_to_str(self, query: str) -> str | Dict:
+        pass
+
+    @abstractmethod
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
         return self.docs
 

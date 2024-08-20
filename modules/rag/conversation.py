@@ -1,9 +1,11 @@
 from loguru import logger
 from modules.retrievers.base import BaseContextualRetriever
 from modules.llm.openai import OpenAILLM
+from modules.types.rag import BaseRAGResponse
+from modules.rag.base import BaseRAG
 from typing import Union, List, Dict, Any, Optional, Generator
 
-class ConversationRAG:
+class ConversationRAG(BaseRAG):
     def __init__(self, llm: OpenAILLM, context_retriever: BaseContextualRetriever):
         self.llm = llm
         self.retriever = context_retriever
@@ -96,7 +98,7 @@ class ConversationRAG:
         # 在ConversationRAG中，messages是不包含query的，所以这里需要将query添加到messages中
         messages.append({"role": "user", "content": query})
 
-        return dict(
+        return BaseRAGResponse(
             answer = self.llm.invoke(
                 messages=messages,
                 stream=stream,
@@ -138,7 +140,7 @@ class ConversationRAG:
         if not any(message["role"] == "system" for message in messages):
             messages.insert(0, {"role": "system", "content": system_prompt})
         
-        return dict(
+        return BaseRAGResponse(
             answer = self.llm.invoke(
                 messages=messages,
                 stream=stream,
