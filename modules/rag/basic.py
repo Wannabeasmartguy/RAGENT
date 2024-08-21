@@ -68,7 +68,7 @@ class BasicRAG(BaseRAG):
             stream: bool = False
         ) -> Dict[str, Any]:
         retrieve_result = self.retriever.invoke_format_to_str(
-            query_texts=[query],
+            query=query,
         )
         documents = retrieve_result.get('result')
         system_prompt = self._build_system_prompt_with_documents(

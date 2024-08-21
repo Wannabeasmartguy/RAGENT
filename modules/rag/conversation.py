@@ -1,3 +1,4 @@
+import copy
 from loguru import logger
 from modules.retrievers.base import BaseContextualRetriever
 from modules.llm.openai import OpenAILLM
@@ -79,23 +80,23 @@ class ConversationRAG(BaseRAG):
     def invoke(
         self,
         query: str,
-        messages: List[Dict[str, Any]],
         system_prompt: Optional[str] = None,
         stream: bool = False,
     ) -> Dict[str, Any]:
         retrieve_result = self.retriever.invoke_format_to_str(
-            query=query,
-            messages=messages,
+            query=query
         )
         documents = retrieve_result.get('result')
         system_prompt = self._build_system_prompt_with_documents_and_messages(
             documents=documents,
-            messages=messages,
+            messages=self.retriever.context_messages,
             system_prompt=system_prompt if system_prompt is not None else None
         )
         logger.info(f"ConversationRAG's system prompt: {system_prompt}")
         
         # 在ConversationRAG中，messages是不包含query的，所以这里需要将query添加到messages中
+        # deepcopy是为了防止messages被修改
+        messages = copy.deepcopy(self.retriever.context_messages)
         messages.append({"role": "user", "content": query})
 
         return BaseRAGResponse(

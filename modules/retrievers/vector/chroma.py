@@ -49,11 +49,11 @@ class ChromaRetriever(BaseRetriever):
     
     def invoke_format_to_str(
             self, 
-            query_texts: List[str], 
+            query: str, 
         ) -> Dict[str, Any]:
         """Format the results to a string"""
         results = self._invoke(
-            query_texts=query_texts
+            query_texts=[query]
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
         results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])

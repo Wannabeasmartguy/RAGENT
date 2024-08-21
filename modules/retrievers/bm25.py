@@ -92,6 +92,9 @@ class BM25Retriever(BaseRetriever):
         processed_query = self.preprocess_func(query)
         return_docs = self.vectorizer.get_top_n(processed_query, self.docs, n=self.k)
         return return_docs
+    
+    def invoke_format_to_str(self, query: str) -> str | Dict:
+        raise NotImplementedError("BM25Retriever does not support invoke_format_to_str.")
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
         return self.invoke(query)

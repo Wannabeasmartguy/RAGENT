@@ -10,8 +10,25 @@ class EnsembleRetriever(BaseRetriever):
         self.weights = weights if weights else [1 / len(retrievers)] * len(retrievers)
         self.c = c
 
+    # 如果传入了contextual_retriever，需要继承它的实例属性context_messages
+    @property
+    def context_messages(self):
+        # 遍历所有retriever，如果有任何一个retriever有context_messages属性，则返回其context_messages
+        for retriever in self.retrievers:
+            if hasattr(retriever, 'context_messages'):
+                return retriever.context_messages
+        return None  # 如果没有找到任何retriever有context_messages属性，则返回None
+
     def invoke(self, query: str) -> List[Dict[str, Any]]:
         return self.rank_fusion(query)
+    
+    def invoke_format_to_str(self, query: str) -> str:
+        """将包含多个检索器的结果格式化为字符串，其中invoke的结果为dict，包含'page_content'字段"""
+        results = self.invoke(query)
+        results_str = "\n\n".join([f"Document {i+1}:\n{doc['page_content']}" for i, doc in enumerate(results)])
+        page_content = [doc['page_content'] for doc in results]
+        metadatas = [doc['metadatas'] for doc in results if 'metadats' in doc]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
         return await self.arank_fusion(query)
