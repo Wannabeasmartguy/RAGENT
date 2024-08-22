@@ -4,6 +4,7 @@ from uuid import uuid4
 import os
 import json
 import requests
+import copy
 
 from autogen import OpenAIWrapper
 from groq import Groq
@@ -30,6 +31,16 @@ from model.config.llm import OpenAILikeLLMConfiguration
 from lc.rag.basic import LCOpenAILikeRAGManager, LCAzureOpenAIRAGManager
 from utils.tool_utils import create_tools_call_completion
 from tools.toolkits import TOOLS_LIST, TOOLS_MAP
+
+from modules.rag.builder.builder import RAGBuilder
+from modules.llm.openai import OpenAILLM
+from modules.retrievers.vector.chroma import ChromaRetriever, ChromaContextualRetriever
+from modules.retrievers.bm25 import BM25Retriever
+from modules.rerank.bge import BgeRerank
+from modules.retrievers.emsemble import EnsembleRetriever
+from modules.retrievers.comtextual_compression import ContextualCompressionRetriever
+from modules.rag.builder.builder import RAGBuilder
+from modules.types.rag import BaseRAGResponse
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -357,6 +368,73 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
             sources_num=6
         )
 
+        return response
+    
+    def create_custom_rag_response(
+        self,
+        *,
+        collection_name: str,
+        messages: List[Dict[str, str]],
+        stream: bool = False,
+        is_rerank: bool = False,
+        is_hybrid_retrieve: bool = False,
+        hybrid_retriever_weight: float = 0.5,
+    ) -> BaseRAGResponse:
+        '''
+        使用完全自定义的 RAG 模块，创建一个 RAG 响应
+        '''
+        # 处理messages
+        messages_copy = copy.deepcopy(messages)
+        user_prompt = messages_copy.pop(-1)["content"]
+        context_messages = messages_copy
+
+        # 处理config
+        config_copy = copy.deepcopy(self.llm_config)
+        params = config_copy.pop("params")
+        params.pop("stream")
+        # 创建LLM
+        llm = OpenAILLM(
+            **config_copy,
+            **params
+        )
+
+        # 创建retriever
+        # 先读取embedding配置
+        embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
+        with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+            embedding_config = json.load(f)
+        try:
+            collection_config = embedding_config.get(collection_name, {})
+            embedding_model_or_path = collection_config.get("embedding_model_name_or_path")
+        except Exception as e:
+            raise ValueError(f"embedding_config_file_path: {embedding_config_file_path} 中没有找到collection_name: {collection_name} 的配置") from e
+        
+        retriever = ChromaContextualRetriever(
+            llm=llm,
+            collection_name=collection_name,
+            embedding_model=embedding_model_or_path,
+        )
+        if is_hybrid_retrieve:
+            bm25_retriever = BM25Retriever.from_texts(
+                texts=retriever.retriever.collection.get()['documents'],
+            )
+            retriever = EnsembleRetriever(
+                retrievers=[bm25_retriever, retriever],
+                weights=[hybrid_retriever_weight, 1 - hybrid_retriever_weight],
+            )
+        if is_rerank:
+            reranker = BgeRerank()
+            retriever = ContextualCompressionRetriever(
+                base_compressor=reranker,
+                base_retriever=retriever
+            )
+        retriever.update_context_messages(context_messages)
+
+        # 创建RAG
+        rag_builder = RAGBuilder()
+        rag = rag_builder.with_llm(llm).with_retriever(retriever).for_rag_type("ConversationRAG").build()
+
+        response = rag.invoke(query=user_prompt, stream=stream)
         return response
 
     

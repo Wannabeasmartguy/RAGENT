@@ -98,6 +98,8 @@ class BaseContextualRetriever(BaseRetriever):
         ) -> str:
         """构建新的query"""
         # 将messages转换为字符串
+        if messages is None:
+            messages = []
         messages_str = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
         # 构建新的query
         new_query = (

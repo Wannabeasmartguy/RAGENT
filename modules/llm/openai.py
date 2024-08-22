@@ -12,7 +12,8 @@ class OpenAILLM:
             max_tokens: Optional[int] = None,
             top_p: Optional[float] = None,
             frequency_penalty: Optional[float] = None,
-            presence_penalty: Optional[float] = None
+            presence_penalty: Optional[float] = None,
+            **kwargs
         ):
         self.client = OpenAI(
             api_key=api_key,
