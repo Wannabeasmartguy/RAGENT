@@ -14,6 +14,7 @@ from utils.basic_utils import (
     model_selector, 
     list_length_transform, 
     oai_model_config_selector, 
+    dict_filter
 )
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
@@ -35,9 +36,9 @@ def write_custom_rag_chat_history(chat_history,_sources):
                 row2 = st.columns(3)
 
                 for content_source in _sources:
-                    if message["content"] in content_source:
+                    if message["response_id"] in content_source:
                         # 获取引用文件
-                        response_sources_list = content_source[message["content"]]
+                        response_sources_list = content_source[message["response_id"]]
 
                 for index,pop in enumerate(row1+row2):
                     a = pop.popover(f"引用文件",use_container_width=True)
@@ -338,6 +339,8 @@ if prompt := st.chat_input("What is up?"):
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
 
     processed_messages = list_length_transform(history_length,st.session_state.custom_rag_chat_history)
+    # 在 invoke 的 messages 中去除 response_id
+    processed_messages = [dict_filter(item, ["role", "content"]) for item in processed_messages]
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
@@ -351,10 +354,10 @@ if prompt := st.chat_input("What is up?"):
         
         response = response.model_dump()
         # 将回答添加入 st.sesstion
-        st.session_state.custom_rag_chat_history.append({"role": "assistant", "content": response["answer"]["choices"][0]["message"]["content"]})
+        st.session_state.custom_rag_chat_history.append({"role": "assistant", "content": response["answer"]["choices"][0]["message"]["content"], "response_id": response["response_id"]})
 
         # 将引用sources添加到 st.session
-        st.session_state.custom_rag_sources.append({response["answer"]["choices"][0]["message"]["content"]: response["source_documents"]})
+        st.session_state.custom_rag_sources.append({response["response_id"]: response["source_documents"]})
         
         # 展示回答
         st.write(response["answer"]["choices"][0]["message"]["content"])
@@ -364,9 +367,9 @@ if prompt := st.chat_input("What is up?"):
         row2 = st.columns(3)
 
         for content_source in st.session_state.custom_rag_sources:
-            if response["answer"]["choices"][0]["message"]["content"] in content_source:
+            if response["response_id"] in content_source:
                 # 获取引用文件
-                response_sources_list = content_source[response["answer"]["choices"][0]["message"]["content"]]
+                response_sources_list = content_source[response["response_id"]]
 
         for index,pop in enumerate(row1+row2):
             a = pop.popover(f"引用文件",use_container_width=True)

@@ -5,6 +5,10 @@ from typing import Dict, Any, Literal, Union
 
 class BaseRAGResponse(BaseModel):
     """Response model for RAG responses"""
+    response_id: str
+    """The id of the response"""
+    response_type: Literal['RAGResponse'] = 'RAGResponse'
+    """The type of the response"""
     answer: Union[ChatCompletion, ChatCompletionChunk, Dict]
     """The answer to the question, in the form of a dictionary"""
 

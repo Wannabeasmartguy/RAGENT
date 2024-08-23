@@ -1,4 +1,5 @@
 import copy
+from uuid import uuid4
 from loguru import logger
 from modules.retrievers.base import BaseContextualRetriever
 from modules.llm.openai import OpenAILLM
@@ -100,6 +101,7 @@ class ConversationRAG(BaseRAG):
         messages.append({"role": "user", "content": query})
 
         return BaseRAGResponse(
+            response_id=str(uuid4()),
             answer = self.llm.invoke(
                 messages=messages,
                 stream=stream,
@@ -142,6 +144,7 @@ class ConversationRAG(BaseRAG):
             messages.insert(0, {"role": "system", "content": system_prompt})
         
         return BaseRAGResponse(
+            response_id=str(uuid4()),
             answer = self.llm.invoke(
                 messages=messages,
                 stream=stream,

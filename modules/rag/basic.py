@@ -1,4 +1,5 @@
 from loguru import logger
+from uuid import uuid4
 from typing import List, Dict, Optional, Union, Any, Generator
 from modules.llm.openai import OpenAILLM
 from modules.rag.base import BaseRAG
@@ -77,6 +78,7 @@ class BasicRAG(BaseRAG):
         )
         logger.info(f"System prompt: {system_prompt}")
         return BaseRAGResponse(
+            response_id=str(uuid4()),
             answer=self.llm.invoke(
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -105,7 +107,8 @@ class BasicRAG(BaseRAG):
         )
         logger.info(f"Prompt is wrapped, actual prompt: {prompt}")
         return BaseRAGResponse(
-                answer = self.llm.invoke(
+            response_id=str(uuid4()),
+            answer = self.llm.invoke(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
