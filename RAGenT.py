@@ -8,6 +8,8 @@ from typing import Optional
 from uuid import uuid4
 from copy import deepcopy
 from loguru import logger
+from pydantic import ValidationError
+from sqlalchemy.exc import OperationalError
 from utils.log.logger_config import setup_logger
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -63,11 +65,6 @@ try:
 except:
     st.rerun()
 
-
-# Initialize chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
     st.session_state.oai_like_model_config_dict = {
@@ -77,12 +74,32 @@ if "oai_like_model_config_dict" not in st.session_state:
         }
     }
 
-if "run_id" not in st.session_state:
-    st.session_state.run_id = str(uuid4())
-
 run_id_list = chat_history_storage.get_all_run_ids()
-if st.session_state.run_id not in run_id_list:
+if "current_run_id_index" not in st.session_state:
     st.session_state.current_run_id_index = 0
+if "run_id" not in st.session_state:
+    try:
+        st.session_state.run_id = run_id_list[st.session_state.current_run_id_index]
+    except (OperationalError,IndexError):
+        st.session_state.run_id = str(uuid4())
+
+# initialize chat history
+if "chat_history" not in st.session_state:
+    try:
+        st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
+    # ValidationError 意味着数据库中没有这个 run_id，需要新建
+    except ValidationError:
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.run_id,
+                run_name="New dialog",
+                memory={
+                    "chat_history": []
+                }
+            )
+        )
+        st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
 
 with st.sidebar:
     st.image(logo_path)
@@ -293,9 +310,9 @@ with st.sidebar:
                     run_id=st.session_state.run_id,
                 )
             )
-        if saved_dialog.run_name not in get_all_runnames():
-            st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-            st.rerun()
+            if saved_dialog.run_name not in get_all_runnames():
+                st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+                st.rerun()
 
         dialog_details_settings_popover.text_area(
             label=i18n("System Prompt"),

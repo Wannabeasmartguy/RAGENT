@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+from openai import Stream
 from typing import Dict, Any, Literal, Union
 
 class BaseRAGResponse(BaseModel):
@@ -9,7 +10,7 @@ class BaseRAGResponse(BaseModel):
     """The id of the response"""
     response_type: Literal['RAGResponse'] = 'RAGResponse'
     """The type of the response"""
-    answer: Union[ChatCompletion, ChatCompletionChunk, Dict]
+    answer: Union[ChatCompletion, Stream[ChatCompletionChunk], Dict]
     """The answer to the question, in the form of a dictionary"""
 
     source_documents: Dict[str, Any]
@@ -28,6 +29,9 @@ class BaseRAGResponse(BaseModel):
             if 'role' not in value or 'content' not in value:
                 raise ValueError("The dict must contain 'role' and 'content' keys")
         return value
+    
+    class Config:
+        arbitrary_types_allowed = True
 
 
 if __name__ == '__main__':

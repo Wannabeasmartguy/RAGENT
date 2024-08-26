@@ -2,6 +2,8 @@ import streamlit as st
 import os
 from uuid import uuid4
 from loguru import logger
+from sqlalchemy.exc import OperationalError
+from pydantic import ValidationError
 
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from llm.aoai.completion import aoai_config_generator
@@ -21,6 +23,7 @@ from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
 from configs.knowledge_base_config import ChromaVectorStoreProcessor
 from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
+from model.chat.assistant import AssistantRun
 
 
 @st.cache_data
@@ -35,10 +38,7 @@ def write_custom_rag_chat_history(chat_history,_sources):
                 row1 = st.columns(3)
                 row2 = st.columns(3)
 
-                for content_source in _sources:
-                    if message["response_id"] in content_source:
-                        # 获取引用文件
-                        response_sources_list = content_source[message["response_id"]]
+                response_sources_list = _sources[message["response_id"]]
 
                 for index,pop in enumerate(row1+row2):
                     a = pop.popover(f"引用文件",use_container_width=True)
@@ -74,12 +74,6 @@ language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 
-# Initialize RAG chat history, to avoid error when reloading the page
-if "custom_rag_chat_history" not in st.session_state:
-    st.session_state.custom_rag_chat_history = []
-if "custom_rag_sources" not in st.session_state:
-    st.session_state.custom_rag_sources = []
-
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
     st.session_state.oai_like_model_config_dict = {
@@ -89,12 +83,41 @@ if "oai_like_model_config_dict" not in st.session_state:
         }
     }
 
-if "rag_run_id" not in st.session_state:
-    st.session_state.rag_run_id = str(uuid4())
-
 rag_run_id_list = chat_history_storage.get_all_run_ids()
-if st.session_state.rag_run_id not in rag_run_id_list:
+if "rag_current_run_id_index" not in st.session_state:
     st.session_state.rag_current_run_id_index = 0
+if "rag_run_id" not in st.session_state:
+    try:
+        st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
+    except (OperationalError,IndexError):
+        st.session_state.rag_run_id = str(uuid4())
+
+# Initialize RAG chat history, to avoid error when reloading the page
+if "custom_rag_chat_history" not in st.session_state:
+    try:
+        st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(st.session_state.rag_run_id).memory["chat_history"]
+    except ValidationError:
+        # ValidationError 意味着数据库中没有这个 run_id，需要新建
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.rag_run_id,
+                run_name="New dialog",
+                memory={
+                    "chat_history": []
+                },
+                task_data={
+                    "source_documents": {}
+                }
+            )
+        )
+        st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(st.session_state.rag_run_id).memory["chat_history"]
+if "custom_rag_sources" not in st.session_state:
+    try:
+        st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(st.session_state.rag_run_id).task_data["source_documents"]
+    except TypeError:
+        # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
+        st.session_state.custom_rag_sources = {}
 
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
@@ -117,6 +140,95 @@ with st.sidebar:
     rag_dialog_settings_tab, rag_model_settings_tab, rag_knowledge_base_settings_tab= st.tabs([i18n("Dialog Settings"), i18n("Model Settings"), i18n("Knowledge Base Settings")])
 
     with rag_dialog_settings_tab:
+        dialogs_container = st.container(height=250,border=True)
+        saved_dialog = dialogs_container.radio(
+            label=i18n("Saved dialog"),
+            options=chat_history_storage.get_all_runs(),
+            format_func=lambda x: x.run_name[:15]+'...' if len(x.run_name) > 15 else x.run_name,
+            index=st.session_state.rag_current_run_id_index,
+            label_visibility="collapsed",
+        )
+
+        add_dialog_column, delete_dialog_column = st.columns([1, 1])
+        with add_dialog_column:
+            add_dialog_button = st.button(
+                label=i18n("Add a new dialog"),
+                use_container_width=True,
+            )
+        with delete_dialog_column:
+            delete_dialog_button = st.button(
+                label=i18n("Delete selected dialog"),
+                use_container_width=True,
+            )
+            
+        if saved_dialog:
+            st.session_state.rag_run_id = saved_dialog.run_id
+            st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+            st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(saved_dialog.run_id).task_data["source_documents"]
+        if add_dialog_button:
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_id=str(uuid4()),
+                    run_name="New dialog",
+                    memory={
+                        "chat_history": []
+                    },
+                    task_data={
+                        "source_documents": {},
+                    }
+                )
+            )
+            st.rerun()
+        if delete_dialog_button:
+            chat_history_storage.delete_run(st.session_state.rag_run_id)
+            st.session_state.rag_run_id = str(uuid4())
+            st.session_state.custom_rag_chat_history = []
+            st.rerun()
+
+        # 保存对话
+        def get_run_name():
+            try:
+                run_name = saved_dialog.run_name
+            except:
+                run_name = "RAGenT"
+            return run_name
+        def get_all_runnames():
+            runnames = []
+            runs = chat_history_storage.get_all_runs()
+            for run in runs:
+                runnames.append(run.run_name)
+            return runnames
+        
+        st.write(i18n("Dialogues details"))
+
+        dialog_details_settings_popover = st.expander(
+            label=i18n("Dialogues details"),
+            # use_container_width=True
+        )
+        dialog_name = dialog_details_settings_popover.text_input(
+            label=i18n("Dialog name"),
+            value=get_run_name(),
+            key="rag_run_name",
+        )
+        if dialog_name:
+            chat_history_storage.upsert(
+                AssistantRun(
+                    run_name=dialog_name,
+                    run_id=st.session_state.rag_run_id,
+                )
+            )
+            if saved_dialog.run_name not in get_all_runnames():
+                st.session_state.rag_current_run_id_index = rag_run_id_list.index(st.session_state.rag_run_id)
+                st.rerun()
+
+        # dialog_details_settings_popover.text_area(
+        #     label=i18n("System Prompt"),
+        #     value=get_system_prompt(saved_dialog.run_id),
+        #     height=300,
+        #     key="system_prompt",
+        # )
+
         history_length = st.number_input(
             label=i18n("History length"),
             min_value=1,
@@ -229,13 +341,7 @@ with st.sidebar:
                 key="if_stream",
                 help=i18n("Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it.")
             )
-            if_tools_call = st.toggle(
-                label=i18n("Tools call"),
-                value=False,
-                key="if_tools_call",
-                help=i18n("Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."),
-                on_change=lambda: logger.info(f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}")
-            )
+
 
     with rag_knowledge_base_settings_tab:
         with st.popover(label=i18n("RAG Setting"),use_container_width=True):
@@ -273,8 +379,20 @@ with st.sidebar:
     clear_button = clear_button_col.button(label=i18n("Clear chat history"),use_container_width=True)
     if clear_button:
         st.session_state.custom_rag_chat_history = []
-        st.session_state.custom_rag_sources = []
-
+        st.session_state.custom_rag_sources = {}
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.rag_run_id,
+                run_name=st.session_state.rag_run_name,
+                memory={
+                    "chat_history": st.session_state.custom_rag_chat_history
+                },
+                task_data={}
+            )
+        )
+        st.session_state.rag_current_run_id_index = rag_run_id_list.index(st.session_state.rag_run_id)
+        st.rerun()
     if export_button:
         # 将聊天历史导出为Markdown
         chat_history = "\n".join([f"# {message['role']} \n\n{message['content']}\n\n" for message in st.session_state.agent_chat_history_total])
@@ -329,6 +447,7 @@ agentchat_processor = AgentChatProcessor(
     llm_config=config_list[0],
 )
 
+st.title(st.session_state.rag_run_name)
 write_custom_rag_chat_history(st.session_state.custom_rag_chat_history,st.session_state.custom_rag_sources)
 
 if prompt := st.chat_input("What is up?"):
@@ -349,31 +468,87 @@ if prompt := st.chat_input("What is up?"):
                 messages=processed_messages,
                 is_rerank=is_rerank,
                 is_hybrid_retrieve=is_hybrid_retrieve,
-                hybrid_retriever_weight=hybrid_retrieve_weight
+                hybrid_retriever_weight=hybrid_retrieve_weight,
+                stream=if_stream
             )
         
-        response = response.model_dump()
-        # 将回答添加入 st.sesstion
-        st.session_state.custom_rag_chat_history.append({"role": "assistant", "content": response["answer"]["choices"][0]["message"]["content"], "response_id": response["response_id"]})
+        # 流式输出
+        if if_stream:
+            # 先将引用sources添加到 st.session
+            st.session_state.custom_rag_sources.update({response.response_id: response.source_documents})
 
-        # 将引用sources添加到 st.session
-        st.session_state.custom_rag_sources.append({response["response_id"]: response["source_documents"]})
+            # 展示回答
+            answer = st.write_stream(response.answer)
+
+            # 添加回答到 st.session
+            st.session_state.custom_rag_chat_history.append({"role": "assistant", "content": answer, "response_id": response.response_id})
+
+            # 保存聊天记录
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_name=st.session_state.rag_run_name,
+                    run_id=st.session_state.rag_run_id,
+                    llm=config_list[0],
+                    memory={
+                        "chat_history": st.session_state.custom_rag_chat_history
+                    },
+                    task_data={
+                        "source_documents": st.session_state.custom_rag_sources
+                    }
+                )
+            )
+
+            # 展示引用源
+            row1 = st.columns(3)
+            row2 = st.columns(3)
+
+            response_sources = st.session_state.custom_rag_sources[response.response_id]
+
+            for index,pop in enumerate(row1+row2):
+                a = pop.popover(f"引用文件",use_container_width=True)
+                file_name = response_sources["metadatas"][index]["source"]
+                file_content = response_sources["page_content"][index]
+                a.text(f"引用文件{file_name}")
+                a.code(file_content,language="plaintext")
         
-        # 展示回答
-        st.write(response["answer"]["choices"][0]["message"]["content"])
+        # 非流式输出
+        else:
+            response = response.model_dump()
+            # 将回答添加入 st.sesstion
+            st.session_state.custom_rag_chat_history.append({"role": "assistant", "content": response["answer"]["choices"][0]["message"]["content"], "response_id": response["response_id"]})
 
-        # 展示引用源
-        row1 = st.columns(3)
-        row2 = st.columns(3)
+            # 将引用sources添加到 st.session
+            st.session_state.custom_rag_sources.update({response["response_id"]: response["source_documents"]})
+            
+            # 展示回答
+            st.write(response["answer"]["choices"][0]["message"]["content"])
 
-        for content_source in st.session_state.custom_rag_sources:
-            if response["response_id"] in content_source:
-                # 获取引用文件
-                response_sources_list = content_source[response["response_id"]]
+            # 保存聊天记录
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_name=st.session_state.rag_run_name,
+                    run_id=st.session_state.rag_run_id,
+                    llm=config_list[0],
+                    memory={
+                        "chat_history": st.session_state.custom_rag_chat_history
+                    },
+                    task_data={
+                        "source_documents": st.session_state.custom_rag_sources
+                    }
+                )
+            )
+            
+            # 展示引用源
+            row1 = st.columns(3)
+            row2 = st.columns(3)
 
-        for index,pop in enumerate(row1+row2):
-            a = pop.popover(f"引用文件",use_container_width=True)
-            file_name = response_sources_list["metadatas"][index]["source"]
-            file_content = response_sources_list["page_content"][index]
-            a.text(f"引用文件{file_name}")
-            a.code(file_content,language="plaintext")
+            response_sources_list = st.session_state.custom_rag_sources[response["response_id"]]
+
+            for index,pop in enumerate(row1+row2):
+                a = pop.popover(f"引用文件",use_container_width=True)
+                file_name = response_sources_list["metadatas"][index]["source"]
+                file_content = response_sources_list["page_content"][index]
+                a.text(f"引用文件{file_name}")
+                a.code(file_content,language="plaintext")
