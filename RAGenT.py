@@ -75,31 +75,27 @@ if "oai_like_model_config_dict" not in st.session_state:
     }
 
 run_id_list = chat_history_storage.get_all_run_ids()
+if len(run_id_list) == 0:
+    chat_history_storage.upsert(
+        AssistantRun(
+            name="assistant",
+            run_id=str(uuid4()),
+            run_name="New dialog",
+            memory={
+                "chat_history": []
+            }
+        )
+    )
+    run_id_list = chat_history_storage.get_all_run_ids()
+
 if "current_run_id_index" not in st.session_state:
     st.session_state.current_run_id_index = 0
 if "run_id" not in st.session_state:
-    try:
-        st.session_state.run_id = run_id_list[st.session_state.current_run_id_index]
-    except (OperationalError,IndexError):
-        st.session_state.run_id = str(uuid4())
+    st.session_state.run_id = run_id_list[st.session_state.current_run_id_index]
 
 # initialize chat history
 if "chat_history" not in st.session_state:
-    try:
-        st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
-    # ValidationError 意味着数据库中没有这个 run_id，需要新建
-    except ValidationError:
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.run_id,
-                run_name="New dialog",
-                memory={
-                    "chat_history": []
-                }
-            )
-        )
-        st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
+    st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
 
 with st.sidebar:
     st.image(logo_path)
@@ -258,7 +254,10 @@ with st.sidebar:
 
         if saved_dialog:
             st.session_state.run_id = saved_dialog.run_id
-            st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+            try:
+                st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+            except:
+                st.session_state.chat_history = []
         if add_dialog_button:
             chat_history_storage.upsert(
                 AssistantRun(
@@ -274,7 +273,18 @@ with st.sidebar:
         if delete_dialog_button:
             chat_history_storage.delete_run(st.session_state.run_id)
             st.session_state.run_id = str(uuid4())
-            st.session_state.chat_history = []
+            if len(run_id_list) == 0:
+                chat_history_storage.upsert(
+                    AssistantRun(
+                        name="assistant",
+                        run_id=st.session_state.run_id,
+                        run_name="New dialog",
+                        memory={
+                            "chat_history": []
+                        }
+                    )
+                )
+                st.session_state.chat_history = []
             st.rerun()
 
 

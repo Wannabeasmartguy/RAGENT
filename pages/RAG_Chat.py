@@ -84,34 +84,29 @@ if "oai_like_model_config_dict" not in st.session_state:
     }
 
 rag_run_id_list = chat_history_storage.get_all_run_ids()
+if len(rag_run_id_list) == 0:
+    chat_history_storage.upsert(
+        AssistantRun(
+            name="assistant",
+            run_id=str(uuid4()),
+            run_name="New dialog",
+            memory={
+                "chat_history": []
+            },
+            task_data={
+                "source_documents": {}
+            }
+        )
+    )
+    rag_run_id_list = chat_history_storage.get_all_run_ids()
 if "rag_current_run_id_index" not in st.session_state:
     st.session_state.rag_current_run_id_index = 0
 if "rag_run_id" not in st.session_state:
-    try:
-        st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
-    except (OperationalError,IndexError):
-        st.session_state.rag_run_id = str(uuid4())
+    st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
-    try:
-        st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(st.session_state.rag_run_id).memory["chat_history"]
-    except ValidationError:
-        # ValidationError 意味着数据库中没有这个 run_id，需要新建
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.rag_run_id,
-                run_name="New dialog",
-                memory={
-                    "chat_history": []
-                },
-                task_data={
-                    "source_documents": {}
-                }
-            )
-        )
-        st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(st.session_state.rag_run_id).memory["chat_history"]
+    st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(st.session_state.rag_run_id).memory["chat_history"]
 if "custom_rag_sources" not in st.session_state:
     try:
         st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(st.session_state.rag_run_id).task_data["source_documents"]
@@ -163,8 +158,12 @@ with st.sidebar:
             
         if saved_dialog:
             st.session_state.rag_run_id = saved_dialog.run_id
-            st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
-            st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(saved_dialog.run_id).task_data["source_documents"]
+            try:
+                st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+                st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(saved_dialog.run_id).task_data["source_documents"]
+            except (TypeError,ValidationError):
+                st.session_state.custom_rag_chat_history = []
+                st.session_state.custom_rag_sources = {}
         if add_dialog_button:
             chat_history_storage.upsert(
                 AssistantRun(
@@ -183,7 +182,22 @@ with st.sidebar:
         if delete_dialog_button:
             chat_history_storage.delete_run(st.session_state.rag_run_id)
             st.session_state.rag_run_id = str(uuid4())
+            if len(rag_run_id_list) == 0:
+                chat_history_storage.upsert(
+                    AssistantRun(
+                        name="assistant",
+                        run_id=st.session_state.rag_run_id,
+                        run_name="New dialog",
+                        memory={
+                            "chat_history": []
+                        },
+                        task_data={
+                            "source_documents": {},
+                        }
+                    )
+                )
             st.session_state.custom_rag_chat_history = []
+            st.session_state.custom_rag_sources = {}
             st.rerun()
 
         # 保存对话
