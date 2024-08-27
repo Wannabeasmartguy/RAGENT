@@ -101,6 +101,8 @@ if len(rag_run_id_list) == 0:
     rag_run_id_list = chat_history_storage.get_all_run_ids()
 if "rag_current_run_id_index" not in st.session_state:
     st.session_state.rag_current_run_id_index = 0
+while st.session_state.rag_current_run_id_index > len(rag_run_id_list):
+    st.session_state.rag_current_run_id_index -= 1
 if "rag_run_id" not in st.session_state:
     st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
 
@@ -135,6 +137,7 @@ with st.sidebar:
     rag_dialog_settings_tab, rag_model_settings_tab, rag_knowledge_base_settings_tab= st.tabs([i18n("Dialog Settings"), i18n("Model Settings"), i18n("Knowledge Base Settings")])
 
     with rag_dialog_settings_tab:
+        st.write(i18n("Dialogues list"))
         dialogs_container = st.container(height=250,border=True)
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
@@ -146,43 +149,8 @@ with st.sidebar:
 
         add_dialog_column, delete_dialog_column = st.columns([1, 1])
         with add_dialog_column:
-            add_dialog_button = st.button(
-                label=i18n("Add a new dialog"),
-                use_container_width=True,
-            )
-        with delete_dialog_column:
-            delete_dialog_button = st.button(
-                label=i18n("Delete selected dialog"),
-                use_container_width=True,
-            )
-            
-        if saved_dialog:
-            st.session_state.rag_run_id = saved_dialog.run_id
-            try:
-                st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
-                st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(saved_dialog.run_id).task_data["source_documents"]
-            except (TypeError,ValidationError):
-                st.session_state.custom_rag_chat_history = []
-                st.session_state.custom_rag_sources = {}
-        if add_dialog_button:
-            chat_history_storage.upsert(
-                AssistantRun(
-                    name="assistant",
-                    run_id=str(uuid4()),
-                    run_name="New dialog",
-                    memory={
-                        "chat_history": []
-                    },
-                    task_data={
-                        "source_documents": {},
-                    }
-                )
-            )
-            st.rerun()
-        if delete_dialog_button:
-            chat_history_storage.delete_run(st.session_state.rag_run_id)
-            st.session_state.rag_run_id = str(uuid4())
-            if len(rag_run_id_list) == 0:
+            def add_rag_dialog_callback():
+                st.session_state.rag_run_id = str(uuid4())
                 chat_history_storage.upsert(
                     AssistantRun(
                         name="assistant",
@@ -196,9 +164,44 @@ with st.sidebar:
                         }
                     )
                 )
-            st.session_state.custom_rag_chat_history = []
-            st.session_state.custom_rag_sources = {}
-            st.rerun()
+            add_dialog_button = st.button(
+                label=i18n("Add a new dialog"),
+                use_container_width=True,
+                on_click=add_rag_dialog_callback,
+            )
+        with delete_dialog_column:
+            def delete_rag_dialog_callback():
+                chat_history_storage.delete_run(st.session_state.rag_run_id)
+                if len(chat_history_storage.get_all_run_ids()) == 0:
+                    chat_history_storage.upsert(
+                        AssistantRun(
+                            name="assistant",
+                            run_id=st.session_state.rag_run_id,
+                            run_name="New dialog",
+                            memory={
+                                "chat_history": []
+                            },
+                            task_data={
+                                "source_documents": {},
+                            }
+                        )
+                    )
+                    st.session_state.custom_rag_chat_history = []
+                    st.session_state.custom_rag_sources = {}
+            delete_dialog_button = st.button(
+                label=i18n("Delete selected dialog"),
+                use_container_width=True,
+                on_click=delete_rag_dialog_callback,
+            )
+            
+        if saved_dialog:
+            st.session_state.rag_run_id = saved_dialog.run_id
+            try:
+                st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+                st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(saved_dialog.run_id).task_data["source_documents"]
+            except (TypeError,ValidationError):
+                st.session_state.custom_rag_chat_history = []
+                st.session_state.custom_rag_sources = {}
 
         # 保存对话
         def get_run_name():
@@ -220,21 +223,20 @@ with st.sidebar:
             label=i18n("Dialogues details"),
             # use_container_width=True
         )
+        def rag_dialog_name_change_callback():
+            chat_history_storage.upsert(
+                AssistantRun(
+                    run_name=st.session_state.rag_run_name,
+                    run_id=st.session_state.rag_run_id,
+                )
+            )
+            st.session_state.rag_current_run_id_index = rag_run_id_list.index(st.session_state.rag_run_id)
         dialog_name = dialog_details_settings_popover.text_input(
             label=i18n("Dialog name"),
             value=get_run_name(),
             key="rag_run_name",
+            on_change=rag_dialog_name_change_callback,
         )
-        if dialog_name:
-            chat_history_storage.upsert(
-                AssistantRun(
-                    run_name=dialog_name,
-                    run_id=st.session_state.rag_run_id,
-                )
-            )
-            if saved_dialog.run_name not in get_all_runnames():
-                st.session_state.rag_current_run_id_index = rag_run_id_list.index(st.session_state.rag_run_id)
-                st.rerun()
 
         # dialog_details_settings_popover.text_area(
         #     label=i18n("System Prompt"),

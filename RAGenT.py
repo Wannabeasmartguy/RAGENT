@@ -90,6 +90,8 @@ if len(run_id_list) == 0:
 
 if "current_run_id_index" not in st.session_state:
     st.session_state.current_run_id_index = 0
+while st.session_state.current_run_id_index > len(run_id_list):
+    st.session_state.current_run_id_index -= 1
 if "run_id" not in st.session_state:
     st.session_state.run_id = run_id_list[st.session_state.current_run_id_index]
 
@@ -242,38 +244,8 @@ with st.sidebar:
 
         add_dialog_column, delete_dialog_column = st.columns([1, 1])
         with add_dialog_column:
-            add_dialog_button = st.button(
-                label=i18n("Add a new dialog"),
-                use_container_width=True,
-            )
-        with delete_dialog_column:
-            delete_dialog_button = st.button(
-                label=i18n("Delete selected dialog"),
-                use_container_width=True,
-            )
-
-        if saved_dialog:
-            st.session_state.run_id = saved_dialog.run_id
-            try:
-                st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
-            except:
-                st.session_state.chat_history = []
-        if add_dialog_button:
-            chat_history_storage.upsert(
-                AssistantRun(
-                    name="assistant",
-                    run_id=str(uuid4()),
-                    run_name="New dialog",
-                    memory={
-                        "chat_history": []
-                    }
-                )
-            )
-            st.rerun()
-        if delete_dialog_button:
-            chat_history_storage.delete_run(st.session_state.run_id)
-            st.session_state.run_id = str(uuid4())
-            if len(run_id_list) == 0:
+            def add_dialog_button_callback():
+                st.session_state.run_id = str(uuid4())
                 chat_history_storage.upsert(
                     AssistantRun(
                         name="assistant",
@@ -284,8 +256,40 @@ with st.sidebar:
                         }
                     )
                 )
+            add_dialog_button = st.button(
+                label=i18n("Add a new dialog"),
+                use_container_width=True,
+                on_click=add_dialog_button_callback
+            )
+        with delete_dialog_column:
+            def delete_dialog_callback():
+                chat_history_storage.delete_run(st.session_state.run_id)
+                # st.session_state.run_id = str(uuid4())
+                if len(chat_history_storage.get_all_run_ids()) == 0:
+                    chat_history_storage.upsert(
+                        AssistantRun(
+                            name="assistant",
+                            run_id=st.session_state.run_id,
+                            run_name="New dialog",
+                            memory={
+                                "chat_history": []
+                            }
+                        )
+                    )
+                    st.session_state.chat_history = []
+                # st.rerun()
+            delete_dialog_button = st.button(
+                label=i18n("Delete selected dialog"),
+                use_container_width=True,
+                on_click=delete_dialog_callback
+            )
+
+        if saved_dialog:
+            st.session_state.run_id = saved_dialog.run_id
+            try:
+                st.session_state.chat_history = chat_history_storage.get_specific_run(saved_dialog.run_id).memory["chat_history"]
+            except:
                 st.session_state.chat_history = []
-            st.rerun()
 
 
         # 保存对话
@@ -308,21 +312,20 @@ with st.sidebar:
             label=i18n("Dialogues details"),
             # use_container_width=True
         )
+        def dialog_name_change_callback():
+            chat_history_storage.upsert(
+                AssistantRun(
+                    run_name=st.session_state.run_name,
+                    run_id=st.session_state.run_id,
+                )
+            )
+            st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
         dialog_name = dialog_details_settings_popover.text_input(
             label=i18n("Dialog name"),
             value=get_run_name(),
             key="run_name",
+            on_change=dialog_name_change_callback
         )
-        if dialog_name:
-            chat_history_storage.upsert(
-                AssistantRun(
-                    run_name=dialog_name,
-                    run_id=st.session_state.run_id,
-                )
-            )
-            if saved_dialog.run_name not in get_all_runnames():
-                st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-                st.rerun()
 
         dialog_details_settings_popover.text_area(
             label=i18n("System Prompt"),
