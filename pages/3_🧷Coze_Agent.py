@@ -32,6 +32,7 @@ with st.sidebar:
     st.image(logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 

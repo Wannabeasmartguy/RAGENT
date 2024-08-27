@@ -58,7 +58,12 @@ vectorstore_processor = ChromaVectorStoreProcessor(
     embedding_model_type="huggingface",
 )
 
-chat_history_db_dir = os.path.join(os.path.dirname(__file__), "databases", "chat_history")
+VERSION = "0.1.1"
+current_directory = os.path.dirname(__file__)
+parent_directory = os.path.dirname(current_directory)
+logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')
+
+chat_history_db_dir = os.path.join(parent_directory, "databases", "chat_history")
 chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
 if not os.path.exists(chat_history_db_dir):
     os.makedirs(chat_history_db_dir)
@@ -116,12 +121,7 @@ if "custom_rag_sources" not in st.session_state:
         # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
         st.session_state.custom_rag_sources = {}
 
-VERSION = "0.1.1"
-current_directory = os.path.dirname(__file__)
-parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')
 set_pages_configs_in_common(version=VERSION,title="RAG Chat",page_icon_path=logo_path)
-
 
 with st.sidebar:
     st.image(logo_path)
@@ -129,7 +129,7 @@ with st.sidebar:
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
-    st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+    # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link("pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting")))
     st.write('---')
