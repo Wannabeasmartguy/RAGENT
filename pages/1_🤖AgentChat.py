@@ -19,45 +19,16 @@ from utils.basic_utils import (
     write_chat_history
 )
 from llm.aoai.tools.tools import TO_TOOLS
-
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
 from configs.knowledge_base_config import ChromaVectorStoreProcessor
 from api.dependency import APIRequestHandler
-
 from autogen.cache import Cache
-
 from typing import List
-
-
-@st.cache_data
-def write_rag_chat_history(chat_history,_sources):
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-            if message["role"] == "assistant":
-                # st.markdown("**Source**:")
-                # 展示引用源
-                row1 = st.columns(3)
-                row2 = st.columns(3)
-
-                for content_source in _sources:
-                    if message["content"] in content_source:
-                        # 获取引用文件
-                        response_sources_list = content_source[message["content"]]
-
-                for index,pop in enumerate(row1+row2):
-                    a = pop.popover(f"引用文件",use_container_width=True)
-                    file_name = response_sources_list[index].metadata["source"]
-                    file_content = response_sources_list[index].page_content
-                    a.text(f"引用文件{file_name}")
-                    a.code(file_content,language="plaintext")
 
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
-
 
 vectorstore_processor = ChromaVectorStoreProcessor(
     # 仅需要展示所有的 Collection 即可，故所有参数都为空
@@ -74,12 +45,6 @@ if "agent_chat_history_displayed" not in st.session_state:
     st.session_state.agent_chat_history_displayed = []
 if "agent_chat_history_total" not in st.session_state:
     st.session_state.agent_chat_history_total = []
-
-# Initialize RAG chat history, to avoid error when reloading the page
-if "rag_chat_history_displayed" not in st.session_state:
-    st.session_state.rag_chat_history_displayed = []
-if "rag_sources" not in st.session_state:
-    st.session_state.rag_sources = []
 
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
@@ -177,41 +142,11 @@ with st.sidebar:
 
     agent_type = st.selectbox(
         label=i18n("Agent type"),
-        options=["Reflection","RAG_lc","Function Call"],
+        options=["Reflection","Function Call"],
         key="agent_type",
         # 显示时删除掉下划线及以后的内容
         format_func=lambda x: x.replace("_lc","")
     )
-
-    if agent_type == "RAG_lc":
-        with st.popover(label=i18n("RAG Setting"),use_container_width=True):
-            collection_selectbox = st.selectbox(
-                label=i18n("Collection"),
-                options=vectorstore_processor.list_all_knowledgebase_collections(1)
-            )
-            is_rerank = st.checkbox(
-                label=i18n("Rerank"),
-                value=False,
-                key="is_rerank"
-            )
-            is_hybrid_retrieve = st.checkbox(
-                label=i18n("Hybrid retrieve"),
-                value=False,
-                key="is_hybrid_retrieve"
-            )
-            hybrid_retrieve_weight_placeholder = st.empty()
-            if is_hybrid_retrieve:
-                hybrid_retrieve_weight = hybrid_retrieve_weight_placeholder.slider(
-                    label=i18n("Hybrid retrieve weight"),
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=0.5,
-                    step=0.1,
-                    key="hybrid_retrieve_weight"
-                )
-            else:
-                # Prevent error when the checkbox is unchecked
-                hybrid_retrieve_weight = 0.0
     
     if agent_type == "Function Call":
         with st.expander(label=i18n("Function Call Setting")):
@@ -312,11 +247,7 @@ with st.sidebar:
     export_button = cols[0].button(label=i18n("Export chat history"))
     clear_button = cols[1].button(label=i18n("Clear chat history"))
     if clear_button:
-        if agent_type == "RAG_lc":
-            st.session_state.rag_chat_history_displayed = []
-            st.session_state.rag_sources = []
-            write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
-        elif agent_type == "Reflection":
+        if agent_type == "Reflection":
             st.session_state.agent_chat_history_displayed = []
             st.session_state.agent_chat_history_total = []
             initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
@@ -377,9 +308,7 @@ agentchat_processor = AgentChatProcessor(
     llm_config=config_list[0],
 )
 
-if agent_type =="RAG_lc":
-    write_rag_chat_history(st.session_state.rag_chat_history_displayed,st.session_state.rag_sources)
-elif agent_type == "Reflection":
+if agent_type == "Reflection":
     # 初始化代理聊天历史
     initialize_agent_chat_history(st.session_state.agent_chat_history_displayed,st.session_state.agent_chat_history_total)
     # 初始化各个 Agent
@@ -423,51 +352,6 @@ if prompt := st.chat_input("What is up?"):
             # result.summary 用作对话展示，添加到display中
             st.session_state.agent_chat_history_displayed.append({"role": "assistant", "content": result.summary})
             st.write(result.summary)
-
-
-    elif agent_type == "RAG_lc":
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Add user message to chat history
-        st.session_state.rag_chat_history_displayed.append({"role": "user", "content": prompt})
-
-        processed_messages = list_length_transform(history_length,st.session_state.rag_chat_history_displayed)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = agentchat_processor.create_rag_agent_response_noapi(
-                    name=collection_selectbox,
-                    messages=processed_messages,
-                    is_rerank=is_rerank,
-                    is_hybrid_retrieve=is_hybrid_retrieve,
-                    hybrid_retriever_weight=hybrid_retrieve_weight
-                )
-            
-            # 将回答添加入 st.sesstion
-            st.session_state.rag_chat_history_displayed.append({"role": "assistant", "content": response["answer"]})
-
-            # 将引用sources添加到 st.session
-            st.session_state.rag_sources.append({response["answer"]: response["source_documents"]})
-            
-            # 展示回答
-            st.write(response["answer"])
-
-            # 展示引用源
-            row1 = st.columns(3)
-            row2 = st.columns(3)
-
-            for content_source in st.session_state.rag_sources:
-                if response["answer"] in content_source:
-                    # 获取引用文件
-                    response_sources_list = content_source[response["answer"]]
-
-            for index,pop in enumerate(row1+row2):
-                a = pop.popover(f"引用文件",use_container_width=True)
-                file_name = response_sources_list[index].metadata["source"]
-                file_content = response_sources_list[index].page_content
-                a.text(f"引用文件{file_name}")
-                a.code(file_content,language="plaintext")
 
 
     elif agent_type == "Function Call":
