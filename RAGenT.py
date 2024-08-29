@@ -279,6 +279,9 @@ with st.sidebar:
                 def load_oai_like_config_button_callback():
                     st.session_state.oai_like_model_config_dict = oailike_config_processor.get_model_config(oai_like_config_list)
                     st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+                    st.session_state.model = next(iter(st.session_state.oai_like_model_config_dict.keys()))
+                    st.session_state.llamafile_endpoint = next(iter(st.session_state.oai_like_model_config_dict.values())).get("base_url")
+                    st.session_state.llamafile_api_key = next(iter(st.session_state.oai_like_model_config_dict.values())).get("api_key")
                 load_oai_like_config_button = st.button(
                     label=i18n("Load model config"),
                     use_container_width=True,
@@ -499,6 +502,7 @@ with st.sidebar:
 
 
 float_init()
+st.write(st.session_state["chat_config_list"])
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
