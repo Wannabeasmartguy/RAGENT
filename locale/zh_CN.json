@@ -46,6 +46,7 @@
     "Embedding completed!": "文件嵌入完成！",
     "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.": "你还没有这个嵌入模型。请先输入 huggingface 模型 'repo_id' 来下载模型。",
     "Model downloaded successfully!": "模型下载成功！",
+    "Model config loaded successfully": "模型配置加载成功",
     "Local embedding model download": "本地嵌入模型下载",
     "Huggingface repo id": "Huggingface 仓库 id",
     "Paste huggingface repo id here": "在这里粘贴 huggingface 仓库 id",
@@ -103,5 +104,6 @@
     "System Prompt": "**系统指令**",
     "Reset model info": "重置模型信息",
     "Tools call": "工具调用",
+    "Click the Load button to apply the configuration": "请点击加载按钮以应用配置",
     "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "是否启用工具调用。仅对部分模型有效。对于不支持的工具调用功能的模型，默认使用普通聊天模式。"
 }

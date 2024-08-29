@@ -5,6 +5,7 @@ from streamlit import cache_resource
 import os
 import json
 import uuid
+import copy
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
@@ -22,7 +23,7 @@ i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 @lru_cache(maxsize=10)
 def model_selector(model_type):
     if model_type == "OpenAI" or model_type == "AOAI":
-        return ["gpt-3.5-turbo","gpt-35-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
+        return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
     elif model_type == "Ollama":
         try:
            model_list = get_ollama_model_list() 
@@ -198,6 +199,7 @@ def detect_and_decode(data_bytes):
 
 def config_list_postprocess(config_list: List[Dict]):
     """将config_list中，每个config的params字段合并到各个config中。"""
+    config_list = copy.deepcopy(config_list)
     for config in config_list:
         if "params" in config:
             params = config["params"]
