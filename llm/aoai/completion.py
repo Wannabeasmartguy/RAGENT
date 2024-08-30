@@ -39,6 +39,7 @@ def aoai_config_generator(**kwargs):
         "params": {
             "temperature": kwargs.get("temperature", 0.5),
             "top_p": kwargs.get("top_p", 1.0),
+            "max_tokens": kwargs.get("max_tokens", 4096),
             "stream": kwargs.get("stream", False),
         }
     }

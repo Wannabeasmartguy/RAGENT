@@ -15,6 +15,7 @@ load_dotenv(override=True)
 
 from api.dependency import APIRequestHandler
 
+from llm.oai.completion import oai_config_generator
 from llm.aoai.completion import aoai_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.groq.completion import groq_openai_config_generator
@@ -116,7 +117,13 @@ def update_config_in_db_callback():
     Update config in db.
     """    
     if st.session_state["model_type"] == "OpenAI":
-        pass
+        config_list = oai_config_generator(
+            model = st.session_state.model,
+            max_tokens = st.session_state.max_tokens,
+            temperature = st.session_state.temperature,
+            top_p = st.session_state.top_p,
+            stream = st.session_state.if_stream,
+        )
     elif st.session_state["model_type"] == "AOAI":
         config_list = aoai_config_generator(
             model = st.session_state.model,

@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 from pydantic import ValidationError
 
 from configs.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
+from llm.oai.completion import oai_config_generator
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
@@ -140,7 +141,13 @@ def update_rag_config_in_db_callback():
     Update rag chat llm config in db.
     """ 
     if st.session_state["model_type"] == "OpenAI":
-        pass
+        config_list = oai_config_generator(
+            model = st.session_state.model,
+            max_tokens = st.session_state.max_tokens,
+            temperature = st.session_state.temperature,
+            top_p = st.session_state.top_p,
+            stream = st.session_state.if_stream,
+        )
     elif st.session_state["model_type"] == "AOAI":
         config_list = aoai_config_generator(
             model = st.session_state.model,
