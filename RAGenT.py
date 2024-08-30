@@ -64,6 +64,12 @@ try:
 except:
     st.rerun()
 
+
+# ********** Initialize session state **********
+
+if "prompt_disabled" not in st.session_state:
+    st.session_state.prompt_disabled = False
+
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
     st.session_state.oai_like_model_config_dict = {
@@ -106,6 +112,9 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
 
 def update_config_in_db_callback():
+    """
+    Update config in db.
+    """    
     if st.session_state["model_type"] == "OpenAI":
         pass
     elif st.session_state["model_type"] == "AOAI":
@@ -514,7 +523,11 @@ st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
-prompt = float_chat_input_with_audio_recorder(if_tools_call=if_tools_call)
+if st.session_state.model == None:
+    st.session_state.prompt_disabled = True
+else:
+    st.session_state.prompt_disabled = False
+prompt = float_chat_input_with_audio_recorder(if_tools_call=if_tools_call, prompt_disabled=st.session_state.prompt_disabled)
 # # st.write(filter_out_selected_tools_list(st.session_state.tools_popover))
 # st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))
 
@@ -632,4 +645,4 @@ if prompt and st.session_state.model != None:
                     )
                 )
 elif st.session_state.model == None:
-    st.error("Please select a model")
+    st.error(i18n("Please select a model"))

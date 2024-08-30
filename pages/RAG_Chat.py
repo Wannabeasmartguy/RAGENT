@@ -80,6 +80,11 @@ language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 
+# ********** Initialize session state **********
+
+if "prompt_disabled" not in st.session_state:
+    st.session_state.prompt_disabled = False
+
 # Initialize openai-like model config
 if "oai_like_model_config_dict" not in st.session_state:
     st.session_state.oai_like_model_config_dict = {
@@ -131,6 +136,9 @@ if "custom_rag_sources" not in st.session_state:
         st.session_state.custom_rag_sources = {}
 
 def update_rag_config_in_db_callback():
+    """
+    Update rag chat llm config in db.
+    """ 
     if st.session_state["model_type"] == "OpenAI":
         pass
     elif st.session_state["model_type"] == "AOAI":
@@ -563,47 +571,23 @@ with st.sidebar:
         st.toast(body=i18n(f"Chat history exported to {filename}"),icon="🎉")
 
 
-# # 根据选择的模型和类型，生成相应的 config_list
-# if st.session_state["model_type"] == "AOAI":
-#     config_list = aoai_config_generator(model=st.session_state["model"])
-# if st.session_state["model_type"] == "OpenAI":
-#     config_list = aoai_config_generator(
-#         model=st.session_state["model"],
-#         api_key=os.getenv("OPENAI_API_KEY"),
-#         base_url="https://api.openai.com/v1",
-#         api_type="openai",
-#         api_version=None,
-#     )
-# if st.session_state["model_type"] == "Ollama":
-#     config_list = ollama_config_generator(model=st.session_state["model"])
-# elif st.session_state["model_type"] == "Groq":
-#     config_list = groq_openai_config_generator(model=st.session_state["model"])
-# elif st.session_state["model_type"] == "Llamafile":
-#     if st.session_state["llamafile_api_key"] == "":
-#         custom_api_key = "noneed"
-#     else:
-#         custom_api_key = st.session_state["llamafile_api_key"]
-#     config_list = llamafile_config_generator(
-#         model = st.session_state["model"],
-#         base_url = st.session_state["llamafile_endpoint"],
-#         api_key = custom_api_key,
-#     )
-# elif st.session_state["model_type"] == "LiteLLM":
-#     config_list = litellm_config_generator(model=st.session_state["model"])
-# # logger.debug(f"Config List: {config_list}")
-
-
 agentchat_processor = AgentChatProcessor(
     requesthandler=requesthandler,
     model_type=select_box0,
     llm_config=st.session_state.rag_chat_config_list[0],
 )
 
-st.write(st.session_state.rag_chat_config_list)
+# st.write(st.session_state.rag_chat_config_list)
 st.title(st.session_state.rag_run_name)
 write_custom_rag_chat_history(st.session_state.custom_rag_chat_history,st.session_state.custom_rag_sources)
 
-prompt = st.chat_input("What is up?")
+# Control the chat input to prevent error when the model is not selected
+if st.session_state.model == None:
+    st.session_state.prompt_disabled = True
+else:
+    st.session_state.prompt_disabled = False
+prompt = st.chat_input("What is up?", disabled=st.session_state.prompt_disabled)
+
 if prompt and st.session_state.model != None:
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -707,4 +691,4 @@ if prompt and st.session_state.model != None:
                 a.text(f"引用文件{file_name}")
                 a.code(file_content,language="plaintext")
 elif st.session_state.model == None:
-    st.error("Please select a model")
+    st.error(i18n("Please select a model"))
