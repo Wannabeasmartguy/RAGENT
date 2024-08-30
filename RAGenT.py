@@ -364,7 +364,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.run_id,
                         run_name="New dialog",
-                        llm=st.session_state.chat_config_list[0],
+                        llm=aoai_config_generator(model=None)[0],
                         memory={
                             "chat_history": []
                         },
@@ -373,6 +373,9 @@ with st.sidebar:
                         }
                     )
                 )
+                st.session_state.chat_history = []
+                st.session_state.current_run_id_index = 0
+                st.session_state.chat_config_list = [chat_history_storage.get_specific_run(st.session_state.run_id).llm]
             add_dialog_button = st.button(
                 label=i18n("Add a new dialog"),
                 use_container_width=True,
@@ -382,11 +385,13 @@ with st.sidebar:
             def delete_dialog_callback():
                 chat_history_storage.delete_run(st.session_state.run_id)
                 if len(chat_history_storage.get_all_run_ids()) == 0:
+                    st.session_state.run_id = str(uuid4())
                     chat_history_storage.upsert(
                         AssistantRun(
                             name="assistant",
                             run_id=st.session_state.run_id,
                             run_name="New dialog",
+                            llm=aoai_config_generator(model=None)[0],
                             memory={
                                 "chat_history": []
                             },
@@ -395,9 +400,12 @@ with st.sidebar:
                             }
                         )
                     )
+                    st.session_state.chat_config_list = [chat_history_storage.get_specific_run(st.session_state.run_id).llm]
                     st.session_state.chat_history = []
                 else:
                     st.session_state.run_id = chat_history_storage.get_all_run_ids()[0]
+                    st.session_state.chat_history = chat_history_storage.get_specific_run(st.session_state.run_id).memory["chat_history"]
+                    st.session_state.chat_config_list = [chat_history_storage.get_specific_run(st.session_state.run_id).llm]
                 # st.rerun()
             delete_dialog_button = st.button(
                 label=i18n("Delete selected dialog"),
@@ -502,7 +510,6 @@ with st.sidebar:
 
 
 float_init()
-st.write(st.session_state["chat_config_list"])
 st.title(st.session_state.run_name)
 write_chat_history(st.session_state.chat_history)
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
