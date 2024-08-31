@@ -3,8 +3,10 @@ from collections import defaultdict
 from modules.retrievers.base import BaseRetriever
 import asyncio
 
+
 def default_preprocessing_func(text: str) -> List[str]:
     return text.split()
+
 
 class BM25Retriever(BaseRetriever):
     """`BM25` retriever without Elasticsearch."""
@@ -29,7 +31,7 @@ class BM25Retriever(BaseRetriever):
         bm25_params: Optional[Dict[str, Any]] = None,
         preprocess_func: Callable[[str], List[str]] = default_preprocessing_func,
         **kwargs: Any,
-    ) -> 'BM25Retriever':
+    ) -> "BM25Retriever":
         """
         Create a BM25Retriever from a list of texts.
         Args:
@@ -67,7 +69,7 @@ class BM25Retriever(BaseRetriever):
         bm25_params: Optional[Dict[str, Any]] = None,
         preprocess_func: Callable[[str], List[str]] = default_preprocessing_func,
         **kwargs: Any,
-    ) -> 'BM25Retriever':
+    ) -> "BM25Retriever":
         """
         Create a BM25Retriever from a list of Documents.
         Args:
@@ -92,9 +94,11 @@ class BM25Retriever(BaseRetriever):
         processed_query = self.preprocess_func(query)
         return_docs = self.vectorizer.get_top_n(processed_query, self.docs, n=self.k)
         return return_docs
-    
+
     def invoke_format_to_str(self, query: str) -> str | Dict:
-        raise NotImplementedError("BM25Retriever does not support invoke_format_to_str.")
+        raise NotImplementedError(
+            "BM25Retriever does not support invoke_format_to_str."
+        )
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
         return self.invoke(query)

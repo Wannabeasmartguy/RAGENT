@@ -29,13 +29,15 @@ class ContextualCompressionRetriever(BaseRetriever):
             return list(compressed_docs)
         else:
             return []
-    
+
     def invoke_format_to_str(self, query: str) -> str:
         """将处理过（一般是重排序）的结果格式化为字符串，其中invoke的结果为dict，包含'page_content'字段"""
         results = self.invoke(query)
-        results_str = "\n\n".join([f"Document {i+1}:\n{doc['page_content']}" for i, doc in enumerate(results)])
-        page_content = [doc['page_content'] for doc in results]
-        metadatas = [doc['metadatas'] for doc in results if 'metadats' in doc]
+        results_str = "\n\n".join(
+            [f"Document {i+1}:\n{doc['page_content']}" for i, doc in enumerate(results)]
+        )
+        page_content = [doc["page_content"] for doc in results]
+        metadatas = [doc["metadatas"] for doc in results if "metadats" in doc]
         return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
@@ -49,19 +51,26 @@ class ContextualCompressionRetriever(BaseRetriever):
         """
         docs = await self.base_retriever.ainvoke(query)
         if docs:
-            compressed_docs = await self.base_compressor.acompress_documents(docs, query)
+            compressed_docs = await self.base_compressor.acompress_documents(
+                docs, query
+            )
             return list(compressed_docs)
         else:
             return []
-        
+
 
 if __name__ == "__main__":
+
     class BaseCompressor:
-        def compress_documents(self, docs: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+        def compress_documents(
+            self, docs: List[Dict[str, Any]], query: str
+        ) -> List[Dict[str, Any]]:
             # 实现文档压缩逻辑
             return docs
 
-        async def acompress_documents(self, docs: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+        async def acompress_documents(
+            self, docs: List[Dict[str, Any]], query: str
+        ) -> List[Dict[str, Any]]:
             # 实现异步文档压缩逻辑
             return docs
 
