@@ -33,6 +33,7 @@ from tools.toolkits import TOOLS_LIST, TOOLS_MAP
 
 from modules.rag.builder.builder import RAGBuilder
 from modules.llm.openai import OpenAILLM
+from modules.llm.aoai import AzureOpenAILLM
 from modules.retrievers.vector.chroma import ChromaRetriever, ChromaContextualRetriever
 from modules.retrievers.bm25 import BM25Retriever
 from modules.rerank.bge import BgeRerank
@@ -330,11 +331,19 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         config_copy = copy.deepcopy(self.llm_config)
         params = config_copy.pop("params")
         params.pop("stream")
+
         # 创建LLM
-        llm = OpenAILLM(
-            **config_copy,
-            **params
-        )
+        if "api_type" in config_copy:
+            if config_copy["api_type"] == "azure":
+                llm = AzureOpenAILLM(
+                    **config_copy,
+                    **params
+                )
+        else:
+            llm = OpenAILLM(
+                **config_copy,
+                **params
+            )
 
         # 创建retriever
         # 先读取embedding配置

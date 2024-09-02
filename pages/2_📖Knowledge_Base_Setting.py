@@ -64,7 +64,7 @@ with st.sidebar:
     logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
     st.image(logo_path)
 
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.write("---")
     st.info(
         i18n(
