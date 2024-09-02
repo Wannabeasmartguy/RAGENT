@@ -11,4 +11,3 @@ enableXsrfProtection=false
 
 [global]
 disableWidgetStateDuplicationWarning = false
-showWarningOnDirectExecution = true

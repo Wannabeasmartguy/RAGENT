@@ -670,7 +670,7 @@ with st.sidebar:
                 run_id=st.session_state.rag_run_id,
                 run_name=st.session_state.rag_run_name,
                 memory={"chat_history": st.session_state.custom_rag_chat_history},
-                task_data={},
+                task_data={"source_documents": st.session_state.custom_rag_sources},
             )
         )
         st.session_state.rag_current_run_id_index = rag_run_id_list.index(
@@ -682,7 +682,7 @@ with st.sidebar:
         chat_history = "\n".join(
             [
                 f"# {message['role']} \n\n{message['content']}\n\n"
-                for message in st.session_state.agent_chat_history_total
+                for message in st.session_state.custom_rag_chat_history
             ]
         )
         # st.markdown(chat_history)
@@ -770,9 +770,12 @@ if prompt and st.session_state.model != None:
                     name="assistant",
                     run_name=st.session_state.rag_run_name,
                     run_id=st.session_state.rag_run_id,
-                    llm=config_list[0],
+                    llm=st.session_state.rag_chat_config_list[0],
                     memory={"chat_history": st.session_state.custom_rag_chat_history},
                     task_data={"source_documents": st.session_state.custom_rag_sources},
+                    assistant_data={
+                        "model_type": st.session_state.model_type,
+                    }
                 )
             )
 
@@ -818,6 +821,9 @@ if prompt and st.session_state.model != None:
                     llm=st.session_state.rag_chat_config_list[0],
                     memory={"chat_history": st.session_state.custom_rag_chat_history},
                     task_data={"source_documents": st.session_state.custom_rag_sources},
+                    assistant_data={
+                        "model_type": st.session_state.model_type,
+                    }
                 )
             )
 

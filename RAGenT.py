@@ -750,6 +750,10 @@ if prompt and st.session_state.model != None:
                             run_id=st.session_state.run_id,
                             llm=st.session_state.chat_config_list[0],
                             memory={"chat_history": st.session_state.chat_history},
+                            assistant_data={
+                                "system_prompt": st.session_state.system_prompt,
+                                "model_type": st.session_state.model_type,
+                            }
                         )
                     )
                 else:
@@ -797,6 +801,7 @@ if prompt and st.session_state.model != None:
                         memory={"chat_history": st.session_state.chat_history},
                         assistant_data={
                             "system_prompt": st.session_state.system_prompt,
+                            "model_type": st.session_state.model_type,
                         },
                     )
                 )
