@@ -88,7 +88,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
                 default=list(TO_TOOLS.keys())[:2],
                 help=i18n("Select functions you want to use."),
                 # format_func 将所有名称开头的"tool_"去除
-                format_func=lambda x: x.replace("tool_",""),
+                format_func=lambda x: x.replace("tool_","").replace("_"," "),
                 key="tools_popover"
             )
         character_input_column, voice_input_column = st.columns([0.9,0.1])
