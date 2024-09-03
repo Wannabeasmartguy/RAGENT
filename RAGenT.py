@@ -312,29 +312,44 @@ with st.sidebar:
                 on_change=update_config_in_db_callback,
             )
         elif select_box0 == "Llamafile":
+            def get_selected_llamafile_model() -> str:
+                try:
+                    return st.session_state.chat_config_list[0].get("model")
+                except:
+                    return oai_model_config_selector(
+                        st.session_state.oai_like_model_config_dict
+                    )[0]
             select_box1 = model_choosing_container.text_input(
                 label=i18n("Model"),
-                value=oai_model_config_selector(
-                    st.session_state.oai_like_model_config_dict
-                )[0],
+                value=get_selected_llamafile_model(),
                 key="model",
                 placeholder=i18n("Fill in custom model name. (Optional)"),
             )
             with model_choosing_container.popover(
                 label=i18n("Llamafile config"), use_container_width=True
             ):
+                def get_selected_llamafile_endpoint() -> str:
+                    try:
+                        return st.session_state.chat_config_list[0].get("base_url")
+                    except:
+                        return oai_model_config_selector(
+                            st.session_state.oai_like_model_config_dict
+                        )[1]
                 llamafile_endpoint = st.text_input(
                     label=i18n("Llamafile endpoint"),
-                    value=oai_model_config_selector(
-                        st.session_state.oai_like_model_config_dict
-                    )[1],
+                    value=get_selected_llamafile_endpoint(),
                     key="llamafile_endpoint",
                 )
+                def get_selected_llamafile_api_key() -> str:
+                    try:
+                        return st.session_state.chat_config_list[0].get("api_key")
+                    except:
+                        return oai_model_config_selector(
+                            st.session_state.oai_like_model_config_dict
+                        )[2]
                 llamafile_api_key = st.text_input(
                     label=i18n("Llamafile API key"),
-                    value=oai_model_config_selector(
-                        st.session_state.oai_like_model_config_dict
-                    )[2],
+                    value=get_selected_llamafile_api_key(),
                     key="llamafile_api_key",
                     placeholder=i18n("Fill in your API key. (Optional)"),
                 )

@@ -10,4 +10,4 @@ secondaryBackgroundColor="#f3f4f6"
 enableXsrfProtection=false
 
 [global]
-disableWidgetStateDuplicationWarning = false
+disableWidgetStateDuplicationWarning = true
