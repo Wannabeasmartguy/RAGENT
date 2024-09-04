@@ -89,7 +89,19 @@ class ConversationRAG(BaseRAG):
         query: str,
         system_prompt: Optional[str] = None,
         stream: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> BaseRAGResponse:
+        """
+        Invoke the RAG model with the given query and system prompt.
+        The context messages and source documents will be combinded into system prompt, which means the system prompt will be updated with the new context messages and source documents.
+        
+        Args:
+            query (str): The query to be answered.
+            system_prompt (str, optional): The system prompt to be used. Defaults to None.
+            stream (bool, optional): Whether to stream the response. Defaults to False.
+        
+        Returns:
+            BaseRAGResponse: The response from the RAG model.
+        """
         retrieve_result = self.retriever.invoke_format_to_str(query=query)
         documents = retrieve_result.get("result")
         system_prompt = self._build_system_prompt_with_documents_and_messages(
@@ -103,6 +115,16 @@ class ConversationRAG(BaseRAG):
         # deepcopy是为了防止messages被修改
         messages = copy.deepcopy(self.retriever.context_messages)
         messages.append({"role": "user", "content": query})
+        
+        # 如果messages中已包含system prompt，使用新构建的system prompt替换
+        if "system" in [m["role"] for m in messages]:
+            for i, message in enumerate(messages):
+                if message["role"] == "system":
+                    messages[i]["content"] = system_prompt
+                    break
+        # 如果messages中不包含system prompt，则添加
+        else:
+            messages.insert(0, {"role": "system", "content": system_prompt})
 
         return BaseRAGResponse(
             response_id=str(uuid4()),
@@ -119,7 +141,21 @@ class ConversationRAG(BaseRAG):
         messages: List[Dict[str, Any]],
         system_prompt: Optional[str] = None,
         stream: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> BaseRAGResponse:
+        """
+        Invoke the RAG model with the given query, messages and system prompt.
+        The context messages and source documents will be combinded into the latest user message in messages.
+        Different from `invoke`, `invoke_with_wrapped_prompt` will not update the system prompt, which means llm may not have a better way to focus on all contexts.
+
+        Args:
+            query (str): The query to be answered.
+            messages (List[Dict[str, Any]]): The messages to be used, don't include the query.
+            system_prompt (str, optional): The system prompt to be used. Defaults to None.
+            stream (bool, optional): Whether to stream the response. Defaults to False.
+        
+        Returns:
+            BaseRAGResponse: The response from the RAG model.
+        """
         retrieve_result = self.retriever.invoke_format_to_str(
             query=query,
             messages=messages,
