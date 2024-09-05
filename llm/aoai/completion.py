@@ -31,7 +31,7 @@ def aoai_config_generator(**kwargs):
         config (list): 配置列表
     '''
     config = {
-        "model": kwargs.get("model", "gpt-3.5-turbo").replace(".", ""),
+        "model": kwargs.get("model", "gpt-3.5-turbo"),
         "api_key": os.getenv("AZURE_OAI_KEY",default=kwargs.get("api_key","noaoaikey")),
         "base_url": os.getenv("AZURE_OAI_ENDPOINT",default=kwargs.get("base_url","noaoaiendpoint")),
         "api_type": os.getenv("API_TYPE",default=kwargs.get("api_type","azure")),
@@ -39,6 +39,7 @@ def aoai_config_generator(**kwargs):
         "params": {
             "temperature": kwargs.get("temperature", 0.5),
             "top_p": kwargs.get("top_p", 1.0),
+            "max_tokens": kwargs.get("max_tokens", 4096),
             "stream": kwargs.get("stream", False),
         }
     }

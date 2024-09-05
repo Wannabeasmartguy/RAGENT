@@ -2,9 +2,9 @@
 
 **English** | [中文文档](README_zh.md)
 
-Experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
+Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 
-![image](https://github.com/Wannabeasmartguy/RAGenT/assets/107250451/26bb3f1e-e784-4e48-9b09-7050c3e98d27)
+![image](https://github.com/user-attachments/assets/d78df76f-ee2a-4dbd-955f-5c7b790c9d6d)
 
 ## Features
 
@@ -12,10 +12,12 @@ Chat and Agent interactions:
 - [x] 💭 Simple, easy-to-use chat box interface.
 - [x] 🌏️ Language options (Simplified Chinese, English)
 - [x] 🔧 Inference support for multiple (local) model sources (Azure OpenAI, Groq, ollama, llamafile)
+- [x] Native Function Call (OpenAI, Azure OpenAI, OpenAI Like, Ollama)
 - [x] 🤖 Multiple Agent modes on-premises
 - [x] 🖥️ Local storage of dialog data and management
 
 Knowledgebase:
+- [x] **Native implementation** of Retrieval Augmentation Generation (RAG), lightweight and efficient
 - [x] Optional embedding models (Hugging Face/OpenAI)
 - [x] Easy-to-use knowledge base management
 - [x] Hybrid search, reranking, and specified file retrieval
@@ -24,17 +26,45 @@ Knowledgebase:
 
 ## More details
 
-Agent Conversation:
+### General
 
-Function Call:
-![function call culculator](https://github.com/Wannabeasmartguy/RAGenT/assets/107250451/e457586a-f52d-41b2-950b-77bb08c42c94)
+#### Voice to text input:
 
-Reflection:
-![agentchat-en](https://github.com/Wannabeasmartguy/GPT-Gradio-Agent/assets/107250451/e2cf62b3-447e-4b85-96dd-0bdd1e9e822f)
+![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
 
-You can check out the specifics of the reflection:
+### RAG Chat
 
-![agentchat_expand_thought-en](https://github.com/Wannabeasmartguy/GPT-Gradio-Agent/assets/107250451/ed33578e-e463-4eb6-996a-786c0d517eb3)
+![image](https://github.com/user-attachments/assets/03d56128-9fe1-48d4-98ae-9beeae3cca52)
+
+Set up the model (sidebar) and view detailed references:
+
+![image](https://github.com/user-attachments/assets/1c2daa5f-b348-4f27-845c-d9499c517456)
+
+Configure RAG ：
+
+![image](https://github.com/user-attachments/assets/e4f31a65-94ff-417b-af21-677ff56c7cd7)
+
+### Function Call
+
+Function calls are supported on both `Chat` and `AgentChat` pages, but are implemented differently.
+
+#### Chat Page
+
+The Function Calls on this page are native and work for all OpenAI Compatible models, but require the model itself to support Function calls.
+
+![image](https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715)
+
+> You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
+
+#### AgentChat Page
+
+Relying on the AutoGen framework for implementation (testing), please refer to the documentation of [AutoGen](https://github.com/microsoft/autogen) for model compatibility.
+
+Function call can significantly enhance the capabilities of LLM and currently supports OpenAI, Azure OpenAI, Groq, and local models.（[by LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
+
+![openai function call](https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67)
+
+> You can also customize the function you want to call, please note that AutoGen's function writing is **different** from the native function calling writing rules, please refer to the [Official Documentation](https://microsoft.github.io/autogen/docs/tutorial/tool-use/) and this project's [tools.py](llm/aoai/tools/tools.py).
 
 ## Quick start
 
@@ -61,9 +91,9 @@ Run: Run `python startup.py` on the command line can start it.
 
 ## Route
 
-- [ ] Chat history and configuration local persistence
+- [x] Chat history and configuration local persistence
     - [x] Chat history local persistence
-    - [ ] Configuration local persistence
+    - [x] Configuration local persistence
 - [ ] Increase the number of preset Agents
 - [ ] Mixed retrieval, reordering and specified file retrieval
 - [ ] 📚️Agent-driven Knowledge Base

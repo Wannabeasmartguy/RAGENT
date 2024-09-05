@@ -13,13 +13,22 @@ class BaseRetriever(ABC):
 
     @abstractmethod
     def invoke(self, query: str) -> List[Dict[str, Any]]:
+        """
+        Invoke the retriever with a query and return the results
+        Results format: Dict[str, Any], include two keys: 'page_content' and 'matadata'
+        """
         return self.docs
 
     def _invoke(self, query: str):
         pass
 
     @abstractmethod
-    def invoke_format_to_str(self, query: str) -> str | Dict:
+    def invoke_format_to_str(self, query: str) -> Dict[str, Any]:
+        """
+        Invoke the retriever with a query and return the results in `dict` format, which include a 
+        key 'result' is the string of the results.
+        Besides, the results also contain key 'page_content' and 'matadata'.
+        """
         pass
 
     @abstractmethod
@@ -76,7 +85,10 @@ class BaseContextualRetriever(BaseRetriever):
             query=query
         )
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
-        return "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        results_str = "\n\n".join([f"Document {index+1}: \n{result}" for index, result in enumerate(results['documents'][0])])
+        page_content = results['documents'][0]
+        metadatas = results['metadatas'][0]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     def _build_contextual_query(
             self, 
@@ -86,6 +98,8 @@ class BaseContextualRetriever(BaseRetriever):
         ) -> str:
         """构建新的query"""
         # 将messages转换为字符串
+        if messages is None:
+            messages = []
         messages_str = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
         # 构建新的query
         new_query = (

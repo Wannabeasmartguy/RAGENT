@@ -4,6 +4,7 @@ from uuid import uuid4
 import os
 import json
 import requests
+import copy
 
 from autogen import OpenAIWrapper
 from groq import Groq
@@ -27,9 +28,19 @@ from storage.db.sqlite import (
     SqlEmbeddingConfigStorage
 )
 from model.config.llm import OpenAILikeLLMConfiguration
-from lc.rag.basic import LCOpenAILikeRAGManager, LCAzureOpenAIRAGManager
 from utils.tool_utils import create_tools_call_completion
 from tools.toolkits import TOOLS_LIST, TOOLS_MAP
+
+from modules.rag.builder.builder import RAGBuilder
+from modules.llm.openai import OpenAILLM
+from modules.llm.aoai import AzureOpenAILLM
+from modules.retrievers.vector.chroma import ChromaRetriever, ChromaContextualRetriever
+from modules.retrievers.bm25 import BM25Retriever
+from modules.rerank.bge import BgeRerank
+from modules.retrievers.emsemble import EnsembleRetriever
+from modules.retrievers.comtextual_compression import ContextualCompressionRetriever
+from modules.rag.builder.builder import RAGBuilder
+from modules.types.rag import BaseRAGResponse
 
 
 class ChatProcessor(ChatProcessStrategy):
@@ -297,66 +308,80 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
                 }
             )
             return response
+    
+    def create_custom_rag_response(
+        self,
+        *,
+        collection_name: str,
+        messages: List[Dict[str, str]],
+        stream: bool = False,
+        is_rerank: bool = False,
+        is_hybrid_retrieve: bool = False,
+        hybrid_retriever_weight: float = 0.5,
+    ) -> BaseRAGResponse:
+        '''
+        使用完全自定义的 RAG 模块，创建一个 RAG 响应
+        '''
+        # 处理messages
+        messages_copy = copy.deepcopy(messages)
+        user_prompt = messages_copy.pop(-1)["content"]
+        context_messages = messages_copy
+
+        # 处理config
+        config_copy = copy.deepcopy(self.llm_config)
+        params = config_copy.pop("params")
+        params.pop("stream")
+
+        # 创建LLM
+        if "api_type" in config_copy:
+            if config_copy["api_type"] == "azure":
+                llm = AzureOpenAILLM(
+                    **config_copy,
+                    **params
+                )
+        else:
+            llm = OpenAILLM(
+                **config_copy,
+                **params
+            )
+
+        # 创建retriever
+        # 先读取embedding配置
+        embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
+        with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+            embedding_config = json.load(f)
+        try:
+            collection_config = embedding_config.get(collection_name, {})
+            embedding_model_or_path = collection_config.get("embedding_model_name_or_path")
+        except Exception as e:
+            raise ValueError(f"embedding_config_file_path: {embedding_config_file_path} 中没有找到collection_name: {collection_name} 的配置") from e
         
-    def create_rag_agent_response_noapi(
-            self,
-            name: str,
-            messages: List[Dict[str, str]],
-            is_rerank: bool,
-            is_hybrid_retrieve: bool,
-            hybrid_retriever_weight: float,
-    ) -> Dict[str, Any]:
-        '''
-        创建一个agentchat的lc-rag响应
-
-        Args:
-            name (str): 知识库名称
-            messages (str): 完整的对话上下文
-            is_rerank (bool): 是否进行知识库检索结果 rerank
-            is_hybrid_retrieve (bool): 是否进行混合检索
-            hybrid_retriever_weight (float): 混合检索的权重
-            llm_config (LLMConfig): LLM配置
-            metadatas (Dict): 知识库查询得到的metadata
-        '''
-        llm_config = LLMConfig(**self.llm_config)
-        llm_params = LLMParams(**self.llm_config.get("params", {}))
-
-        # Azure OpenAI 需要指定 api_type 和 api_version
-        if (llm_config.api_type != None and llm_config.api_version != None) or llm_config.api_type == 'azure':
-            # 将 `model` 修改为 `azure_deployment`
-            llm_config_dict = llm_config.dict(exclude={"model","base_url","api_type","top_p"})
-            llm_config_dict["azure_deployment"] = llm_config.model.replace(".", "")
-            llm_config_dict["azure_endpoint"] = llm_config.base_url
-            llm_config_dict["model_version"] = llm_config.api_version
-            rag_manager = LCAzureOpenAIRAGManager(
-                llm_config=llm_config_dict,
-                llm_params=llm_params.dict(exclude="stream"),
-                collection=name
-            )
-        # 其他使用 OpenAI Like 尝试
-        else:
-            rag_manager = LCOpenAILikeRAGManager(
-                llm_config=llm_config.dict(),
-                llm_params=llm_params.dict(),
-                collection=name
-            )
-
-        if len(messages) == 1:
-            prompt = messages[0]["content"]
-            chat_history = []
-        else:
-            prompt = messages[-1]["content"]
-            chat_history = messages[:-1]
-
-        response = rag_manager.invoke(
-            prompt=prompt,
-            chat_history=chat_history,
-            is_rerank=is_rerank,
-            is_hybrid_retrieve=is_hybrid_retrieve,
-            hybrid_retriever_weight=hybrid_retriever_weight,
-            sources_num=6
+        retriever = ChromaContextualRetriever(
+            llm=llm,
+            collection_name=collection_name,
+            embedding_model=embedding_model_or_path,
         )
+        if is_hybrid_retrieve:
+            bm25_retriever = BM25Retriever.from_texts(
+                texts=retriever.retriever.collection.get()['documents'],
+            )
+            retriever = EnsembleRetriever(
+                retrievers=[bm25_retriever, retriever],
+                weights=[hybrid_retriever_weight, 1 - hybrid_retriever_weight],
+            )
+        if is_rerank:
+            reranker = BgeRerank()
+            retriever = ContextualCompressionRetriever(
+                base_compressor=reranker,
+                base_retriever=retriever
+            )
+        retriever.update_context_messages(context_messages)
 
+        # 创建RAG
+        rag_builder = RAGBuilder()
+        rag = rag_builder.with_llm(llm).with_retriever(retriever).for_rag_type("ConversationRAG").build()
+
+        response = rag.invoke(query=user_prompt, stream=stream)
         return response
 
     

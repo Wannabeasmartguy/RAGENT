@@ -1,12 +1,13 @@
-from typing import Annotated, Literal, List, Dict, Callable, Union
+from typing import Optional, Literal, List, Dict, Callable, Union
 from trafilatura import fetch_url, extract
 from utils.tool_utils import function_to_json
 from utils.log.logger_config import setup_logger
 from loguru import logger
 import json
+import requests
 
 
-Operator = Literal["+", "-", "*", "/"]
+# Operator = Literal["+", "-", "*", "/"]
 def tool_calculator(expression:str) -> str:
     """
     A tool that calculates the result of a given mathematical expression, support basic operations of addition, subtraction, multiplication and division.The format for the expression is like "(3+5)*8/2".
@@ -84,9 +85,71 @@ def tool_calculator(expression:str) -> str:
     return str(values[0])
 
 
-def tool_web_scraper(url: str) -> str:
-    '''Useful to scrape web pages, and extract text content.'''
-    return extract(fetch_url(url),url=url,include_links=True)
+# def tool_web_scraper(url: str) -> str:
+#     '''Useful to scrape web pages, and extract text content.'''
+#     return extract(fetch_url(url),url=url,include_links=True)
+
+
+def tool_jina_web_reader(
+    url: str, 
+    api_key: str = "",
+    content_format: str = "markdown",
+    browser_locale: str = "en-US",
+) -> str:
+    '''
+    Useful to scrape web pages, and extract text content.
+    
+    :param url: The URL to scrape
+    :param api_key: The API key to use for the search, just use "" is ok
+    :param content_format: The format of the content to return, can be one of the following: "text", "markdown", "html". Just use markdown by default is ok.
+    :param browser_locale: Control the browser locale to render the page. Lots of websites serve different content based on the locale. If the query is in Chinese, you can set it to "zh-CN". If the query is in English or other languages, you can set it to "en-US".
+    '''
+    logger.info(f"JinaAI web reader is called with url: {url}")
+    url_prefix = "https://r.jina.ai/"
+    header = {
+        "X-Return-Format": content_format,
+        "X-Locale": browser_locale,
+    }
+    if api_key and api_key != "":
+        header.update({"Authorization": f"Bearer {api_key}"})
+    response = requests.get(url_prefix + url, headers=header)
+
+    if response.status_code != 200:
+        return f"Error: JinaAI web reader returned status code {response.status_code}"
+    else:
+        logger.info(f"JinaAI web reader response length: {len(response.text)}")
+        return response.text
+
+
+def tool_jina_web_searcher(
+    query: str,
+    api_key: str = "",
+    content_format: str = "markdown",
+    browser_locale: str = "en-US",
+) -> str:
+    '''
+    A web search tool, provided by JinaAI, is useful when a web search is needed for more relevant information.
+    
+    :param query: The query to search for
+    :param api_key: The API key to use for the search, just use "" is ok
+    :param content_format: The format of the content to return, can be one of the following: "text", "markdown", "html". Just use markdown by default is ok.
+    :param browser_locale: Control the browser locale to render the page. Lots of websites serve different content based on the locale. If the query is in Chinese, you can set it to "zh-CN". If the query is in English or other languages, you can set it to "en-US".
+    '''
+    logger.info(f"JinaAI web searcher is called with query: {query}")
+    url_prefix = "https://s.jina.ai/"
+    header = {
+        "X-Return-Format": content_format,
+        'X-Locale': browser_locale,
+    }
+    if api_key and api_key != "":
+        header.update({"Authorization": f"Bearer {api_key}"})
+    response = requests.get(url_prefix + query, headers=header)
+
+    if response.status_code != 200:
+        return f"Error: JinaAI web searcher returned status code {response.status_code}"
+    else:
+        logger.info(f"JinaAI web searcher response length: {len(response.text)}")
+        return response.text
 
 
 # ************************************

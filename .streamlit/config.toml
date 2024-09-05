@@ -8,3 +8,6 @@ secondaryBackgroundColor="#f3f4f6"
 
 [server]
 enableXsrfProtection=false
+
+[global]
+disableWidgetStateDuplicationWarning = true

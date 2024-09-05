@@ -69,7 +69,7 @@ def back_to_bottom(script_container = st.empty(), buttom_container = st.empty())
     bottom_container.float(bottom_css)
 
 
-def float_chat_input_with_audio_recorder(if_tools_call: str = False) -> str:
+def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disabled: bool = False) -> str:
     """
     Create a container with a floating chat input and an audio recorder.
 
@@ -88,7 +88,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False) -> str:
                 default=list(TO_TOOLS.keys())[:2],
                 help=i18n("Select functions you want to use."),
                 # format_func 将所有名称开头的"tool_"去除
-                format_func=lambda x: x.replace("tool_",""),
+                format_func=lambda x: x.replace("tool_","").replace("_"," "),
                 key="tools_popover"
             )
         character_input_column, voice_input_column = st.columns([0.9,0.1])
@@ -101,7 +101,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False) -> str:
 
         # the chat input in the middle
         character_input_placeholder = character_input_column.empty()
-        prompt = character_input_placeholder.chat_input("What is up?")
+        prompt = character_input_placeholder.chat_input("What is up?", disabled=prompt_disabled)
 
         # the button (actually popover) on the right side of the chat input is to record audio
         voice_input_popover = voice_input_column.popover(

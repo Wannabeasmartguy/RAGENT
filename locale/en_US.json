@@ -16,6 +16,7 @@
     "Embed Model Type": "Embed Model Type",
     "Embed Model": "Embed Model",
     "Knowledge Base Choose": "Knowledge Base Choose",
+    "Knowledge Base Settings": "Knowledge Base Settings",
     "Reinitialize Knowledge Base": "Refresh",
     "Upload File": "Upload File",
     "File Handling Configuration": "File Preprocessing Configuration",
@@ -45,6 +46,7 @@
     "Embedding completed!": "Embedding completed!",
     "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.": "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.",
     "Model downloaded successfully!": "Model downloaded successfully!",
+    "Model config loaded successfully": "Model config loaded successfully",
     "Local embedding model download": "Local embedding model download",
     "Huggingface repo id": "Huggingface repo id",
     "Paste huggingface repo id here": "Paste huggingface repo id here",
@@ -59,7 +61,7 @@
     "Load selected dialog": "Load dialog",
     "Saved dialog settings": "Current dialog settings",
     "Dialog name": "Dialog name",
-    "Add a new dialog": "Add a new dialog",
+    "Add a new dialog": "Add dialog",
     "Save dialog": "Save dialog",
     "Delete selected dialog": "Delete dialog",
     "Collection": "Collection",
@@ -102,5 +104,8 @@
     "System Prompt": "**System Prompt**",
     "Reset model info": "Reset model info",
     "Tools call": "Tools call",
-    "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."
+    "Click the Load button to apply the configuration": "Click the Load button to apply the configuration",
+    "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.",
+    "Please select a model": "Please select a model you want to use.",
+    "Cited Source": "Cited Source"
 }

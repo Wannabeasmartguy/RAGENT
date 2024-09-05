@@ -1,14 +1,15 @@
-from openai import OpenAI
-from typing import List, Dict, Generator, Union, Optional
+from openai import AzureOpenAI
+from typing import List, Dict, Generator, Optional
 
 
-class OpenAILLM:
+class AzureOpenAILLM:
     def __init__(
         self,
+        *,
         model: str,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        *,
+        api_version: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         top_p: Optional[float] = None,
@@ -16,7 +17,9 @@ class OpenAILLM:
         presence_penalty: Optional[float] = None,
         **kwargs
     ):
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.client = AzureOpenAI(
+            api_key=api_key, azure_endpoint=base_url, api_version=api_version
+        )
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
