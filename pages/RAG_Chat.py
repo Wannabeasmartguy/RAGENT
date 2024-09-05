@@ -3,7 +3,6 @@ import os
 from uuid import uuid4
 from loguru import logger
 from datetime import datetime
-from sqlalchemy.exc import OperationalError
 from pydantic import ValidationError
 
 from configs.basic_config import (
@@ -47,10 +46,10 @@ def write_custom_rag_chat_history(chat_history, _sources):
                 response_sources_list = _sources[message["response_id"]]
 
                 for index, pop in enumerate(row1 + row2):
-                    a = pop.popover(f"引用文件", use_container_width=True)
+                    a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
                     file_name = response_sources_list["metadatas"][index]["source"]
                     file_content = response_sources_list["page_content"][index]
-                    a.text(f"引用文件{file_name}")
+                    a.text(i18n("Cited Source")+ ": " + file_name)
                     a.code(file_content, language="plaintext")
 
 
