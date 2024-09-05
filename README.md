@@ -2,7 +2,7 @@
 
 **English** | [中文文档](README_zh.md)
 
-Experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
+Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 
 ![image](https://github.com/user-attachments/assets/d78df76f-ee2a-4dbd-955f-5c7b790c9d6d)
 
@@ -32,11 +32,23 @@ Knowledgebase:
 
 ![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
 
+### RAG Chat
+
+![image](https://github.com/user-attachments/assets/03d56128-9fe1-48d4-98ae-9beeae3cca52)
+
+Set up the model (sidebar) and view detailed references:
+
+![image](https://github.com/user-attachments/assets/1c2daa5f-b348-4f27-845c-d9499c517456)
+
+Configure RAG ：
+
+![image](https://github.com/user-attachments/assets/e4f31a65-94ff-417b-af21-677ff56c7cd7)
+
 ### Function Call
 
 Function calls are supported on both `Chat` and `AgentChat` pages, but are implemented differently.
 
-#### `Chat` Page
+#### Chat Page
 
 The Function Calls on this page are native and work for all OpenAI Compatible models, but require the model itself to support Function calls.
 
@@ -44,7 +56,7 @@ The Function Calls on this page are native and work for all OpenAI Compatible mo
 
 > You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
 
-#### AgentChat 页面
+#### AgentChat Page
 
 Relying on the AutoGen framework for implementation (testing), please refer to the documentation of [AutoGen](https://github.com/microsoft/autogen) for model compatibility.
 
