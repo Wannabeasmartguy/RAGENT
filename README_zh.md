@@ -36,6 +36,18 @@
 
 ![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
 
+### RAG Chat
+
+![image](https://github.com/user-attachments/assets/54c254b6-44d6-4e38-a4f8-eebf1d826f75)
+
+设置模型（边栏）及查看详细引用：
+
+![image](https://github.com/user-attachments/assets/f825f2a4-8e26-4478-99fc-b8d18d33a4a7)
+
+配置 RAG ：
+
+![image](https://github.com/user-attachments/assets/53344031-0920-43f7-be2e-717119e4c081)
+
 ### Function Call（工具调用）
 
 在 `Chat` 和 `AgentChat` 页面均支持 Function call，但实现方式不同。
