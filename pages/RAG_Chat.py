@@ -67,6 +67,7 @@ VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
 
 chat_history_db_dir = os.path.join(parent_directory, "databases", "chat_history")
 chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
@@ -209,7 +210,7 @@ def update_rag_config_in_db_callback():
 set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
 
 with st.sidebar:
-    st.image(logo_path)
+    st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")

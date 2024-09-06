@@ -74,6 +74,7 @@ if not chat_history_storage.table_exists():
 
 VERSION = "0.1.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
+logo_text = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo_with_text_horizon.png")
 # Solve set_pages error caused by "Go to top/bottom of page" button.
 # Only need st.rerun once to fix it, and it works fine thereafter.
 try:
@@ -192,7 +193,7 @@ def update_config_in_db_callback():
 
 
 with st.sidebar:
-    st.image(logo_path)
+    st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")

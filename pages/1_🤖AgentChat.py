@@ -68,6 +68,7 @@ VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
 set_pages_configs_in_common(
     version=VERSION, title="RAGenT-AgentChat", page_icon_path=logo_path
 )
@@ -140,7 +141,7 @@ def initialize_agent_chat_history(
 
 
 with st.sidebar:
-    st.image(logo_path)
+    st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")

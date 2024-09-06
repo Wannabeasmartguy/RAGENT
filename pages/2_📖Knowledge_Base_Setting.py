@@ -62,7 +62,8 @@ with st.sidebar:
     current_directory = os.path.dirname(__file__)
     parent_directory = os.path.dirname(current_directory)
     logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
-    st.image(logo_path)
+    logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+    st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.write("---")
