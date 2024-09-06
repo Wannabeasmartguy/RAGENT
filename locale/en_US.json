@@ -107,5 +107,7 @@
     "Click the Load button to apply the configuration": "Click the Load button to apply the configuration",
     "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.": "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default.",
     "Please select a model": "Please select a model you want to use.",
-    "Cited Source": "Cited Source"
+    "Cited Source": "Cited Source",
+    "Multimodal Settings": "Multimodal Settings",
+    "Upload images": "Upload images"
 }

@@ -200,8 +200,8 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
-    dialog_settings_tab, model_settings_tab = st.tabs(
-        [i18n("Dialog Settings"), i18n("Model Settings")]
+    dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
+        [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
     )
 
     with model_settings_tab:
@@ -615,44 +615,52 @@ with st.sidebar:
             key="history_length",
         )
 
-    # 根据历史对话消息数，创建 MessageHistoryLimiter
-    max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
+        # 根据历史对话消息数，创建 MessageHistoryLimiter
+        max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
 
-    export_button_col, clear_button_col = st.columns(2)
-    export_button = export_button_col.button(
-        label=i18n("Export chat history"), use_container_width=True
-    )
-    clear_button = clear_button_col.button(
-        label=i18n("Clear chat history"), use_container_width=True
-    )
-    # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
-    if export_button:
-        # 将聊天历史导出为Markdown
-        chat_history = "\n".join(
-            [
-                f"# {message['role']} \n\n{message['content']}\n\n"
-                for message in st.session_state.chat_history
-            ]
+        export_button_col, clear_button_col = dialog_settings_tab.columns(2)
+        export_button = export_button_col.button(
+            label=i18n("Export chat history"), use_container_width=True
         )
-        # st.markdown(chat_history)
-        # 将Markdown保存到本地文件夹中
-        with open("chat_history.md", "w") as f:
-            f.write(chat_history)
-        st.toast(body="Chat history exported to chat_history.md", icon="🎉")
-    if clear_button:
-        st.session_state.chat_history = []
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.run_id,
-                run_name=st.session_state.run_name,
-                memory={"chat_history": st.session_state.chat_history},
+        clear_button = clear_button_col.button(
+            label=i18n("Clear chat history"), use_container_width=True
+        )
+        # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
+        if export_button:
+            # 将聊天历史导出为Markdown
+            chat_history = "\n".join(
+                [
+                    f"# {message['role']} \n\n{message['content']}\n\n"
+                    for message in st.session_state.chat_history
+                ]
             )
+            # st.markdown(chat_history)
+            # 将Markdown保存到本地文件夹中
+            with open("chat_history.md", "w") as f:
+                f.write(chat_history)
+            st.toast(body="Chat history exported to chat_history.md", icon="🎉")
+        if clear_button:
+            st.session_state.chat_history = []
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_id=st.session_state.run_id,
+                    run_name=st.session_state.run_name,
+                    memory={"chat_history": st.session_state.chat_history},
+                )
+            )
+            st.session_state.current_run_id_index = run_id_list.index(
+                st.session_state.run_id
+            )
+            st.rerun()
+
+    with multimodal_settings_tab:
+        image_uploader = st.file_uploader(
+            label=i18n("Upload images"),
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=False,
+            key="image_uploader",
         )
-        st.session_state.current_run_id_index = run_id_list.index(
-            st.session_state.run_id
-        )
-        st.rerun()
 
     # Fix the bug: "Go to top/bottom of page" cause problem that will make `write_chat_history` can't correctly show the chat history during `write_stream`
     back_to_top_placeholder0 = st.empty()
