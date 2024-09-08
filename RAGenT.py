@@ -32,6 +32,7 @@ from utils.basic_utils import (
     oai_model_config_selector,
     write_chat_history,
     config_list_postprocess,
+    user_input_constructor,
 )
 
 try:
@@ -488,7 +489,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None)[0],
+                        llm=aoai_config_generator(model=None,stream=True)[0],
                         memory={"chat_history": []},
                         assistant_data={
                             "system_prompt": get_system_prompt(st.session_state.run_id),
@@ -691,9 +692,15 @@ if prompt and st.session_state.model != None:
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
+        if image_uploader:
+            st.image(image_uploader)
 
     # Add user message to chat history
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
+    user_input = user_input_constructor(
+        prompt=prompt,
+        images=image_uploader,
+    )
+    st.session_state.chat_history.append(user_input)
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):

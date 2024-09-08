@@ -154,3 +154,15 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
     chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
     chat_input_container.float(chat_input_css)
     return prompt
+
+
+@st.fragment
+def define_fragment_image_uploader(
+    key: str,
+):
+    return st.file_uploader(
+        label=i18n("Upload images"),
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key=key,
+    )

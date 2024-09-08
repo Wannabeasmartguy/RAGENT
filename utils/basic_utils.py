@@ -6,10 +6,12 @@ import os
 import json
 import uuid
 import copy
+import base64
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
+from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -74,7 +76,19 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
             except:
                 pass
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                if isinstance(message["content"], str):
+                    st.markdown(message["content"])
+                elif isinstance(message["content"], List):
+                    for content in message["content"]:
+                        if content["type"] == "text":
+                            st.markdown(content["text"])
+                        elif content["type"] == "image_url":
+                            # 如果开头为data:image/jpeg;base64，则解码为BytesIO对象
+                            if content["image_url"]["url"].startswith("data:image/jpeg;base64"):
+                                image_data = base64.b64decode(content["image_url"]["url"].split(",")[1])
+                                st.image(image_data)
+                            else:
+                                st.image(content["image_url"])
 
 
 def split_list_by_key_value(dict_list, key, value):
@@ -102,14 +116,6 @@ def split_list_by_key_value(dict_list, key, value):
 
     return result
 
-
-class Meta(type):
-    def __new__(cls, name, bases, attrs):
-        for name, value in attrs.items():
-            if callable(value) and not name.startswith('__') and not name.startswith('_'):  # 跳过特殊方法和私有方法
-                attrs[name] = cache_resource(value)
-        return super().__new__(cls, name, bases, attrs)
-    
 
 def save_basic_chat_history(
         chat_name: str,
@@ -261,3 +267,53 @@ def current_datetime_utc() -> datetime:
 
 def current_datetime_utc_str() -> str:
     return current_datetime_utc().strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def encode_image(image: BytesIO) -> str:
+    """
+    将 BytesIO 对象编码为 base64 字符串.
+    
+    Args:
+        image (BytesIO): BytesIO 对象
+    Returns:
+        str: base64 编码的字符串
+    """
+    image_data = image.getvalue()
+    base64_encoded = base64.b64encode(image_data).decode('utf-8')
+    return base64_encoded
+
+
+def user_input_constructor(
+    prompt: str, 
+    images: Optional[Union[BytesIO, List[BytesIO]]] = None, 
+) -> Dict:
+    """
+    构造用户输入的字典。
+    """
+    base_input = {
+        "role": "user"
+    }
+
+    if images is None:
+        base_input["content"] = prompt
+    elif isinstance(images, (BytesIO, list)):
+        text_input = {
+            "type": "text",
+            "text": prompt
+        }
+        if isinstance(images, BytesIO):
+            images = [images]
+        
+        image_inputs = [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{encode_image(image)}"
+                }
+            } for image in images
+        ]
+        base_input["content"] = [text_input, *image_inputs]
+    else:
+        raise TypeError("images must be a BytesIO object or a list of BytesIO objects")
+
+    return base_input
