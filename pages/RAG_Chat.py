@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 from uuid import uuid4
 from loguru import logger
 from datetime import datetime
@@ -25,7 +26,7 @@ from utils.basic_utils import (
 )
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
-from configs.knowledge_base_config import ChromaVectorStoreProcessor
+from configs.knowledge_base_config import ChromaVectorStoreProcessor, ChromaCollectionProcessor
 from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
@@ -52,6 +53,7 @@ def write_custom_rag_chat_history(chat_history, _sources):
                     a.text(i18n("Cited Source")+ ": " + file_name)
                     a.code(file_content, language="plaintext")
 
+embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
@@ -141,6 +143,8 @@ if "custom_rag_sources" not in st.session_state:
         # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
         st.session_state.custom_rag_sources = {}
 
+if "reset_counter" not in st.session_state:
+    st.session_state.reset_counter = 0
 
 def update_rag_config_in_db_callback():
     """
@@ -220,7 +224,6 @@ with st.sidebar:
     st.page_link(
         "pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting"))
     )
-    st.write("---")
 
     rag_dialog_settings_tab, rag_model_settings_tab, rag_knowledge_base_settings_tab = (
         st.tabs(
@@ -646,13 +649,56 @@ with st.sidebar:
         )
 
     with rag_knowledge_base_settings_tab:
-        with st.popover(label=i18n("RAG Setting"), use_container_width=True):
+        with st.container(border=True):
+
+            def update_collection_processor_callback():
+                with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                    embedding_config = json.load(f)
+                
+                st.session_state.collection_config = embedding_config.get(st.session_state["collection_name"], {})
+
             collection_selectbox = st.selectbox(
                 label=i18n("Collection"),
                 options=vectorstore_processor.list_all_knowledgebase_collections(1),
+                on_change=update_collection_processor_callback,
+                key="collection_name"
             )
-            is_rerank = st.checkbox(label=i18n("Rerank"), value=False, key="is_rerank")
-            is_hybrid_retrieve = st.checkbox(
+
+            collection_files_placeholder = st.empty()
+            refresh_collection_files_button_placeholder = st.empty()
+
+            query_mode_toggle = st.toggle(
+                label=i18n("Single file query mode"),
+                value=False,
+                help=i18n("Default is whole collection query mode, if enabled, the source document would only be the selected file")
+            )
+
+            if collection_selectbox and query_mode_toggle:
+                with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                    embedding_config = json.load(f)
+                st.session_state.collection_config = embedding_config.get(collection_selectbox, {})
+                collection_processor = ChromaCollectionProcessor(
+                    collection_name=st.session_state["collection_name"],
+                    embedding_model_type=st.session_state.collection_config.get("embedding_type"),
+                    embedding_model_name_or_path=st.session_state.collection_config.get("embedding_model_name_or_path"),
+                )
+            
+                selected_collection_file = collection_files_placeholder.selectbox(
+                    label=i18n("Files"),
+                    options=collection_processor.list_all_filechunks_raw_metadata_name(st.session_state.reset_counter),
+                    format_func=lambda x: x.split('/')[-1].split('\\')[-1]
+                )
+
+                def refresh_collection_files_button_callback():
+                    st.session_state.reset_counter += 1
+                refresh_collection_files_button = refresh_collection_files_button_placeholder.button(
+                    label=i18n("Refresh files"),
+                    use_container_width=True,
+                    on_click=refresh_collection_files_button_callback,
+                )
+            
+            is_rerank = st.toggle(label=i18n("Rerank"), value=False, key="is_rerank")
+            is_hybrid_retrieve = st.toggle(
                 label=i18n("Hybrid retrieve"), value=False, key="is_hybrid_retrieve"
             )
             hybrid_retrieve_weight_placeholder = st.empty()
@@ -758,6 +804,7 @@ if prompt and st.session_state.model != None:
                 is_hybrid_retrieve=is_hybrid_retrieve,
                 hybrid_retriever_weight=hybrid_retrieve_weight,
                 stream=if_stream,
+                selected_file=selected_collection_file
             )
 
         # 流式输出

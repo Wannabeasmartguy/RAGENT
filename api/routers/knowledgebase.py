@@ -244,6 +244,24 @@ async def list_all_files_metadata_name(
     return file_names
 
 
+@router.post("/list-all-files-raw-metadata-name")
+async def list_all_files_raw_metadata_name(
+    collection: chromadb.Collection = Depends(get_chroma_specific_collection)
+) -> List[str]:
+    '''
+    返回指定名称的 collection 中文件 metadata 的文件名（包含原始路径）
+
+    Args:
+        name (str): 知识库名称
+    
+    Returns:
+        List[Dict]: 该 collection 中的所有文件的原始文件路径
+    '''
+    client_data = collection.get()
+    unique_sources = set(client_data['metadatas'][i]['source'] for i in range(len(client_data['metadatas'])))
+    return list(unique_sources)
+
+
 @router.post("/search-docs")
 async def query_docs_in_collection(
     query: str | List[str],

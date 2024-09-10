@@ -318,6 +318,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         is_rerank: bool = False,
         is_hybrid_retrieve: bool = False,
         hybrid_retriever_weight: float = 0.5,
+        selected_file: str = None,
     ) -> BaseRAGResponse:
         '''
         使用完全自定义的 RAG 模块，创建一个 RAG 响应
@@ -361,6 +362,14 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
             collection_name=collection_name,
             embedding_model=embedding_model_or_path,
         )
+        if selected_file:
+            retriever.retriever.update_parameters(
+                where={
+                    "source": {
+                        "$eq": selected_file
+                    }
+                }
+            )
         if is_hybrid_retrieve:
             bm25_retriever = BM25Retriever.from_texts(
                 texts=retriever.retriever.collection.get()['documents'],

@@ -343,6 +343,23 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_name_or_path,
             **openai_kwargs
         )
+    
+
+    def update_parameters(
+        self,
+        collection_name: Optional[str] = None,
+        embedding_model_type: Optional[Literal["openai", "huggingface"]] = None,
+        embedding_model_name_or_path: Optional[str] = None,
+        **openai_kwargs,
+    ) -> None:
+        if collection_name is not None:
+            self.collection_name = collection_name
+        if embedding_model_type is not None or embedding_model_name_or_path is not None:
+            self.embedding_model_config = create_embedding_model_config(
+                embedding_model_type,
+                embedding_model_name_or_path,
+                **openai_kwargs
+            )
 
 
     def get_embedding_model_max_seq_len(self) -> int:
@@ -431,6 +448,29 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
         """
         response = requesthandler.post(
             "/knowledgebase/list-all-files-metadata-name",
+            data=_self.embedding_model_config.dict(),
+            params={"name": _self.collection_name}
+        )
+        
+        if "error" in response:
+            return []
+        else:
+            return response
+    
+
+    @st.cache_data
+    def list_all_filechunks_raw_metadata_name(_self,counter:int) -> List[str]:
+        """
+        List all files content in a collection by raw file name(include system path).
+        
+        Args:
+            counter (int): No usage, just for update cache data.
+            
+        Returns:
+            List[str]: A list of file content.
+        """
+        response = requesthandler.post(
+            "/knowledgebase/list-all-files-raw-metadata-name",
             data=_self.embedding_model_config.dict(),
             params={"name": _self.collection_name}
         )

@@ -109,5 +109,9 @@
     "Please select a model": "请选择一个你想要使用的模型",
     "Cited Source": "引用来源",
     "Multimodal Settings": "多模态设置",
-    "Upload images": "上传图片"
+    "Upload images": "上传图片",
+    "Files": "知识库文件",
+    "Refresh files": "刷新知识库文件",
+    "Single file query mode": "单文件查询模式",
+    "Default is whole collection query mode, if enabled, the source document would only be the selected file": "默认为全库查询模式，如果启用，则查询的来源文档仅限于所选文件"
 }

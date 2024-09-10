@@ -109,5 +109,9 @@
     "Please select a model": "Please select a model you want to use.",
     "Cited Source": "Cited Source",
     "Multimodal Settings": "Multimodal Settings",
-    "Upload images": "Upload images"
+    "Upload images": "Upload images",
+    "Files": "Knowledge Base Files",
+    "Refresh files": "Refresh files",
+    "Single file query mode": "Single file query mode",
+    "Default is whole collection query mode, if enabled, the source document would only be the selected file": "Default is whole collection query mode, if enabled, the source document would only be the selected file"
 }

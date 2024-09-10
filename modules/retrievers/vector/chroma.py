@@ -16,8 +16,9 @@ class ChromaRetriever(BaseRetriever):
         n_results: int = 6,
         where: Optional[Dict] = None,
         where_document: Optional[Dict] = None,
+        knowledge_base_path: str = "./databases/knowledgebase",
     ):
-        self.client = PersistentClient("./databases/knowledgebase")
+        self.client = PersistentClient(path=knowledge_base_path)
         self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=embedding_model, device=device
         )
@@ -76,6 +77,19 @@ class ChromaRetriever(BaseRetriever):
             result.append({"page_content": doc, "metadata": meta})
 
         return result
+    
+    def update_parameters(
+        self,
+        n_results: Optional[int] = None,
+        where: Optional[Dict] = None,
+        where_document: Optional[Dict] = None,
+    ):
+        if n_results is not None:
+            self.n_results = n_results
+        if where is not None:
+            self.where = where
+        if where_document is not None:
+            self.where_document = where_document
 
 
 class ChromaContextualRetriever(BaseContextualRetriever):
