@@ -276,7 +276,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.rag_run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None)[0],
+                        llm=aoai_config_generator(model=None,stream=True)[0],
                         memory={"chat_history": []},
                         task_data={
                             "source_documents": {},
@@ -696,6 +696,9 @@ with st.sidebar:
                     use_container_width=True,
                     on_click=refresh_collection_files_button_callback,
                 )
+            else:
+                selected_collection_file = None
+
             
             is_rerank = st.toggle(label=i18n("Rerank"), value=False, key="is_rerank")
             is_hybrid_retrieve = st.toggle(
