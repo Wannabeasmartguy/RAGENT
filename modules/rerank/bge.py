@@ -51,7 +51,6 @@ class BgeRerank(BaseDocumentCompressor):
         self,
         documents: Union[Sequence[Document], List[Dict[str, Union[str, Dict]]]],
         query: str,
-        callbacks = None,
     ) -> Sequence[Document] | List[Dict[str, Union[str, Dict]]]:
         """
         Compress documents using BAAI/bge-reranker models.
@@ -76,9 +75,9 @@ class BgeRerank(BaseDocumentCompressor):
         for r in results:
             doc = doc_list[r[0]]
             try:
-                doc.metadata["relevance_score"] = r[1]
+                doc.metadatas["relevance_score"] = float(r[1])
             except:
-                doc["metadata"]["relevance_score"] = r[1]
+                doc["metadatas"]["relevance_score"] = float(r[1])
             final_results.append(doc)
         return final_results
     

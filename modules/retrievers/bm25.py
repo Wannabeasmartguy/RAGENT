@@ -56,7 +56,7 @@ class BM25Retriever(BaseRetriever):
         bm25_params = bm25_params or {}
         vectorizer = BM25Okapi(texts_processed, **bm25_params)
         metadatas = metadatas or ({} for _ in texts)
-        docs = [{"page_content": t, "metadata": m} for t, m in zip(texts, metadatas)]
+        docs = [{"page_content": t, "metadatas": m} for t, m in zip(texts, metadatas)]
         return cls(
             vectorizer=vectorizer, docs=docs, preprocess_func=preprocess_func, **kwargs
         )
@@ -81,7 +81,7 @@ class BM25Retriever(BaseRetriever):
         Returns:
             A BM25Retriever instance.
         """
-        texts, metadatas = zip(*((d["page_content"], d["metadata"]) for d in documents))
+        texts, metadatas = zip(*((d["page_content"], d["metadatas"]) for d in documents))
         return cls.from_texts(
             texts=texts,
             bm25_params=bm25_params,

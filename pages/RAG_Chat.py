@@ -848,10 +848,10 @@ if prompt and st.session_state.model != None:
             response_sources = st.session_state.custom_rag_sources[response.response_id]
 
             for index, pop in enumerate(row1 + row2):
-                a = pop.popover(f"引用文件", use_container_width=True)
+                a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
                 file_name = response_sources["metadatas"][index]["source"]
                 file_content = response_sources["page_content"][index]
-                a.text(f"引用文件{file_name}")
+                a.text(i18n("Cited Source")+ ": " + file_name)
                 a.code(file_content, language="plaintext")
 
         # 非流式输出
@@ -898,10 +898,10 @@ if prompt and st.session_state.model != None:
             ]
 
             for index, pop in enumerate(row1 + row2):
-                a = pop.popover(f"引用文件", use_container_width=True)
+                a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
                 file_name = response_sources_list["metadatas"][index]["source"]
                 file_content = response_sources_list["page_content"][index]
-                a.text(f"引用文件{file_name}")
+                a.text(i18n("Cited Source")+ ": " + file_name)
                 a.code(file_content, language="plaintext")
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

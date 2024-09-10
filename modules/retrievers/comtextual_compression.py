@@ -1,5 +1,5 @@
-from typing import List, Dict, Any, Optional, Callable
-from modules.retrievers.base import BaseRetriever
+from typing import List, Dict, Any, Optional, Callable, Union
+from modules.retrievers.base import BaseRetriever, BaseContextualRetriever
 import asyncio
 
 
@@ -9,7 +9,7 @@ class ContextualCompressionRetriever(BaseRetriever):
     def __init__(
         self,
         base_compressor: Any,
-        base_retriever: Any,
+        base_retriever: Union[BaseRetriever, BaseContextualRetriever]
     ):
         self.base_compressor = base_compressor
         self.base_retriever = base_retriever
@@ -37,7 +37,7 @@ class ContextualCompressionRetriever(BaseRetriever):
             [f"Document {i+1}:\n{doc['page_content']}" for i, doc in enumerate(results)]
         )
         page_content = [doc["page_content"] for doc in results]
-        metadatas = [doc["metadatas"] for doc in results if "metadats" in doc]
+        metadatas = [doc["metadatas"] for doc in results if "metadatas" in doc]
         return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:
@@ -57,6 +57,15 @@ class ContextualCompressionRetriever(BaseRetriever):
             return list(compressed_docs)
         else:
             return []
+    
+    # 如果传入了contextual_retriever，需要继承它的实例属性context_messages
+    @property
+    def context_messages(self):
+        # 遍历所有retriever，如果有任何一个retriever有context_messages属性，则返回其context_messages
+        if hasattr(self.base_retriever, "context_messages"):
+            return self.base_retriever.context_messages
+        else:
+            return None  # 如果没有找到任何retriever有context_messages属性，则返回None
 
 
 if __name__ == "__main__":

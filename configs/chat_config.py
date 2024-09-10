@@ -362,6 +362,8 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
             collection_name=collection_name,
             embedding_model=embedding_model_or_path,
         )
+        retriever.update_context_messages(context_messages)
+        
         if selected_file:
             retriever.retriever.update_parameters(
                 where={
@@ -384,7 +386,6 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
                 base_compressor=reranker,
                 base_retriever=retriever
             )
-        retriever.update_context_messages(context_messages)
 
         # 创建RAG
         rag_builder = RAGBuilder()

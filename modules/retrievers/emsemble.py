@@ -32,10 +32,10 @@ class EnsembleRetriever(BaseRetriever):
         """将包含多个检索器的结果格式化为字符串，其中invoke的结果为dict，包含'page_content'字段"""
         results = self.invoke(query)
         results_str = "\n\n".join(
-            [f"Document {i+1}:\n{doc['page_content']}" for i, doc in enumerate(results)]
+            [f"Document {i+1}: \n{doc['page_content']}" for i, doc in enumerate(results)]
         )
         page_content = [doc["page_content"] for doc in results]
-        metadatas = [doc["metadatas"] for doc in results if "metadats" in doc]
+        metadatas = [doc["metadatas"] for doc in results if "metadatas" in doc]
         return dict(result=results_str, page_content=page_content, metadatas=metadatas)
 
     async def ainvoke(self, query: str) -> List[Dict[str, Any]]:

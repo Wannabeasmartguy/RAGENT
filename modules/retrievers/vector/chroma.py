@@ -157,6 +157,6 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         metadatas = query_results["metadatas"][0]
 
         for doc, meta in zip(documents, metadatas):
-            result.append({"page_content": doc, "metadata": meta})
+            result.append({"page_content": doc, "metadatas": meta})
 
         return result
