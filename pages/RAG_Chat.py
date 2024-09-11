@@ -26,10 +26,51 @@ from utils.basic_utils import (
 )
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
-from configs.knowledge_base_config import ChromaVectorStoreProcessor, ChromaCollectionProcessor
+from configs.knowledge_base_config import (
+    ChromaVectorStoreProcessor,
+    ChromaCollectionProcessor,
+)
 from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
+from modules.types.rag import BaseRAGResponse
+
+
+def save_rag_chat_history(response: BaseRAGResponse):
+    """
+    Save chat history to database
+    """
+    chat_history_storage.upsert(
+        AssistantRun(
+            name="assistant",
+            run_name=st.session_state.rag_run_name,
+            run_id=st.session_state.rag_run_id,
+            llm=st.session_state.rag_chat_config_list[0],
+            memory={"chat_history": st.session_state.custom_rag_chat_history},
+            task_data={"source_documents": st.session_state.custom_rag_sources},
+            assistant_data={
+                "model_type": st.session_state.model_type,
+            },
+        )
+    )
+
+
+def display_rag_sources(response_sources):
+    row1 = st.columns(3)
+    row2 = st.columns(3)
+
+    for index, pop in enumerate(row1 + row2):
+        a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
+        file_name = response_sources["metadatas"][index]["source"]
+        file_content = response_sources["page_content"][index]
+        a.text(i18n("Cited Source") + ": " + file_name)
+        relevance_score_placeholder = a.empty()
+        if "relevance_score" in response_sources["metadatas"][index]:
+            relevance_score = response_sources["metadatas"][index]["relevance_score"]
+            relevance_score_placeholder.text(
+                i18n("Relevance Score") + ": " + str(relevance_score)
+            )
+        a.code(file_content, language="plaintext")
 
 
 @st.cache_data
@@ -39,19 +80,40 @@ def write_custom_rag_chat_history(chat_history, _sources):
             st.markdown(message["content"])
 
             if message["role"] == "assistant":
-                # st.markdown("**Source**:")
-                # 展示引用源
-                row1 = st.columns(3)
-                row2 = st.columns(3)
+                rag_sources = _sources[message["response_id"]]
+                display_rag_sources(rag_sources)
 
-                response_sources_list = _sources[message["response_id"]]
 
-                for index, pop in enumerate(row1 + row2):
-                    a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
-                    file_name = response_sources_list["metadatas"][index]["source"]
-                    file_content = response_sources_list["page_content"][index]
-                    a.text(i18n("Cited Source")+ ": " + file_name)
-                    a.code(file_content, language="plaintext")
+def handle_response(response: BaseRAGResponse, if_stream: bool):
+    # 先将引用sources添加到 st.session
+    st.session_state.custom_rag_sources.update(
+        {response.response_id: response.source_documents}
+    )
+
+    if if_stream:
+        # 展示回答
+        answer = st.write_stream(response.answer)
+    else:
+        response = response.model_dump()
+        answer = response["answer"]["choices"][0]["message"]["content"]
+        st.write(answer)
+
+    # 添加回答到 st.session
+    st.session_state.custom_rag_chat_history.append(
+        {
+            "role": "assistant",
+            "content": answer,
+            "response_id": response.response_id,
+        }
+    )
+
+    # 保存聊天记录
+    save_rag_chat_history(response)
+
+    # 展示引用源
+    response_sources = st.session_state.custom_rag_sources[response.response_id]
+    display_rag_sources(response_sources)
+
 
 embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
@@ -145,6 +207,7 @@ if "custom_rag_sources" not in st.session_state:
 
 if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
+
 
 def update_rag_config_in_db_callback():
     """
@@ -269,6 +332,7 @@ with st.sidebar:
 
         add_dialog_column, delete_dialog_column = st.columns([1, 1])
         with add_dialog_column:
+
             def add_rag_dialog_callback():
                 st.session_state.rag_run_id = str(uuid4())
                 chat_history_storage.upsert(
@@ -276,7 +340,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.rag_run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None,stream=True)[0],
+                        llm=aoai_config_generator(model=None, stream=True)[0],
                         memory={"chat_history": []},
                         task_data={
                             "source_documents": {},
@@ -296,6 +360,7 @@ with st.sidebar:
                 on_click=add_rag_dialog_callback,
             )
         with delete_dialog_column:
+
             def delete_rag_dialog_callback():
                 chat_history_storage.delete_run(st.session_state.rag_run_id)
                 if len(chat_history_storage.get_all_run_ids()) == 0:
@@ -508,6 +573,7 @@ with st.sidebar:
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != "Llamafile":
+
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     return model_selector(model_type).index(
@@ -526,6 +592,7 @@ with st.sidebar:
                 on_change=update_rag_config_in_db_callback,
             )
         elif select_box0 == "Llamafile":
+
             def get_selected_llamafile_model() -> str:
                 try:
                     return st.session_state.chat_config_list[0].get("model")
@@ -533,6 +600,7 @@ with st.sidebar:
                     return oai_model_config_selector(
                         st.session_state.oai_like_model_config_dict
                     )[0]
+
             select_box1 = model_choosing_container.text_input(
                 label=i18n("Model"),
                 value=get_selected_llamafile_model(),
@@ -542,6 +610,7 @@ with st.sidebar:
             with model_choosing_container.popover(
                 label=i18n("Llamafile config"), use_container_width=True
             ):
+
                 def get_selected_llamafile_endpoint() -> str:
                     try:
                         return st.session_state.chat_config_list[0].get("base_url")
@@ -549,11 +618,13 @@ with st.sidebar:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
                         )[1]
+
                 llamafile_endpoint = st.text_input(
                     label=i18n("Llamafile endpoint"),
                     value=get_selected_llamafile_endpoint(),
                     key="llamafile_endpoint",
                 )
+
                 def get_selected_llamafile_api_key() -> str:
                     try:
                         return st.session_state.chat_config_list[0].get("api_key")
@@ -561,6 +632,7 @@ with st.sidebar:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
                         )[2]
+
                 llamafile_api_key = st.text_input(
                     label=i18n("Llamafile API key"),
                     value=get_selected_llamafile_api_key(),
@@ -654,14 +726,16 @@ with st.sidebar:
             def update_collection_processor_callback():
                 with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
-                
-                st.session_state.collection_config = embedding_config.get(st.session_state["collection_name"], {})
+
+                st.session_state.collection_config = embedding_config.get(
+                    st.session_state["collection_name"], {}
+                )
 
             collection_selectbox = st.selectbox(
                 label=i18n("Collection"),
                 options=vectorstore_processor.list_all_knowledgebase_collections(1),
                 on_change=update_collection_processor_callback,
-                key="collection_name"
+                key="collection_name",
             )
 
             collection_files_placeholder = st.empty()
@@ -670,36 +744,48 @@ with st.sidebar:
             query_mode_toggle = st.toggle(
                 label=i18n("Single file query mode"),
                 value=False,
-                help=i18n("Default is whole collection query mode, if enabled, the source document would only be the selected file")
+                help=i18n(
+                    "Default is whole collection query mode, if enabled, the source document would only be the selected file"
+                ),
             )
 
             if collection_selectbox and query_mode_toggle:
                 with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
-                st.session_state.collection_config = embedding_config.get(collection_selectbox, {})
+                st.session_state.collection_config = embedding_config.get(
+                    collection_selectbox, {}
+                )
                 collection_processor = ChromaCollectionProcessor(
                     collection_name=st.session_state["collection_name"],
-                    embedding_model_type=st.session_state.collection_config.get("embedding_type"),
-                    embedding_model_name_or_path=st.session_state.collection_config.get("embedding_model_name_or_path"),
+                    embedding_model_type=st.session_state.collection_config.get(
+                        "embedding_type"
+                    ),
+                    embedding_model_name_or_path=st.session_state.collection_config.get(
+                        "embedding_model_name_or_path"
+                    ),
                 )
-            
+
                 selected_collection_file = collection_files_placeholder.selectbox(
                     label=i18n("Files"),
-                    options=collection_processor.list_all_filechunks_raw_metadata_name(st.session_state.reset_counter),
-                    format_func=lambda x: x.split('/')[-1].split('\\')[-1]
+                    options=collection_processor.list_all_filechunks_raw_metadata_name(
+                        st.session_state.reset_counter
+                    ),
+                    format_func=lambda x: x.split("/")[-1].split("\\")[-1],
                 )
 
                 def refresh_collection_files_button_callback():
                     st.session_state.reset_counter += 1
-                refresh_collection_files_button = refresh_collection_files_button_placeholder.button(
-                    label=i18n("Refresh files"),
-                    use_container_width=True,
-                    on_click=refresh_collection_files_button_callback,
+
+                refresh_collection_files_button = (
+                    refresh_collection_files_button_placeholder.button(
+                        label=i18n("Refresh files"),
+                        use_container_width=True,
+                        on_click=refresh_collection_files_button_callback,
+                    )
                 )
             else:
                 selected_collection_file = None
 
-            
             is_rerank = st.toggle(label=i18n("Rerank"), value=False, key="is_rerank")
             is_hybrid_retrieve = st.toggle(
                 label=i18n("Hybrid retrieve"), value=False, key="is_hybrid_retrieve"
@@ -807,104 +893,10 @@ if prompt and st.session_state.model != None:
                 is_hybrid_retrieve=is_hybrid_retrieve,
                 hybrid_retriever_weight=hybrid_retrieve_weight,
                 stream=if_stream,
-                selected_file=selected_collection_file
+                selected_file=selected_collection_file,
             )
 
-        # 流式输出
-        if if_stream:
-            # 先将引用sources添加到 st.session
-            st.session_state.custom_rag_sources.update(
-                {response.response_id: response.source_documents}
-            )
+        handle_response(response=response, if_stream=if_stream)
 
-            # 展示回答
-            answer = st.write_stream(response.answer)
-
-            # 添加回答到 st.session
-            st.session_state.custom_rag_chat_history.append(
-                {
-                    "role": "assistant",
-                    "content": answer,
-                    "response_id": response.response_id,
-                }
-            )
-
-            # 保存聊天记录
-            chat_history_storage.upsert(
-                AssistantRun(
-                    name="assistant",
-                    run_name=st.session_state.rag_run_name,
-                    run_id=st.session_state.rag_run_id,
-                    llm=st.session_state.rag_chat_config_list[0],
-                    memory={"chat_history": st.session_state.custom_rag_chat_history},
-                    task_data={"source_documents": st.session_state.custom_rag_sources},
-                    assistant_data={
-                        "model_type": st.session_state.model_type,
-                    }
-                )
-            )
-
-            # 展示引用源
-            row1 = st.columns(3)
-            row2 = st.columns(3)
-
-            response_sources = st.session_state.custom_rag_sources[response.response_id]
-
-            for index, pop in enumerate(row1 + row2):
-                a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
-                file_name = response_sources["metadatas"][index]["source"]
-                file_content = response_sources["page_content"][index]
-                a.text(i18n("Cited Source")+ ": " + file_name)
-                a.code(file_content, language="plaintext")
-
-        # 非流式输出
-        else:
-            response = response.model_dump()
-            # 将回答添加入 st.sesstion
-            st.session_state.custom_rag_chat_history.append(
-                {
-                    "role": "assistant",
-                    "content": response["answer"]["choices"][0]["message"]["content"],
-                    "response_id": response["response_id"],
-                }
-            )
-
-            # 将引用sources添加到 st.session
-            st.session_state.custom_rag_sources.update(
-                {response["response_id"]: response["source_documents"]}
-            )
-
-            # 展示回答
-            st.write(response["answer"]["choices"][0]["message"]["content"])
-
-            # 保存聊天记录
-            chat_history_storage.upsert(
-                AssistantRun(
-                    name="assistant",
-                    run_name=st.session_state.rag_run_name,
-                    run_id=st.session_state.rag_run_id,
-                    llm=st.session_state.rag_chat_config_list[0],
-                    memory={"chat_history": st.session_state.custom_rag_chat_history},
-                    task_data={"source_documents": st.session_state.custom_rag_sources},
-                    assistant_data={
-                        "model_type": st.session_state.model_type,
-                    }
-                )
-            )
-
-            # 展示引用源
-            row1 = st.columns(3)
-            row2 = st.columns(3)
-
-            response_sources_list = st.session_state.custom_rag_sources[
-                response["response_id"]
-            ]
-
-            for index, pop in enumerate(row1 + row2):
-                a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
-                file_name = response_sources_list["metadatas"][index]["source"]
-                file_content = response_sources_list["page_content"][index]
-                a.text(i18n("Cited Source")+ ": " + file_name)
-                a.code(file_content, language="plaintext")
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

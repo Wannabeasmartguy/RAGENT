@@ -5,7 +5,7 @@ from autogen.agentchat.contrib.capabilities import transforms
 
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Union
 from uuid import uuid4
 from copy import deepcopy
 from loguru import logger
@@ -52,6 +52,39 @@ from tools.toolkits import (
 )
 
 
+def generate_response(
+    *,
+    processed_messages: List[Dict[str, Union[str, Dict, List]]],
+    chatprocessor: ChatProcessor,
+    if_tools_call: bool,
+    if_stream: bool,
+):
+    if if_tools_call:
+        tools_list_selected = filter_out_selected_tools_list(
+            st.session_state.tools_popover
+        )
+        tools_map_selected = filter_out_selected_tools_dict(
+            st.session_state.tools_popover
+        )
+        logger.debug(f"tools_list_selected: {tools_list_selected}")
+        logger.debug(f"tools_map_selected: {tools_map_selected}")
+        response = chatprocessor.create_tools_call_completion(
+            messages=processed_messages,
+            tools=tools_list_selected,
+            function_map=tools_map_selected,
+        )
+    else:
+        if if_stream:
+            response = chatprocessor.create_completion_stream_noapi(
+                messages=processed_messages
+            )
+        else:
+            response = chatprocessor.create_completion_noapi(
+                messages=processed_messages
+            )
+    return response
+
+
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
@@ -75,7 +108,9 @@ if not chat_history_storage.table_exists():
 
 VERSION = "0.1.1"
 logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
-logo_text = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo_with_text_horizon.png")
+logo_text = os.path.join(
+    os.path.dirname(__file__), "img", "RAGenT_logo_with_text_horizon.png"
+)
 # Solve set_pages error caused by "Go to top/bottom of page" button.
 # Only need st.rerun once to fix it, and it works fine thereafter.
 try:
@@ -296,6 +331,7 @@ with st.sidebar:
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != "Llamafile":
+
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     return model_selector(model_type).index(
@@ -314,6 +350,7 @@ with st.sidebar:
                 on_change=update_config_in_db_callback,
             )
         elif select_box0 == "Llamafile":
+
             def get_selected_llamafile_model() -> str:
                 try:
                     return st.session_state.chat_config_list[0].get("model")
@@ -321,6 +358,7 @@ with st.sidebar:
                     return oai_model_config_selector(
                         st.session_state.oai_like_model_config_dict
                     )[0]
+
             select_box1 = model_choosing_container.text_input(
                 label=i18n("Model"),
                 value=get_selected_llamafile_model(),
@@ -330,6 +368,7 @@ with st.sidebar:
             with model_choosing_container.popover(
                 label=i18n("Llamafile config"), use_container_width=True
             ):
+
                 def get_selected_llamafile_endpoint() -> str:
                     try:
                         return st.session_state.chat_config_list[0].get("base_url")
@@ -337,11 +376,13 @@ with st.sidebar:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
                         )[1]
+
                 llamafile_endpoint = st.text_input(
                     label=i18n("Llamafile endpoint"),
                     value=get_selected_llamafile_endpoint(),
                     key="llamafile_endpoint",
                 )
+
                 def get_selected_llamafile_api_key() -> str:
                     try:
                         return st.session_state.chat_config_list[0].get("api_key")
@@ -349,6 +390,7 @@ with st.sidebar:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
                         )[2]
+
                 llamafile_api_key = st.text_input(
                     label=i18n("Llamafile API key"),
                     value=get_selected_llamafile_api_key(),
@@ -437,6 +479,7 @@ with st.sidebar:
         )
 
     with dialog_settings_tab:
+
         def get_system_prompt(run_id: Optional[str]):
             if run_id:
                 try:
@@ -489,7 +532,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None,stream=True)[0],
+                        llm=aoai_config_generator(model=None, stream=True)[0],
                         memory={"chat_history": []},
                         assistant_data={
                             "system_prompt": get_system_prompt(st.session_state.run_id),
@@ -617,7 +660,9 @@ with st.sidebar:
         )
 
         # 根据历史对话消息数，创建 MessageHistoryLimiter
-        max_msg_transfrom = transforms.MessageHistoryLimiter(max_messages=history_length)
+        max_msg_transfrom = transforms.MessageHistoryLimiter(
+            max_messages=history_length
+        )
 
         export_button_col, clear_button_col = dialog_settings_tab.columns(2)
         export_button = export_button_col.button(
@@ -680,15 +725,14 @@ if st.session_state.model == None:
 else:
     st.session_state.prompt_disabled = False
 prompt = float_chat_input_with_audio_recorder(
-    if_tools_call=if_tools_call, 
-    prompt_disabled=st.session_state.prompt_disabled
+    if_tools_call=if_tools_call, prompt_disabled=st.session_state.prompt_disabled
 )
 # # st.write(filter_out_selected_tools_list(st.session_state.tools_popover))
 # st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))
 
 # Accept user input
 if prompt and st.session_state.model != None:
-# if prompt := st.chat_input("What is up?"):
+    # if prompt := st.chat_input("What is up?"):
     # Display user message in chat message container
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -732,32 +776,13 @@ if prompt and st.session_state.model != None:
             )
 
             # 非流式调用
-            if (
-                not st.session_state.chat_config_list[0]
-                .get("params", {})
-                .get("stream", False)
-            ):
-
-                # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中才响应
-                # 一般都是在的
-                if not if_tools_call:
-                    response = chatprocessor.create_completion_noapi(
-                        messages=processed_messages
-                    )
-                else:
-                    tools_list_selected = filter_out_selected_tools_list(
-                        st.session_state.tools_popover
-                    )
-                    tools_map_selected = filter_out_selected_tools_dict(
-                        st.session_state.tools_popover
-                    )
-                    logger.debug(f"tools_list_selected: {tools_list_selected}")
-                    logger.debug(f"tools_map_selected: {tools_map_selected}")
-                    response = chatprocessor.create_tools_call_completion(
-                        messages=processed_messages,
-                        tools=tools_list_selected,
-                        function_map=tools_map_selected,
-                    )
+            if not if_stream:
+                response = generate_response(
+                    processed_messages=processed_messages,
+                    chatprocessor=chatprocessor,
+                    if_tools_call=if_tools_call,
+                    if_stream=if_stream,
+                )
 
                 if "error" not in response:
                     # st.write(response)
@@ -784,40 +809,19 @@ if prompt and st.session_state.model != None:
                             assistant_data={
                                 "system_prompt": st.session_state.system_prompt,
                                 "model_type": st.session_state.model_type,
-                            }
+                            },
                         )
                     )
                 else:
                     st.error(response)
 
             else:
-                # 流式调用
-                # 获得 API 的响应，但是解码出来的乱且不完整
-                # response = chatprocessor.create_completion_stream_api(
-                #     messages=processed_messages
-                # )
-                # for chunk in response:
-                #     st.write(chunk.decode("utf-8","ignore"))
-                #     time.sleep(0.1)
-
-                if not if_tools_call:
-                    response = chatprocessor.create_completion_stream_noapi(
-                        messages=processed_messages
-                    )
-                else:
-                    tools_list_selected = filter_out_selected_tools_list(
-                        st.session_state.tools_popover
-                    )
-                    tools_map_selected = filter_out_selected_tools_dict(
-                        st.session_state.tools_popover
-                    )
-                    logger.debug(f"tools_list_selected: {tools_list_selected}")
-                    logger.debug(f"tools_map_selected: {tools_map_selected}")
-                    response = chatprocessor.create_tools_call_completion(
-                        messages=processed_messages,
-                        tools=tools_list_selected,
-                        function_map=tools_map_selected,
-                    )
+                response = generate_response(
+                    processed_messages=processed_messages,
+                    chatprocessor=chatprocessor,
+                    if_tools_call=if_tools_call,
+                    if_stream=if_stream,
+                )
                 total_response = st.write_stream(response)
 
                 st.session_state.chat_history.append(
