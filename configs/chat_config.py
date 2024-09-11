@@ -375,6 +375,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         if is_hybrid_retrieve:
             bm25_retriever = BM25Retriever.from_texts(
                 texts=retriever.retriever.collection.get()['documents'],
+                metadatas=retriever.retriever.collection.get()['metadatas'],
             )
             retriever = EnsembleRetriever(
                 retrievers=[bm25_retriever, retriever],

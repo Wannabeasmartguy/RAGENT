@@ -60,22 +60,13 @@ class BaseContextualRetriever(BaseRetriever):
         self.n_results = n_results
         self.where = where
         self.where_document = where_document
-        
+
+    @abstractmethod    
     def invoke(self, query: str) -> List[Dict[str, Any]]:
         results = self._invoke(query, self.context_messages)
         return self.transform_to_documents(results)
-
-    def _invoke(
-            self, 
-            query: str
-        ) -> Dict[str, Any]:
-        """重写query,使用新query进行检索"""
-        new_query = self._build_contextual_query(query, self.context_messages)
-        logger.info(f"New query: {new_query}")
-        return self.retriever._invoke(
-            query_texts=[new_query],
-        )
     
+    @abstractmethod
     def invoke_format_to_str(
         self,
         query: str
