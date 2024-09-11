@@ -317,6 +317,18 @@ with st.sidebar:
                 )
             except:
                 st.session_state.rag_chat_history = []
+            
+            # 更新 select_box1 的值
+            if st.session_state.model_type != "Llamafile":
+                st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
+            else:
+                st.session_state.model = st.session_state.rag_chat_config_list[0].get("model", "")
+                try:
+                    st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
+                except:
+                    st.session_state.model =  oai_model_config_selector(
+                        st.session_state.oai_like_model_config_dict
+                    )[0]
 
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
@@ -403,6 +415,17 @@ with st.sidebar:
                             st.session_state.rag_run_id
                         ).task_data["source_documents"]
                     )
+                    # 更新 model 的值
+                    if st.session_state.model_type != "Llamafile":
+                        st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
+                    else:
+                        st.session_state.model = st.session_state.rag_chat_config_list[0].get("model", "")
+                        try:
+                            st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
+                        except:
+                            st.session_state.model = oai_model_config_selector(
+                                st.session_state.oai_like_model_config_dict
+                            )[0]
 
             delete_dialog_button = st.button(
                 label=i18n("Delete selected dialog"),
