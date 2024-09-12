@@ -280,7 +280,7 @@ def update_rag_config_in_db_callback():
     elif st.session_state["model_type"] == "LiteLLM":
         config_list = litellm_config_generator(model=st.session_state["model"])
     st.session_state["rag_chat_config_list"] = config_list
-    log_dict_changes(origin_config_list, config_list)
+    log_dict_changes(origin_config_list[0], config_list[0])
     chat_history_storage.upsert(
         AssistantRun(
             run_id=st.session_state.rag_run_id,
@@ -435,17 +435,6 @@ with st.sidebar:
                             st.session_state.rag_run_id
                         ).task_data["source_documents"]
                     )
-                    # 更新 model 的值
-                    if st.session_state.model_type != "Llamafile":
-                        st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
-                    else:
-                        st.session_state.model = st.session_state.rag_chat_config_list[0].get("model", "")
-                        try:
-                            st.session_state.model = st.session_state.rag_chat_config_list[0].get("model")
-                        except:
-                            st.session_state.model = oai_model_config_selector(
-                                st.session_state.oai_like_model_config_dict
-                            )[0]
 
             delete_dialog_button = st.button(
                 label=i18n("Delete selected dialog"),
@@ -619,7 +608,7 @@ with st.sidebar:
 
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
-                    model = st.session_state.chat_config_list[0].get("model")
+                    model = st.session_state.rag_chat_config_list[0].get("model")
                     logger.debug(f"model get: {model}")
                     if model:
                         options = model_selector(model_type)
@@ -646,8 +635,8 @@ with st.sidebar:
         elif select_box0 == "Llamafile":
 
             def get_selected_llamafile_model() -> str:
-                if st.session_state.chat_config_list:
-                    return st.session_state.chat_config_list[0].get("model")
+                if st.session_state.rag_chat_config_list:
+                    return st.session_state.rag_chat_config_list[0].get("model")
                 else:
                     logger.warning("chat_config_list is empty, using default model")
                     return oai_model_config_selector(
