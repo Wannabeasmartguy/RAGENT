@@ -85,6 +85,25 @@ def generate_response(
     return response
 
 
+def log_dict_changes(original_dict, new_dict):
+    # 找出变化的键值对
+    changed_keys = set(original_dict.keys()) & set(new_dict.keys())
+    changed_keys = [key for key in changed_keys if original_dict[key] != new_dict[key]]
+    
+    # 找出新增和删除的键
+    added_keys = set(new_dict.keys()) - set(original_dict.keys())
+    removed_keys = set(original_dict.keys()) - set(new_dict.keys())
+    
+    # 记录变化
+    if changed_keys or added_keys or removed_keys:
+        logger.debug("Dictionary changes:")
+        for key in changed_keys:
+            logger.debug(f"Key '{key}' changed from '{original_dict[key]}' to '{new_dict[key]}'")
+        for key in added_keys:
+            logger.debug(f"Key '{key}' added with value '{new_dict[key]}'")
+        for key in removed_keys:
+            logger.debug(f"Key '{key}' removed (old value was '{original_dict[key]}')")
+
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
@@ -169,6 +188,7 @@ def update_config_in_db_callback():
     """
     Update config in db.
     """
+    origin_config_list = deepcopy(st.session_state.chat_config_list)
     if st.session_state["model_type"] == "OpenAI":
         config_list = oai_config_generator(
             model=st.session_state.model,
@@ -215,6 +235,7 @@ def update_config_in_db_callback():
         except (UnboundLocalError, AttributeError):
             config_list = llamafile_config_generator()
     st.session_state["chat_config_list"] = config_list
+    log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
     chat_history_storage.upsert(
         AssistantRun(
             run_id=st.session_state.run_id,
@@ -332,13 +353,23 @@ with st.sidebar:
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != "Llamafile":
 
-            def get_selected_non_llamafile_model_index(model_type) -> int:
+            def get_selected_non_llamafile_model_index(model_type) -> Optional[int]:
                 try:
-                    return model_selector(model_type).index(
-                        st.session_state.chat_config_list[0].get("model")
-                    )
-                except:
-                    return None
+                    model = st.session_state.chat_config_list[0].get("model")
+                    logger.debug(f"model get: {model}")
+                    if model:
+                        options = model_selector(model_type)
+                        if model in options:
+                            options_index = options.index(model)
+                            logger.debug(f"model {model} in options, index: {options_index}")
+                            return options_index
+                        else:
+                            logger.debug(f"model {model} not in options")
+                            return None
+                        # return options.index(model) if model in options else None
+                except ValueError:
+                    logger.warning(f"Model {model} not found in model_selector for {model_type}")
+                return None
 
             select_box1 = model_choosing_container.selectbox(
                 label=i18n("Model"),
@@ -352,9 +383,10 @@ with st.sidebar:
         elif select_box0 == "Llamafile":
 
             def get_selected_llamafile_model() -> str:
-                try:
-                    return st.session_state.chat_config_list[0].get("model")
-                except:
+                if st.session_state.chat_config_list:
+                    return st.session_state.chat_config_list[0].get("model", "")
+                else:
+                    logger.warning("chat_config_list is empty, using default model")
                     return oai_model_config_selector(
                         st.session_state.oai_like_model_config_dict
                     )[0]
@@ -497,30 +529,21 @@ with st.sidebar:
         dialogs_container = st.container(height=250, border=True)
 
         def saved_dialog_change_callback():
+            origin_config_list = deepcopy(st.session_state.chat_config_list)
             st.session_state.run_id = st.session_state.saved_dialog.run_id
             st.session_state.chat_config_list = [
                 chat_history_storage.get_specific_run(
                     st.session_state.saved_dialog.run_id
                 ).llm
             ]
+            logger.info("Dialog changed")
+            log_dict_changes(original_dict=origin_config_list[0], new_dict=st.session_state.chat_config_list[0])
             try:
                 st.session_state.chat_history = chat_history_storage.get_specific_run(
                     st.session_state.saved_dialog.run_id
                 ).memory["chat_history"]
             except:
                 st.session_state.chat_history = []
-            
-            # 更新 select_box1 的值
-            if st.session_state.model_type != "Llamafile":
-                st.session_state.model = st.session_state.chat_config_list[0].get("model")
-            else:
-                st.session_state.model = st.session_state.chat_config_list[0].get("model", "")
-                try:
-                    st.session_state.model = st.session_state.chat_config_list[0].get("model")
-                except:
-                    st.session_state.model =  oai_model_config_selector(
-                        st.session_state.oai_like_model_config_dict
-                    )[0]
 
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
@@ -548,6 +571,7 @@ with st.sidebar:
                         memory={"chat_history": []},
                         assistant_data={
                             "system_prompt": get_system_prompt(st.session_state.run_id),
+                            "model_type": "AOAI"
                         },
                     )
                 )
@@ -600,17 +624,6 @@ with st.sidebar:
                             st.session_state.run_id
                         ).llm
                     ]
-                            # 更新 model 的值
-                    if st.session_state.model_type != "Llamafile":
-                        st.session_state.model = st.session_state.chat_config_list[0].get("model")
-                    else:
-                        st.session_state.model = st.session_state.chat_config_list[0].get("model", "")
-                        try:
-                            st.session_state.model = st.session_state.chat_config_list[0].get("model")
-                        except:
-                            st.session_state.model =  oai_model_config_selector(
-                                st.session_state.oai_like_model_config_dict
-                            )[0]
 
             delete_dialog_button = st.button(
                 label=i18n("Delete selected dialog"),

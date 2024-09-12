@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 from uuid import uuid4
+from functools import lru_cache
 from loguru import logger
 from datetime import datetime
 from pydantic import ValidationError
@@ -34,6 +35,21 @@ from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 from modules.types.rag import BaseRAGResponse
+
+
+@lru_cache(maxsize=1)
+def get_agentchat_processor():
+    return AgentChatProcessor(
+        requesthandler=requesthandler,
+        model_type=st.session_state.model_type,
+        llm_config=st.session_state.rag_chat_config_list[0],
+    )
+
+
+# 在 create_custom_rag_response 调用之前添加
+def refresh_retriever():
+    get_agentchat_processor.cache_clear()
+    # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
 
 def save_rag_chat_history(response: BaseRAGResponse):
@@ -798,6 +814,8 @@ with st.sidebar:
 
                 def refresh_collection_files_button_callback():
                     st.session_state.reset_counter += 1
+                    refresh_retriever()
+                    st.toast("知识库文件已刷新")
 
                 refresh_collection_files_button = (
                     refresh_collection_files_button_placeholder.button(
@@ -873,12 +891,6 @@ with st.sidebar:
         st.toast(body=i18n(f"Chat history exported to {filename}"), icon="🎉")
 
 
-agentchat_processor = AgentChatProcessor(
-    requesthandler=requesthandler,
-    model_type=select_box0,
-    llm_config=st.session_state.rag_chat_config_list[0],
-)
-
 # st.write(st.session_state.rag_chat_config_list)
 st.title(st.session_state.rag_run_name)
 write_custom_rag_chat_history(
@@ -909,6 +921,8 @@ if prompt and st.session_state.model != None:
 
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
+            refresh_retriever()
+            agentchat_processor = get_agentchat_processor()
             response = agentchat_processor.create_custom_rag_response(
                 collection_name=collection_selectbox,
                 messages=processed_messages,
