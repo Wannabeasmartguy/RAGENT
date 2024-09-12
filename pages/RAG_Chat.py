@@ -25,6 +25,7 @@ from utils.basic_utils import (
     dict_filter,
     config_list_postprocess,
 )
+from utils.log.logger_config import setup_logger, log_dict_changes
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
 from configs.knowledge_base_config import (
@@ -182,7 +183,7 @@ if len(rag_run_id_list) == 0:
         AssistantRun(
             name="assistant",
             run_id=str(uuid4()),
-            llm=aoai_config_generator(model=None)[0],
+            llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
             run_name="New dialog",
             memory={"chat_history": []},
             task_data={"source_documents": {}},
@@ -229,6 +230,8 @@ def update_rag_config_in_db_callback():
     """
     Update rag chat llm config in db.
     """
+    from copy import deepcopy
+    origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
     if st.session_state["model_type"] == "OpenAI":
         config_list = oai_config_generator(
             model=st.session_state.model,
@@ -277,6 +280,7 @@ def update_rag_config_in_db_callback():
     elif st.session_state["model_type"] == "LiteLLM":
         config_list = litellm_config_generator(model=st.session_state["model"])
     st.session_state["rag_chat_config_list"] = config_list
+    log_dict_changes(origin_config_list, config_list)
     chat_history_storage.upsert(
         AssistantRun(
             run_id=st.session_state.rag_run_id,
@@ -368,7 +372,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.rag_run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None, stream=True)[0],
+                        llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
                         memory={"chat_history": []},
                         task_data={
                             "source_documents": {},
@@ -397,7 +401,7 @@ with st.sidebar:
                         AssistantRun(
                             name="assistant",
                             run_id=st.session_state.rag_run_id,
-                            llm=aoai_config_generator(model=None)[0],
+                            llm=aoai_config_generator(model=model_selector("AOAI")[0])[0],
                             run_name="New dialog",
                             memory={"chat_history": []},
                             task_data={
@@ -615,11 +619,20 @@ with st.sidebar:
 
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
-                    return model_selector(model_type).index(
-                        st.session_state.rag_chat_config_list[0].get("model")
-                    )
-                except:
-                    return None
+                    model = st.session_state.chat_config_list[0].get("model")
+                    logger.debug(f"model get: {model}")
+                    if model:
+                        options = model_selector(model_type)
+                        if model in options:
+                            options_index = options.index(model)
+                            logger.debug(f"model {model} in options, index: {options_index}")
+                            return options_index
+                        else:
+                            logger.debug(f"model {model} not in options")
+                            return 0
+                except ValueError:
+                    logger.warning(f"Model {model} not found in model_selector for {model_type}, returning 0")
+                    return 0
 
             select_box1 = model_choosing_container.selectbox(
                 label=i18n("Model"),
@@ -633,9 +646,10 @@ with st.sidebar:
         elif select_box0 == "Llamafile":
 
             def get_selected_llamafile_model() -> str:
-                try:
+                if st.session_state.chat_config_list:
                     return st.session_state.chat_config_list[0].get("model")
-                except:
+                else:
+                    logger.warning("chat_config_list is empty, using default model")
                     return oai_model_config_selector(
                         st.session_state.oai_like_model_config_dict
                     )[0]

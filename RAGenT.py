@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Union
 from uuid import uuid4
 from copy import deepcopy
 from loguru import logger
-from utils.log.logger_config import setup_logger
+from utils.log.logger_config import setup_logger, log_dict_changes
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -84,25 +84,6 @@ def generate_response(
             )
     return response
 
-
-def log_dict_changes(original_dict, new_dict):
-    # 找出变化的键值对
-    changed_keys = set(original_dict.keys()) & set(new_dict.keys())
-    changed_keys = [key for key in changed_keys if original_dict[key] != new_dict[key]]
-    
-    # 找出新增和删除的键
-    added_keys = set(new_dict.keys()) - set(original_dict.keys())
-    removed_keys = set(original_dict.keys()) - set(new_dict.keys())
-    
-    # 记录变化
-    if changed_keys or added_keys or removed_keys:
-        logger.debug("Dictionary changes:")
-        for key in changed_keys:
-            logger.debug(f"Key '{key}' changed from '{original_dict[key]}' to '{new_dict[key]}'")
-        for key in added_keys:
-            logger.debug(f"Key '{key}' added with value '{new_dict[key]}'")
-        for key in removed_keys:
-            logger.debug(f"Key '{key}' removed (old value was '{original_dict[key]}')")
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
@@ -353,7 +334,7 @@ with st.sidebar:
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != "Llamafile":
 
-            def get_selected_non_llamafile_model_index(model_type) -> Optional[int]:
+            def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state.chat_config_list[0].get("model")
                     logger.debug(f"model get: {model}")
@@ -365,11 +346,10 @@ with st.sidebar:
                             return options_index
                         else:
                             logger.debug(f"model {model} not in options")
-                            return None
-                        # return options.index(model) if model in options else None
+                            return 0
                 except ValueError:
-                    logger.warning(f"Model {model} not found in model_selector for {model_type}")
-                return None
+                    logger.warning(f"Model {model} not found in model_selector for {model_type}, returning 0")
+                    return 0
 
             select_box1 = model_choosing_container.selectbox(
                 label=i18n("Model"),
@@ -384,7 +364,7 @@ with st.sidebar:
 
             def get_selected_llamafile_model() -> str:
                 if st.session_state.chat_config_list:
-                    return st.session_state.chat_config_list[0].get("model", "")
+                    return st.session_state.chat_config_list[0].get("model")
                 else:
                     logger.warning("chat_config_list is empty, using default model")
                     return oai_model_config_selector(
@@ -567,7 +547,7 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=None, stream=True)[0],
+                        llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
                         memory={"chat_history": []},
                         assistant_data={
                             "system_prompt": get_system_prompt(st.session_state.run_id),
@@ -597,7 +577,7 @@ with st.sidebar:
                             name="assistant",
                             run_id=st.session_state.run_id,
                             run_name="New dialog",
-                            llm=aoai_config_generator(model=None)[0],
+                            llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
                             memory={"chat_history": []},
                             assistant_data={
                                 "system_prompt": get_system_prompt(

@@ -58,4 +58,23 @@ def setup_logger():
     #            format=format_, colorize=True,
     #            filter=lambda record: record["level"].no == logger.level("INFO").no)
 
+def log_dict_changes(original_dict, new_dict):
+    # 找出变化的键值对
+    changed_keys = set(original_dict.keys()) & set(new_dict.keys())
+    changed_keys = [key for key in changed_keys if original_dict[key] != new_dict[key]]
+    
+    # 找出新增和删除的键
+    added_keys = set(new_dict.keys()) - set(original_dict.keys())
+    removed_keys = set(original_dict.keys()) - set(new_dict.keys())
+    
+    # 记录变化
+    if changed_keys or added_keys or removed_keys:
+        logger.debug("Dictionary changes:")
+        for key in changed_keys:
+            logger.debug(f"Key '{key}' changed from '{original_dict[key]}' to '{new_dict[key]}'")
+        for key in added_keys:
+            logger.debug(f"Key '{key}' added with value '{new_dict[key]}'")
+        for key in removed_keys:
+            logger.debug(f"Key '{key}' removed (old value was '{original_dict[key]}')")
+
 setup_logger()
