@@ -213,8 +213,17 @@ def update_config_in_db_callback():
                 top_p=st.session_state.top_p,
                 stream=st.session_state.if_stream,
             )
-        except (UnboundLocalError, AttributeError):
-            config_list = llamafile_config_generator()
+        except (UnboundLocalError, AttributeError) as e:
+            # 如果st.session_state没有定义llamafile_api_key，则使用默认值
+            logger.warning(f"Error when generating config for llamafile: {e}")
+            logger.warning("Just use other existing config")
+            # params 可以使用已有配置
+            config_list = llamafile_config_generator(
+                max_tokens=st.session_state.max_tokens,
+                temperature=st.session_state.temperature,
+                top_p=st.session_state.top_p,
+                stream=st.session_state.if_stream,
+            )
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
     chat_history_storage.upsert(
@@ -429,6 +438,7 @@ with st.sidebar:
                 )
 
                 def load_oai_like_config_button_callback():
+                    logger.info(f"Loading model config: {oai_like_config_list}")
                     st.session_state.oai_like_model_config_dict = (
                         oailike_config_processor.get_model_config(oai_like_config_list)
                     )
@@ -444,14 +454,8 @@ with st.sidebar:
                     st.session_state.llamafile_api_key = next(
                         iter(st.session_state.oai_like_model_config_dict.values())
                     ).get("api_key")
+                    logger.info(f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}")
 
-                load_oai_like_config_button = st.button(
-                    label=i18n("Load model config"),
-                    use_container_width=True,
-                    type="primary",
-                    on_click=load_oai_like_config_button_callback,
-                )
-                if load_oai_like_config_button:
                     model_config = next(
                         iter(st.session_state.oai_like_model_config_dict.values())
                     )
@@ -463,6 +467,7 @@ with st.sidebar:
                         base_url=model_config.get("base_url"),
                     )
                     st.session_state["chat_config_list"] = config_list
+                    logger.info(f"Chat config list loaded: {st.session_state.chat_config_list}")
                     chat_history_storage.upsert(
                         AssistantRun(
                             run_id=st.session_state.run_id,
@@ -474,8 +479,14 @@ with st.sidebar:
                             updated_at=datetime.now(),
                         )
                     )
-                    # toast here doesn't work
                     st.toast(i18n("Model config loaded successfully"))
+
+                load_oai_like_config_button = st.button(
+                    label=i18n("Load model config"),
+                    use_container_width=True,
+                    type="primary",
+                    on_click=load_oai_like_config_button_callback,
+                )
 
                 delete_oai_like_config_button = st.button(
                     label=i18n("Delete model config"),
