@@ -78,6 +78,11 @@ def display_rag_sources(response_sources):
     num_sources = len(response_sources["metadatas"])
     num_columns = min(3, num_sources)
     visible_sources = min(6, num_sources)
+    
+    if num_sources == 0:
+        st.toast(i18n("No sources found for this response."))
+        return
+    
     rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
 
     def create_source_popover(column, index):
