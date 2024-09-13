@@ -345,9 +345,10 @@ with st.sidebar:
                             logger.debug(f"model {model} in options, index: {options_index}")
                             return options_index
                         else:
-                            logger.debug(f"model {model} not in options")
+                            st.session_state.chat_config_list[0].update({"model": options[0]})
+                            logger.debug(f"model {model} not in options, set model in config list to first option: {options[0]}")
                             return 0
-                except ValueError:
+                except (ValueError, AttributeError, IndexError):
                     logger.warning(f"Model {model} not found in model_selector for {model_type}, returning 0")
                     return 0
 
