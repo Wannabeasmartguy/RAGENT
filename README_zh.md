@@ -1,6 +1,6 @@
 # RAGenT
 
-**中文文档** | [English](README.md)
+**中文文档** | [English](README.md) | [日本語](README_ja.md)
 
 可能是最轻量级的本地 RAG + Agent 应用之一，无需进行复杂配置，即可一键体验 Agent 加持下不同模型能力的强大提升。
 
