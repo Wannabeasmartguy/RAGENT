@@ -77,21 +77,32 @@ def display_rag_sources(response_sources):
     import itertools
     num_sources = len(response_sources["metadatas"])
     num_columns = min(3, num_sources)
-    rows = [st.columns(num_columns) for _ in range((num_sources + 2) // 3)]
+    visible_sources = min(6, num_sources)
+    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
 
-    for index, pop in enumerate(itertools.chain(*rows)):
-        if index < num_sources:
-            a = pop.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True)
-            file_name = response_sources["metadatas"][index]["source"]
-            file_content = response_sources["page_content"][index]
-            a.text(i18n("Cited Source") + ": " + file_name)
-            relevance_score_placeholder = a.empty()
+    def create_source_popover(column, index):
+        file_name = response_sources["metadatas"][index]["source"]
+        file_content = response_sources["page_content"][index]
+        with column.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True):
+            st.text(i18n("Cited Source") + ": " + file_name)
             if "relevance_score" in response_sources["metadatas"][index]:
                 relevance_score = response_sources["metadatas"][index]["relevance_score"]
-                relevance_score_placeholder.text(
-                    i18n("Relevance Score") + ": " + str(relevance_score)
-                )
-            a.code(file_content, language="plaintext")
+                st.text(i18n("Relevance Score") + ": " + str(relevance_score))
+            st.code(file_content, language="plaintext")
+
+    for index, column in enumerate(itertools.chain(*rows)):
+        if index < visible_sources:
+            create_source_popover(column, index)
+
+    if num_sources > 6:
+        with st.expander(i18n("Show more sources"), expanded=False):
+            remaining_sources = num_sources - visible_sources
+            remaining_columns = min(3, remaining_sources)
+            remaining_rows = [st.columns(remaining_columns) for _ in range((remaining_sources + 2) // 3)]
+            
+            for index, column in enumerate(itertools.chain(*remaining_rows), start=visible_sources):
+                if index < num_sources:
+                    create_source_popover(column, index)
 
 
 @st.cache_data
@@ -120,11 +131,13 @@ def handle_response(response: BaseRAGResponse, if_stream: bool):
         st.write(answer)
 
     # 添加回答到 st.session
+    response_id = response["response_id"] if isinstance(response, dict) else response.response_id
+    
     st.session_state.custom_rag_chat_history.append(
         {
             "role": "assistant",
             "content": answer,
-            "response_id": response.response_id,
+            "response_id": response_id,
         }
     )
 
@@ -132,7 +145,7 @@ def handle_response(response: BaseRAGResponse, if_stream: bool):
     save_rag_chat_history(response)
 
     # 展示引用源
-    response_sources = st.session_state.custom_rag_sources[response.response_id]
+    response_sources = st.session_state.custom_rag_sources[response_id]
     display_rag_sources(response_sources)
 
 
@@ -385,6 +398,8 @@ with st.sidebar:
                         st.session_state.rag_run_id
                     ).llm
                 ]
+                st.session_state.custom_rag_chat_history = []
+                st.session_state.custom_rag_sources = {}
 
             add_dialog_button = st.button(
                 label=i18n("Add a new dialog"),
