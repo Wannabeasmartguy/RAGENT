@@ -30,8 +30,8 @@ from utils.log.logger_config import setup_logger, log_dict_changes
 
 from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
 from configs.knowledge_base_config import (
-    ChromaVectorStoreProcessor,
-    ChromaCollectionProcessor,
+    ChromaVectorStoreProcessorWithNoApi,
+    ChromaCollectionProcessorWithNoApi,
 )
 from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
@@ -160,7 +160,7 @@ requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
-vectorstore_processor = ChromaVectorStoreProcessor(
+vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
     # 仅需要展示所有的 Collection 即可，故所有参数都为空
     embedding_model_name_or_path="",
     embedding_model_type="huggingface",
@@ -813,7 +813,7 @@ with st.sidebar:
                 st.session_state.collection_config = embedding_config.get(
                     collection_selectbox, {}
                 )
-                collection_processor = ChromaCollectionProcessor(
+                collection_processor = ChromaCollectionProcessorWithNoApi(
                     collection_name=st.session_state["collection_name"],
                     embedding_model_type=st.session_state.collection_config.get(
                         "embedding_type"
@@ -821,6 +821,8 @@ with st.sidebar:
                     embedding_model_name_or_path=st.session_state.collection_config.get(
                         "embedding_model_name_or_path"
                     ),
+                    # 目前没有设计好存储embedding_model_id的数据结构
+                    embedding_model_id=None
                 )
 
                 selected_collection_file = collection_files_placeholder.selectbox(

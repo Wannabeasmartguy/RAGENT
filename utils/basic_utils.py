@@ -269,6 +269,12 @@ def current_datetime_utc_str() -> str:
     return current_datetime_utc().strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def datetime_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+
 def encode_image(image: BytesIO) -> str:
     """
     将 BytesIO 对象编码为 base64 字符串.
