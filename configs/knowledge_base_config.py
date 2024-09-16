@@ -16,18 +16,18 @@ from loguru import logger
 from configs.basic_config import I18nAuto, KNOWLEDGE_BASE_DIR
 from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
-    EmbeddingModelConfig, 
+    EmbeddingModelConfig,
 )
 from model.config.embeddings import (
-    EmbeddingModelConfiguration, 
-    KnowledgeBaseConfiguration, 
-    GlobalSettings, 
-    EmbeddingConfiguration
+    EmbeddingModelConfiguration,
+    KnowledgeBaseConfiguration,
+    GlobalSettings,
+    EmbeddingConfiguration,
 )
 
 i18n = I18nAuto()
 
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT",8000))
+requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 EMBEDDING_CONFIG_FILE_PATH = os.path.join("dynamic_configs", "embedding_config.json")
 
 DEFAULT_COLLECTION_NAME = "default_collection"
@@ -43,7 +43,9 @@ class ChromaVectorStoreProcessStrategy(ABC):
         pass
 
     @abstractmethod
-    def list_all_knowledgebase_collections(self,) -> List[str]:
+    def list_all_knowledgebase_collections(
+        self,
+    ) -> List[str]:
         pass
 
     @abstractmethod
@@ -67,13 +69,13 @@ class ChromaVectorStoreProcessStrategy(ABC):
 class BaseProcessStrategy(ABC):
     @abstractmethod
     def list_collection_all_filechunks_content(
-            collection_name: str,
-            embedding_model_type: Literal["openai", "huggingface"],
-            embedding_model_name_or_path: str,
-            **openai_kwargs,
-        ) -> List[str]:
+        collection_name: str,
+        embedding_model_type: Literal["openai", "huggingface"],
+        embedding_model_name_or_path: str,
+        **openai_kwargs,
+    ) -> List[str]:
         pass
-    
+
     @abstractmethod
     def list_all_filechunks_in_detail(
         collection_name: str,
@@ -97,7 +99,7 @@ class BaseProcessStrategy(ABC):
         collection_name: str,
         embedding_model_type: str,
         embedding_model_name_or_path: str,
-        documents:List[Document],
+        documents: List[Document],
         **openai_kwargs,
     ) -> None:
         pass
@@ -139,62 +141,73 @@ class BaseChromaInitEmbeddingConfig:
 
     @classmethod
     def _create_embedding_model(
-        cls,
-        embedding_config: EmbeddingModelConfiguration
+        cls, embedding_config: EmbeddingModelConfiguration
     ) -> chromadb.EmbeddingFunction:
-        '''根据embedding_type和embedding_model选择相应的模型'''
+        """根据embedding_type和embedding_model选择相应的模型"""
         if embedding_config.embedding_type == "openai":
             embedding_model = embedding_functions.OpenAIEmbeddingFunction(
                 model_name=embedding_config.embedding_model_name_or_path,
                 api_key=embedding_config.api_key,
                 api_base=embedding_config.base_url,
                 api_type=embedding_config.api_type,
-                api_version=embedding_config.api_version
+                api_version=embedding_config.api_version,
             )
         elif embedding_config.embedding_type == "huggingface":
             try:
-                local_model_path = os.path.join("embeddings", embedding_config.embedding_model_name_or_path)
+                local_model_path = os.path.join(
+                    "embeddings", embedding_config.embedding_model_name_or_path
+                )
                 if os.path.exists(local_model_path):
-                    embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
-                        model_name=local_model_path
+                    embedding_model = (
+                        embedding_functions.SentenceTransformerEmbeddingFunction(
+                            model_name=local_model_path
+                        )
                     )
                 else:
-                    raise ValueError(f"Local model path {local_model_path} does not exist, please ensure the model has been downloaded.")
+                    raise ValueError(
+                        f"Local model path {local_model_path} does not exist, please ensure the model has been downloaded."
+                    )
             except Exception as e:
-                raise ValueError(f"Huggingface model not found, please use 'Local embedding model download' to download the model")
+                raise ValueError(
+                    f"Huggingface model not found, please use 'Local embedding model download' to download the model"
+                )
         else:
             raise ValueError("Unsupported embedding type")
-        
+
         return embedding_model
 
     @classmethod
-    def _get_chroma_specific_collection(cls, name: str, embedding_model: chromadb.EmbeddingFunction) -> chromadb.Collection:
-        '''
+    def _get_chroma_specific_collection(
+        cls, name: str, embedding_model: chromadb.EmbeddingFunction
+    ) -> chromadb.Collection:
+        """
         获取知识库的特定 collection
-        
+
         参数：
             name (str): 知识库某个 collection 的名称
             embedding_model (chromadb.EmbeddingFunction): 嵌入模型
-            
+
         返回：
             chromadb.Collection: 知识库中名称为 name 的 collection
-        '''
+        """
         knowledgebase_collections = cls._list_chroma_collections()
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
-        
+
         # 检查集合是否存在
         if name not in knowledgebase_collections:
             return None
-        
-        collection = client.get_collection(name=name, embedding_function=embedding_model)
-        
+
+        collection = client.get_collection(
+            name=name, embedding_function=embedding_model
+        )
+
         return collection
 
 
 def create_embedding_model_config(
     embedding_model_type: Literal["openai", "huggingface"],
     embedding_model_name_or_path: str,
-    **openai_kwargs
+    **openai_kwargs,
 ):
     if embedding_model_type == "openai":
         embedding_model_config = EmbeddingModelConfig(
@@ -210,13 +223,17 @@ def create_embedding_model_config(
             embedding_type="huggingface",
             embedding_model_name_or_path=embedding_model_name_or_path,
         )
-    
+
     return embedding_model_config
 
 
 class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
     """Chroma向量存储处理器，用于在*使用FastAPI后端时*，使用request向后端请求以处理向量存储。"""
-    embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
+
+    embedding_config_file_path = os.path.join(
+        "dynamic_configs", "embedding_config.json"
+    )
+
     def __init__(
         self,
         embedding_model_type: Literal["openai", "huggingface"],
@@ -224,12 +241,9 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         **openai_kwargs,
     ):
         self.embedding_model_config = create_embedding_model_config(
-            embedding_model_type,
-            embedding_model_name_or_path,
-            **openai_kwargs
+            embedding_model_type, embedding_model_name_or_path, **openai_kwargs
         )
 
-    
     def model_dir_verify(self, model_name_or_path: str):
         """
         Verify the model directory. If the model_name_or_path is a directory, it will be used as the model directory.
@@ -242,13 +256,14 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             # 创建模型目录
             # os.makedirs(model_name_or_path, exist_ok=True)
 
-            create_info = i18n("You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.")
+            create_info = i18n(
+                "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
+            )
             return create_info
         else:
             # 模型目录存在
             return None
-    
-    
+
     def download_model(self, model_name_or_path: str, repo_id: str) -> None:
         """
         Download the model from Hugging Face Hub.
@@ -262,12 +277,11 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             repo_id=repo_id,
             local_dir=model_name_or_path,
         )
-        
+
         return i18n("Model downloaded successfully!")
-    
-    
+
     @st.cache_data
-    def list_all_knowledgebase_collections(_self,counter: int) -> List[str]:
+    def list_all_knowledgebase_collections(_self, counter: int) -> List[str]:
         """
         List all knowledgebase collections.
 
@@ -280,11 +294,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         response = requesthandler.get("/knowledgebase/list-knowledge-bases")
         return response
 
-    
-    def create_knowledgebase_collection(
-            self,
-            collection_name: str
-    ) -> None:
+    def create_knowledgebase_collection(self, collection_name: str) -> None:
         """
         Create a knowledgebase collection.
 
@@ -306,7 +316,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         # {
         #     collection_name: self.embedding_model_config.dict()
         # }
-        
+
         # 更新 embedding_config.json，如果没有该文件，则创建
         if not os.path.exists(self.embedding_config_file_path):
             with open(self.embedding_config_file_path, "w") as f:
@@ -314,12 +324,13 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         else:
             with open(self.embedding_config_file_path, "r") as f:
                 collections_embedding_config = json.load(f)
-            collections_embedding_config[collection_name] = self.embedding_model_config.dict()
+            collections_embedding_config[collection_name] = (
+                self.embedding_model_config.dict()
+            )
             with open(self.embedding_config_file_path, "w") as f:
                 json.dump(collections_embedding_config, f, indent=4)
-    
 
-    def delete_knowledgebase_collection(self,collection_name:str) -> None:
+    def delete_knowledgebase_collection(self, collection_name: str) -> None:
         """
         Delete a knowledgebase collection by name.
 
@@ -331,30 +342,27 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             data=None,
             params={"name": collection_name},
         )
-        
+
         # 删除 embedding_config.json 中的该 collection 的信息
         with open(self.embedding_config_file_path, "r") as f:
             collections_embedding_config = json.load(f)
         del collections_embedding_config[collection_name]
         with open(self.embedding_config_file_path, "w") as f:
             json.dump(collections_embedding_config, f, indent=4)
-            
+
 
 class ChromaCollectionProcessor(BaseProcessStrategy):
     def __init__(
-            self,
-            collection_name: str,
-            embedding_model_type: Literal["openai", "huggingface"],
-            embedding_model_name_or_path: str,
-            **openai_kwargs,
-        ):
+        self,
+        collection_name: str,
+        embedding_model_type: Literal["openai", "huggingface"],
+        embedding_model_name_or_path: str,
+        **openai_kwargs,
+    ):
         self.collection_name = collection_name
         self.embedding_model_config = create_embedding_model_config(
-            embedding_model_type,
-            embedding_model_name_or_path,
-            **openai_kwargs
+            embedding_model_type, embedding_model_name_or_path, **openai_kwargs
         )
-    
 
     def update_parameters(
         self,
@@ -367,11 +375,8 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             self.collection_name = collection_name
         if embedding_model_type is not None or embedding_model_name_or_path is not None:
             self.embedding_model_config = create_embedding_model_config(
-                embedding_model_type,
-                embedding_model_name_or_path,
-                **openai_kwargs
+                embedding_model_type, embedding_model_name_or_path, **openai_kwargs
             )
-
 
     def get_embedding_model_max_seq_len(self) -> int:
         """
@@ -381,14 +386,14 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type (str): The type of the embedding model.
             embedding_model_name_or_path (str): The name or path of the embedding model.
             openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-        
+
         Returns:
             int: The max sequence length of the embedding model.
         """
         if self.embedding_model_config is None or self.embedding_model_config == {}:
             logger.warning("Embedding model config is empty")
             return None
-        
+
         logger.debug(f"Getting max sequence length for {self.embedding_model_config}")
         response = requesthandler.post(
             "/knowledgebase/get-max-seq-len",
@@ -400,9 +405,10 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             return response
         elif isinstance(response, Dict):
             if response.get("error"):
-                logger.warning(f"Error getting max sequence length for {self.embedding_model_config}")
+                logger.warning(
+                    f"Error getting max sequence length for {self.embedding_model_config}"
+                )
                 return None
-
 
     def list_collection_all_filechunks_content(self) -> List[str]:
         """
@@ -413,7 +419,7 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type (str): The type of the embedding model.
             embedding_model_name_or_path (str): The name or path of the embedding model.
             openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-        
+
         Returns:
             List[str]: A list of file content.
         """
@@ -424,7 +430,6 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
         )
         return response
 
-
     def list_all_filechunks_in_detail(self) -> Dict:
         """
         List all file chunks in a collection.
@@ -434,72 +439,69 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type (str): The type of the embedding model.
             embedding_model_name_or_path (str): The name or path of the embedding model.
             openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-        
+
         Returns:
             Dict: A dictionary of file chunks info, include "ids", "embeddings", "metadatas" and "documents".
         """
         response = requesthandler.post(
             "/knowledgebase/list-all-files-in-detail",
             data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name}
+            params={"name": self.collection_name},
         )
         return response
 
-
     @st.cache_data
-    def list_all_filechunks_metadata_name(_self,counter:int) -> List[str]:
+    def list_all_filechunks_metadata_name(_self, counter: int) -> List[str]:
         """
         List all files content in a collection by file name.
-        
+
         Args:
             counter (int): No usage, just for update cache data.
-            
+
         Returns:
             List[str]: A list of file content.
         """
         response = requesthandler.post(
             "/knowledgebase/list-all-files-metadata-name",
             data=_self.embedding_model_config.dict(),
-            params={"name": _self.collection_name}
+            params={"name": _self.collection_name},
         )
-        
+
         if "error" in response:
             return []
         else:
             return response
-    
 
     @st.cache_data
-    def list_all_filechunks_raw_metadata_name(_self,counter:int) -> List[str]:
+    def list_all_filechunks_raw_metadata_name(_self, counter: int) -> List[str]:
         """
         List all files content in a collection by raw file name(include system path).
-        
+
         Args:
             counter (int): No usage, just for update cache data.
-            
+
         Returns:
             List[str]: A list of file content.
         """
         response = requesthandler.post(
             "/knowledgebase/list-all-files-raw-metadata-name",
             data=_self.embedding_model_config.dict(),
-            params={"name": _self.collection_name}
+            params={"name": _self.collection_name},
         )
-        
+
         if "error" in response:
             return []
         else:
             return response
 
-
     def search_docs(
-            self,
-            query:str | List[str],
-            n_results:int,
+        self,
+        query: str | List[str],
+        n_results: int,
     ) -> Dict:
         """
         查询知识库中的文档，返回与查询语句最相似 n_results 个文档列表
-        
+
         Args:
             collection_name (str): 知识库名称
             embedding_model_type (str): 嵌入模型类型
@@ -507,7 +509,7 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             query (str | List[str]): 查询的文本或列表
             n_results (int): 返回结果的数量
             openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-            
+
         Returns:
             Dict: 查询结果
                 ids (List[List[str]]): 匹配文档的 ID
@@ -522,18 +524,17 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
                 "query": query,
                 "embedding_config": self.embedding_model_config.dict(),
             },
-            params={"name": self.collection_name, "n_results": n_results}
+            params={"name": self.collection_name, "n_results": n_results},
         )
         return response
 
-
     def add_documents(
-            self,
-            documents:List[Document],          
+        self,
+        documents: List[Document],
     ) -> None:
         """
         向知识库中添加文档
-        
+
         Args:
             collection_name (str): 知识库名称
             embedding_model_type (str): 嵌入模型类型
@@ -550,13 +551,12 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
                 "documents": documents_dict,
                 "embedding_config": self.embedding_model_config.dict(),
             },
-            params={"name": self.collection_name}
+            params={"name": self.collection_name},
         )
 
-
     def delete_documents_from_same_metadata(
-            self,
-            files_name: str,
+        self,
+        files_name: str,
     ) -> None:
         """
         从知识库中删除来自于同一个相同元文件的文档块
@@ -567,18 +567,17 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type (str): 嵌入模型类型
             embedding_model_name_or_path (str): 嵌入模型名称或路径
             openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-            
+
         """
         requesthandler.post(
             "/knowledgebase/delete-whole-file-in-collection",
             data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name, "files_name": files_name}
+            params={"name": self.collection_name, "files_name": files_name},
         )
 
-
     def delete_specific_documents(
-            self,
-            chunk_document_content: str,
+        self,
+        chunk_document_content: str,
     ) -> None:
         """
         从知识库中删除特定的文档块
@@ -589,17 +588,21 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
             embedding_model_type (str): 嵌入模型类型
             embedding_model_name_or_path (str): 嵌入模型名称或路径
             openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-            
+
         """
         requesthandler.post(
             "/knowledgebase/delete-specific-splitted-document",
             data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name, "chunk_document_content": chunk_document_content}
+            params={
+                "name": self.collection_name,
+                "chunk_document_content": chunk_document_content,
+            },
         )
 
 
 class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     """Chroma向量存储处理器，用于在*不使用FastAPI后端时*，直接处理向量存储。"""
+
     def __init__(
         self,
         embedding_model_type: Literal["openai", "huggingface"],
@@ -608,7 +611,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     ):
         self.embedding_model_type = embedding_model_type
         self.embedding_model_name_or_path = embedding_model_name_or_path
-        
+
         model_id = str(uuid.uuid4())
         if embedding_model_type == "openai":
             embedding_model = EmbeddingModelConfiguration(
@@ -636,10 +639,9 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 self.embedding_config = EmbeddingConfiguration(**json.load(f))
         else:
             from datetime import datetime
+
             self.embedding_config = EmbeddingConfiguration(
-                global_settings=GlobalSettings(
-                    default_model=model_id
-                ),
+                global_settings=GlobalSettings(default_model=model_id),
                 models=[embedding_model],
                 knowledge_bases=[],
                 user_id=None,
@@ -647,8 +649,41 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 updated_at=datetime.now().isoformat(),
             )
 
-        self.embedding_model: chromadb.EmbeddingFunction = self._create_embedding_model(embedding_model)
+        self.embedding_model: chromadb.EmbeddingFunction = self._create_embedding_model(
+            embedding_model
+        )
         self.knowledgebase_collections: List[str] = self._list_chroma_collections()
+    
+    @classmethod
+    def download_model(cls, model_name_or_path: str, repo_id: str) -> str:
+        """
+        从Hugging Face Hub下载模型。
+
+        Args:
+            model_name_or_path (str): 模型名称或路径。这是一个目录路径，由"models_dir_path/model_name"组成。
+            repo_id (str): Hugging Face Hub上的仓库ID。
+
+        Returns:
+            str: 下载状态的消息。
+
+        Raises:
+            ValueError: 如果model_name_or_path或repo_id为空。
+            Exception: 下载过程中发生的任何其他错误。
+        """
+        if not model_name_or_path or not repo_id:
+            raise ValueError("model_name_or_path和repo_id不能为空")
+
+        try:
+            os.makedirs(model_name_or_path, exist_ok=True)
+            snapshot_download(
+                repo_id=repo_id,
+                local_dir=model_name_or_path,
+            )
+            return i18n("Model downloaded successfully!")
+        except Exception as e:
+            error_message = f"Download model error: {str(e)}"
+            logger.error(error_message)
+            return i18n(error_message)
 
     def model_dir_verify(self, model_name_or_path: str):
         """
@@ -662,14 +697,18 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             # 创建模型目录
             # os.makedirs(model_name_or_path, exist_ok=True)
 
-            create_info = i18n("You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST.")
+            create_info = i18n(
+                "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
+            )
             return create_info
         else:
             # 模型目录存在
             return None
-        
+
     @st.cache_data
-    def list_all_knowledgebase_collections(_self, counter: Optional[int] = None) -> List[str]:
+    def list_all_knowledgebase_collections(
+        _self, counter: Optional[int] = None
+    ) -> List[str]:
         """
         List all knowledgebase collections.
 
@@ -686,15 +725,15 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self,
         name: str,
     ) -> None:
-        '''
+        """
         创建一个知识库 collection
-        
+
         Args:
             name (str): 知识库名称
-            
+
         Returns:
             None
-        '''
+        """
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
         # 检查集合是否已存在
@@ -702,19 +741,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             raise ValueError("Collection already exists")
 
         # 创建集合
-        client.create_collection(
-            name=name,
-            embedding_function=self.embedding_model
-        )
+        client.create_collection(name=name, embedding_function=self.embedding_model)
 
         # 获取当前使用的嵌入模型的ID
         current_model_id = self._get_current_model_id()
 
         # 添加新的知识库到配置中
         new_kb = KnowledgeBaseConfiguration(
-            id=str(uuid.uuid4()),
-            name=name,
-            embedding_model_id=current_model_id
+            id=str(uuid.uuid4()), name=name, embedding_model_id=current_model_id
         )
         self.embedding_config.knowledge_bases.append(new_kb)
 
@@ -725,37 +759,41 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self,
         name: str,
     ) -> None:
-        '''
+        """
         删除指定名称的 collection
-        
+
         Args:
             name (str): 知识库名称
-            
+
         Returns:
             None
-        '''
+        """
         knowledgebase_collections: List[str] = self._list_chroma_collections()
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
         # Check if collection exists
         if name not in knowledgebase_collections:
             raise ValueError("Collection does not exist")
-        
+
         # Delete collection
         client.delete_collection(name=name)
 
         # Remove the knowledge base from the configuration
-        self.embedding_config.knowledge_bases = [kb for kb in self.embedding_config.knowledge_bases if kb.name != name]
+        self.embedding_config.knowledge_bases = [
+            kb for kb in self.embedding_config.knowledge_bases if kb.name != name
+        ]
 
         # Update the configuration file
         self._update_embedding_config()
 
     def _update_embedding_config(self):
         """更新嵌入配置文件"""
-        with open(EMBEDDING_CONFIG_FILE_PATH, 'w') as f:
+        with open(EMBEDDING_CONFIG_FILE_PATH, "w") as f:
             json.dump(self.embedding_config.serializable_dict(), f, indent=2)
 
-    def _create_embedding_model(self, model_config: EmbeddingModelConfiguration) -> chromadb.EmbeddingFunction:
+    def _create_embedding_model(
+        self, model_config: EmbeddingModelConfiguration
+    ) -> chromadb.EmbeddingFunction:
         """根据模型配置创建嵌入模型"""
         if model_config.embedding_type == "openai":
             return embedding_functions.OpenAIEmbeddingFunction(
@@ -763,7 +801,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 api_key=model_config.api_key,
                 api_base=model_config.base_url,
                 api_type=model_config.api_type,
-                api_version=model_config.api_version
+                api_version=model_config.api_version,
             )
         elif model_config.embedding_type == "huggingface":
             try:
@@ -771,28 +809,34 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                     model_name=model_config.embedding_model_name_or_path
                 )
             except OSError:
-                raise ValueError("Huggingface model not found, please use 'Local embedding model download' to download the model")
+                raise ValueError(
+                    "Huggingface model not found, please use 'Local embedding model download' to download the model"
+                )
         else:
             raise ValueError("Unsupported embedding type")
-    
+
     def _get_current_model_id(self):
-        '''
+        """
         获取当前使用的嵌入模型的ID
-        
+
         Returns:
             str: 当前模型的ID
-        '''
+        """
         for model in self.embedding_config.models:
-            if (model.embedding_type == self.embedding_model_type and 
-                model.embedding_model_name_or_path == self.embedding_model_name_or_path):
+            if (
+                model.embedding_type == self.embedding_model_type
+                and model.embedding_model_name_or_path
+                == self.embedding_model_name_or_path
+            ):
                 return model.id
-        
+
         # 如果没有找到匹配的模型，使用默认模型ID
         return self.embedding_config.global_settings.default_model
 
 
 class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     """Chroma向量存储处理器，用于在*不使用FastAPI后端时*，直接处理向量存储。"""
+
     def __init__(
         self,
         collection_name: str,
@@ -801,51 +845,69 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     ):
         self.embedding_config = embedding_config
         self.embedding_model = self._get_embedding_model(embedding_model_id)
-        self.collection = self._get_chroma_specific_collection(collection_name, self.embedding_model)
+        self.collection = self._get_chroma_specific_collection(
+            collection_name, self.embedding_model
+        )
         self.collection_name = collection_name
 
     def _get_embedding_model(self, model_id: str) -> chromadb.EmbeddingFunction:
-        model_config = next((model for model in self.embedding_config.models if model.id == model_id), None)
+        model_config = next(
+            (model for model in self.embedding_config.models if model.id == model_id),
+            None,
+        )
         if not model_config:
             raise ValueError(f"No embedding model found with id {model_id}")
         return self._create_embedding_model(model_config)
 
-    def _create_embedding_model(self, model_config: EmbeddingModelConfiguration) -> chromadb.EmbeddingFunction:
+    def _create_embedding_model(
+        self, model_config: EmbeddingModelConfiguration
+    ) -> chromadb.EmbeddingFunction:
         if model_config.embedding_type == "openai":
             return embedding_functions.OpenAIEmbeddingFunction(
                 model_name=model_config.embedding_model_name_or_path,
                 api_key=model_config.api_key,
                 api_base=model_config.base_url,
                 api_type=model_config.api_type,
-                api_version=model_config.api_version
+                api_version=model_config.api_version,
             )
         elif model_config.embedding_type == "huggingface":
             try:
                 # 使用SentenceTransformerEmbeddingFunction加载模型
                 # 构造本地路径并传入
-                local_model_path = os.path.join("embeddings", model_config.embedding_model_name_or_path)
+                local_model_path = os.path.join(
+                    "embeddings", model_config.embedding_model_name_or_path
+                )
                 if os.path.exists(local_model_path):
                     return embedding_functions.SentenceTransformerEmbeddingFunction(
                         model_name=local_model_path
                     )
                 else:
-                    raise ValueError(f"Local model path {local_model_path} does not exist, please ensure the model has been downloaded.")
+                    raise ValueError(
+                        f"Local model path {local_model_path} does not exist, please ensure the model has been downloaded."
+                    )
             except Exception as e:
-                raise ValueError(f"Huggingface model not found, please use 'Local embedding model download' to download the model")
+                raise ValueError(
+                    f"Huggingface model not found, please use 'Local embedding model download' to download the model"
+                )
         else:
             raise ValueError("Unsupported embedding type")
 
     def get_embedding_model_max_seq_len(self) -> int:
-        if isinstance(self.embedding_model, embedding_functions.OpenAIEmbeddingFunction):
+        if isinstance(
+            self.embedding_model, embedding_functions.OpenAIEmbeddingFunction
+        ):
             return 1500
-        if isinstance(self.embedding_model, embedding_functions.SentenceTransformerEmbeddingFunction):
+        if isinstance(
+            self.embedding_model,
+            embedding_functions.SentenceTransformerEmbeddingFunction,
+        ):
             # 直接访问模型属性
             return self.embedding_model._model.max_seq_length
 
     def list_collection_all_filechunks_content(self) -> List[str]:
         """
         List all filechunks content in the collection.
-        
+
         Returns:
             List[str]: A list of filechunks content.
         """
@@ -856,42 +918,44 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     def list_all_filechunks_in_detail(self) -> Dict:
         """
         List all file chunks in a collection.
-        
+
         Returns:
             Dict: A dictionary of file chunks info, include "ids", "embeddings", "metadatas" and "documents".
         """
         document_count = self.collection.count()
         return self.collection.peek(limit=document_count)
-    
+
     @st.cache_data
     def list_all_filechunks_metadata_name(_self, counter: int) -> List[str]:
         """
         List all files content in a collection by file name.
-        
+
         Args:
             counter (int): No usage, just for update cache data.
-            
+
         Returns:
             List[str]: A list of file names.
         """
         if _self.collection is None:
             return []
         client_data = _self.collection.get()
-        unique_sources = set(metadata['source'] for metadata in client_data['metadatas'])
-        return [source.split('/')[-1].split('\\')[-1] for source in unique_sources]
+        unique_sources = set(
+            metadata["source"] for metadata in client_data["metadatas"]
+        )
+        return [source.split("/")[-1].split("\\")[-1] for source in unique_sources]
 
     def search_docs(
-            self,
-            query: str | List[str],
-            n_results: int,
+        self,
+        query: str | List[str],
+        n_results: int,
     ) -> Dict:
         """
         查询知识库中的文档，返回与查询语句最相似 n_results 个文档列表
-        
+
         Args:
             query (str | List[str]): 查询的文本或列表
             n_results (int): 返回结果的数量
-            
+
         Returns:
             Dict: 查询结果
                 ids (List[List[str]]): 匹配文档的 ID
@@ -906,12 +970,12 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         )
 
     def add_documents(
-            self,
-            documents: List[Document],          
+        self,
+        documents: List[Document],
     ) -> None:
         """
         向知识库中添加文档
-        
+
         Args:
             documents (List[Document]): 要添加的文档列表
         """
@@ -926,8 +990,8 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         )
 
     def delete_documents_from_same_metadata(
-            self,
-            files_name: str,
+        self,
+        files_name: str,
     ) -> None:
         """
         从知识库中删除来自于同一个相同元文件的文档块
@@ -937,14 +1001,15 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         """
         metadata = self.collection.get()
         ids_for_target_file = [
-            metadata['ids'][i] for i, meta in enumerate(metadata['metadatas'])
-            if meta['source'].split('/')[-1].split('\\')[-1] == files_name
+            metadata["ids"][i]
+            for i, meta in enumerate(metadata["metadatas"])
+            if meta["source"].split("/")[-1].split("\\")[-1] == files_name
         ]
         self.collection.delete(ids=ids_for_target_file)
-    
+
     def delete_specific_documents(
-            self,
-            chunk_document_content: str,
+        self,
+        chunk_document_content: str,
     ) -> None:
         """
         从知识库中删除特定的文档块
