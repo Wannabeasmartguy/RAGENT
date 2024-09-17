@@ -739,18 +739,18 @@ with st.sidebar:
                     model_config = next(
                         iter(st.session_state.oai_like_model_config_dict.values())
                     )
-                    config_list = llamafile_config_generator(
-                        model=next(
-                            iter(st.session_state.oai_like_model_config_dict.keys())
-                        ),
-                        api_key=model_config.get("api_key"),
-                        base_url=model_config.get("base_url"),
+                    # 只更新model、api_key和base_url参数
+                    st.session_state["rag_chat_config_list"][0]["model"] = next(
+                        iter(st.session_state.oai_like_model_config_dict.keys())
                     )
-                    st.session_state["rag_chat_config_list"] = config_list
+                    st.session_state["rag_chat_config_list"][0]["api_key"] = model_config.get("api_key")
+                    st.session_state["rag_chat_config_list"][0]["base_url"] = model_config.get("base_url")
+                    
+                    logger.info(f"Chat config list updated: {st.session_state.rag_chat_config_list}")
                     chat_history_storage.upsert(
                         AssistantRun(
                             run_id=st.session_state.rag_run_id,
-                            llm=config_list[0],
+                            llm=st.session_state["rag_chat_config_list"][0],
                             assistant_data={
                                 "model_type": st.session_state["model_type"],
                                 # "system_prompt": st.session_state["system_prompt"],
