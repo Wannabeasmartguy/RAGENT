@@ -4,6 +4,7 @@ import uuid
 
 from typing import Literal, Optional, List, Dict
 from abc import ABC, abstractmethod
+from deprecated import deprecated
 
 import streamlit as st
 import chromadb
@@ -226,7 +227,7 @@ def create_embedding_model_config(
 
     return embedding_model_config
 
-
+@deprecated("This class is deprecated and will be removed in a future version. Use ChromaVectorStoreProcessorWithNoApi instead.")
 class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
     """Chroma向量存储处理器，用于在*使用FastAPI后端时*，使用request向后端请求以处理向量存储。"""
 
@@ -350,7 +351,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         with open(self.embedding_config_file_path, "w") as f:
             json.dump(collections_embedding_config, f, indent=4)
 
-
+@deprecated("This class is deprecated and will be removed in a future version. Use ChromaCollectionProcessorWithNoApi instead.")
 class ChromaCollectionProcessor(BaseProcessStrategy):
     def __init__(
         self,
@@ -924,6 +925,22 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         """
         document_count = self.collection.count()
         return self.collection.peek(limit=document_count)
+
+    @st.cache_data
+    def list_all_filechunks_raw_metadata_name(_self, counter: int) -> List[str]:
+        """
+        List all file chunks raw metadata name in a collection.
+
+        Returns:
+            List[str]: A list of file chunks raw metadata name.
+        """
+        if _self.collection is None:
+            return []
+        client_data = _self.collection.get()
+        unique_sources = set(
+            metadata["source"] for metadata in client_data["metadatas"]
+        )
+        return unique_sources
 
     @st.cache_data
     def list_all_filechunks_metadata_name(_self, counter: int) -> List[str]:

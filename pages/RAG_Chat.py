@@ -37,6 +37,9 @@ from api.dependency import APIRequestHandler
 from storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 from modules.types.rag import BaseRAGResponse
+from model.config.embeddings import (
+    EmbeddingConfiguration,
+)
 
 
 @lru_cache(maxsize=1)
@@ -785,8 +788,10 @@ with st.sidebar:
                 with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
 
-                st.session_state.collection_config = embedding_config.get(
-                    st.session_state["collection_name"], {}
+                st.session_state.collection_config = next(
+                    (kb for kb in embedding_config.get("knowledge_bases", [])
+                     if kb["name"] == st.session_state["collection_name"]),
+                    {}
                 )
 
             collection_selectbox = st.selectbox(
@@ -805,24 +810,21 @@ with st.sidebar:
                 help=i18n(
                     "Default is whole collection query mode, if enabled, the source document would only be the selected file"
                 ),
+                on_change=update_collection_processor_callback,
             )
 
             if collection_selectbox and query_mode_toggle:
                 with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
-                st.session_state.collection_config = embedding_config.get(
-                    collection_selectbox, {}
+                st.session_state.collection_config = next(
+                    (kb for kb in embedding_config.get("knowledge_bases", [])
+                     if kb["name"] == st.session_state["collection_name"]),
+                    {}
                 )
                 collection_processor = ChromaCollectionProcessorWithNoApi(
                     collection_name=st.session_state["collection_name"],
-                    embedding_model_type=st.session_state.collection_config.get(
-                        "embedding_type"
-                    ),
-                    embedding_model_name_or_path=st.session_state.collection_config.get(
-                        "embedding_model_name_or_path"
-                    ),
-                    # 目前没有设计好存储embedding_model_id的数据结构
-                    embedding_model_id=None
+                    embedding_config=EmbeddingConfiguration(**embedding_config),
+                    embedding_model_id=st.session_state.collection_config.get("embedding_model_id")
                 )
 
                 selected_collection_file = collection_files_placeholder.selectbox(
