@@ -352,10 +352,27 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         with open(embedding_config_file_path, "r", encoding="utf-8") as f:
             embedding_config = json.load(f)
         try:
-            collection_config = embedding_config.get(collection_name, {})
-            embedding_model_or_path = collection_config.get("embedding_model_name_or_path")
+            knowledge_bases = embedding_config.get("knowledge_bases", [])
+            collection_config = next((kb for kb in knowledge_bases if kb.get("name") == collection_name), None)
+            if not collection_config:
+                raise ValueError(f"在embedding_config中没有找到collection_name: {collection_name} 的配置")
+            
+            model_id = collection_config.get("embedding_model_id")
+            models = embedding_config.get("models", [])
+            embedding_model = next((model for model in models if model.get("id") == model_id), None)
+            
+            if not embedding_model:
+                raise ValueError(f"在embedding_config中没有找到id为 {model_id} 的embedding模型配置")
+            
+            embedding_model_or_path = embedding_model.get("embedding_model_name_or_path")
+            if not embedding_model_or_path:
+                raise ValueError(f"embedding模型 {model_id} 缺少embedding_model_name_or_path配置")
         except Exception as e:
-            raise ValueError(f"embedding_config_file_path: {embedding_config_file_path} 中没有找到collection_name: {collection_name} 的配置") from e
+            raise ValueError(f"处理embedding配置时出错: {str(e)}") from e
+        
+        # 如果id在models中对应的embedding_type是huggingface, 则路径需要加上"embeddings/"
+        if embedding_model.get("embedding_type") == "huggingface":
+            embedding_model_or_path = os.path.join("embeddings", embedding_model_or_path)
         
         retriever = ChromaContextualRetriever(
             llm=llm,
