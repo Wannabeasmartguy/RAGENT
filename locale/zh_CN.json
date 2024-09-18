@@ -115,5 +115,6 @@
     "Single file query mode": "单文件查询模式",
     "Default is whole collection query mode, if enabled, the source document would only be the selected file": "默认为全库查询模式，如果启用，则查询的来源文档仅限于所选文件",
     "No sources found for this response.": "没有找到与该回复相关的来源文档。",
-    "Show more sources": "显示更多来源"
+    "Show more sources": "显示更多来源",
+    "Please create a new collection first": "请先创建一个知识库"
 }

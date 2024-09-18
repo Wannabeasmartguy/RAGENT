@@ -115,5 +115,6 @@
     "Single file query mode": "Single file query mode",
     "Default is whole collection query mode, if enabled, the source document would only be the selected file": "Default is whole collection query mode, if enabled, the source document would only be the selected file",
     "No sources found for this response.": "No sources found for this response.",
-    "Show more sources": "Show more sources"
+    "Show more sources": "Show more sources",
+    "Please create a new collection first": "Please create a new collection first"
 }

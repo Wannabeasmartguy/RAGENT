@@ -794,9 +794,19 @@ with st.sidebar:
                     {}
                 )
 
+            def get_collection_options():
+                try:
+                    with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                        embedding_config = json.load(f)
+                    return [kb["name"] for kb in embedding_config.get("knowledge_bases", [])]
+                except FileNotFoundError:
+                    logger.error(f"File not found: {embedding_config_file_path}")
+                    return []
+
             collection_selectbox = st.selectbox(
                 label=i18n("Collection"),
-                options=vectorstore_processor.list_all_knowledgebase_collections(1),
+                options=get_collection_options(),
+                placeholder=i18n("Please create a new collection first"),
                 on_change=update_collection_processor_callback,
                 key="collection_name",
             )
