@@ -117,5 +117,6 @@
     "No sources found for this response.": "没有找到与该回复相关的来源文档。",
     "Show more sources": "显示更多来源",
     "Please create a new collection first": "请先创建一个知识库",
-    "### Knowledge Base Content Management": "### 知识库内容管理"
+    "### Knowledge Base Content Management": "### 知识库内容管理",
+    "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported.": "在聊天历史记录中保留的消息数量。导出时，仅导出最新 history_length 条消息。"
 }

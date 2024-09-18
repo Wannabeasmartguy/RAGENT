@@ -5,8 +5,9 @@ __pycache__/
 
 # Test notebook
 test*.ipynb
-chat_history.md
-*Agent_chat_history.md
+*Chat history*.md
+*Agent_chat_history*.md
+*RAG Chat history*.md
 
 # Embedding models and knowledge bases
 embeddings

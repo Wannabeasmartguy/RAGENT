@@ -33,6 +33,7 @@ from utils.basic_utils import (
     write_chat_history,
     config_list_postprocess,
     user_input_constructor,
+    export_chat_history_callback,
 )
 
 try:
@@ -682,6 +683,7 @@ with st.sidebar:
             min_value=1,
             value=16,
             step=1,
+            help=i18n("The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."),
             key="history_length",
         )
 
@@ -691,27 +693,8 @@ with st.sidebar:
         )
 
         export_button_col, clear_button_col = dialog_settings_tab.columns(2)
-        export_button = export_button_col.button(
-            label=i18n("Export chat history"), use_container_width=True
-        )
-        clear_button = clear_button_col.button(
-            label=i18n("Clear chat history"), use_container_width=True
-        )
-        # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
-        if export_button:
-            # 将聊天历史导出为Markdown
-            chat_history = "\n".join(
-                [
-                    f"# {message['role']} \n\n{message['content']}\n\n"
-                    for message in st.session_state.chat_history
-                ]
-            )
-            # st.markdown(chat_history)
-            # 将Markdown保存到本地文件夹中
-            with open("chat_history.md", "w") as f:
-                f.write(chat_history)
-            st.toast(body="Chat history exported to chat_history.md", icon="🎉")
-        if clear_button:
+
+        def clear_chat_history_callback():
             st.session_state.chat_history = []
             chat_history_storage.upsert(
                 AssistantRun(
@@ -724,7 +707,18 @@ with st.sidebar:
             st.session_state.current_run_id_index = run_id_list.index(
                 st.session_state.run_id
             )
-            st.rerun()
+            st.toast(body=i18n("Chat history cleared"), icon="🧹")
+
+        export_button = export_button_col.button(
+            label=i18n("Export chat history"),
+            on_click=lambda: export_chat_history_callback(st.session_state.chat_history),
+            use_container_width=True
+        )
+        clear_button = clear_button_col.button(
+            label=i18n("Clear chat history"),
+            on_click=clear_chat_history_callback,
+            use_container_width=True
+        )
 
     with multimodal_settings_tab:
         image_uploader = st.file_uploader(

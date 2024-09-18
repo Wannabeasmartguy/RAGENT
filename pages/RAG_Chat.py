@@ -25,6 +25,7 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
+    export_chat_history_callback,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 
@@ -526,6 +527,7 @@ with st.sidebar:
             min_value=1,
             value=32,
             step=1,
+            help=i18n("The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."),
             key="history_length",
         )
 
@@ -878,14 +880,9 @@ with st.sidebar:
                 # Prevent error when the checkbox is unchecked
                 hybrid_retrieve_weight = 0.0
 
-    export_button_col, clear_button_col = st.columns(2)
-    export_button = export_button_col.button(
-        label=i18n("Export chat history"), use_container_width=True
-    )
-    clear_button = clear_button_col.button(
-        label=i18n("Clear chat history"), use_container_width=True
-    )
-    if clear_button:
+    export_button_col, clear_button_col = rag_dialog_settings_tab.columns(2)
+
+    def clear_chat_history_callback():
         st.session_state.custom_rag_chat_history = []
         st.session_state.custom_rag_sources = {}
         chat_history_storage.upsert(
@@ -900,28 +897,18 @@ with st.sidebar:
         st.session_state.rag_current_run_id_index = rag_run_id_list.index(
             st.session_state.rag_run_id
         )
-        st.rerun()
-    if export_button:
-        # 将聊天历史导出为Markdown
-        chat_history = "\n".join(
-            [
-                f"# {message['role']} \n\n{message['content']}\n\n"
-                for message in st.session_state.custom_rag_chat_history
-            ]
-        )
-        # st.markdown(chat_history)
+        st.toast(body=i18n("Chat history cleared"), icon="🧹")
 
-        # 将Markdown保存到本地文件夹中
-        # 如果有同名文件，就为其编号
-        filename = "Agent_chat_history.md"
-        i = 1
-        while os.path.exists(filename):
-            filename = f"{i}_{filename}"
-            i += 1
-
-        with open(filename, "w") as f:
-            f.write(chat_history)
-        st.toast(body=i18n(f"Chat history exported to {filename}"), icon="🎉")
+    export_button = export_button_col.button(
+        label=i18n("Export chat history"),
+        on_click=lambda: export_chat_history_callback(st.session_state.custom_rag_chat_history, is_rag=True),
+        use_container_width=True
+    )
+    clear_button = clear_button_col.button(
+        label=i18n("Clear chat history"),
+        on_click=clear_chat_history_callback,
+        use_container_width=True
+    )
 
 
 # st.write(st.session_state.rag_chat_config_list)

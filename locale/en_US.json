@@ -117,5 +117,6 @@
     "No sources found for this response.": "No sources found for this response.",
     "Show more sources": "Show more sources",
     "Please create a new collection first": "Please create a new collection first",
-    "### Knowledge Base Content Management": "### Knowledge Base Content Management"
+    "### Knowledge Base Content Management": "### Knowledge Base Content Management",
+    "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported.": "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."
 }

@@ -90,6 +90,67 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                             else:
                                 st.image(content["image_url"])
 
+def export_chat_history_callback(
+        chat_history: List[Dict[str, str]], 
+        history_length: Optional[int] = None,
+        is_rag: bool = False
+    ):
+    """
+    导出聊天历史记录
+    
+    Args:
+        chat_history (List[Dict[str, str]]): 聊天历史记录
+        history_length (int): 聊天历史记录长度
+        is_rag (bool, optional): 是否是RAG聊天记录. Defaults to False.
+    """
+    if history_length is not None:
+        chat_history = chat_history[-history_length:]
+
+    formatted_history = []
+    image_references = []
+    image_counter = 0
+
+    for message in chat_history:
+        role = message['role'].title()
+        content = message['content']
+        
+        formatted_history.append(f"# {role}\n\n")
+        
+        if isinstance(content, str):
+            formatted_history.append(f"{content}\n\n")
+        elif isinstance(content, list):
+            for item in content:
+                if item['type'] == 'text':
+                    formatted_history.append(f"{item['text']}\n\n")
+                elif item['type'] == 'image_url':
+                    image_url = item['image_url'].get('url', '')
+                    image_counter += 1
+                    reference_id = f"image{image_counter}"
+                    
+                    if image_url.startswith('data:image/jpeg;base64,'):
+                        formatted_history.append(f"![image][{reference_id}]\n\n")
+                        image_references.append(f"[{reference_id}]: {image_url}\n")
+                    else:
+                        formatted_history.append(f"![Image]({image_url})\n\n")
+    
+    # 添加图片引用到文档末尾
+    if image_references:
+        formatted_history.append("\n\n<!-- Image References -->\n")
+        formatted_history.extend(image_references)
+    
+    chat_history_text = "".join(formatted_history)
+
+    export_folder = "chat histories export"
+    filename = "RAG Chat history.md" if is_rag else "Chat history.md"
+    i = 1
+    while os.path.exists(os.path.join(export_folder, filename)):
+        filename = f"{'RAG ' if is_rag else ''}Chat history({i}).md"
+        i += 1
+
+    os.makedirs(export_folder, exist_ok=True)
+    with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
+        f.write(chat_history_text)
+    st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
 
 def split_list_by_key_value(dict_list, key, value):
     result = []
