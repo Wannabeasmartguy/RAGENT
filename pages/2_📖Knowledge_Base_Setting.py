@@ -133,259 +133,211 @@ def get_or_create_model_id(embedding_config, embed_model_type, embed_model):
     return model_id
 
 
+init_session_state()
+
 # 侧边栏
-def sidebar():
-    with st.sidebar:
-        current_directory = os.path.dirname(__file__)
-        parent_directory = os.path.dirname(current_directory)
-        logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
-        logo_text = os.path.join(
-            parent_directory, "img", "RAGenT_logo_with_text_horizon.png"
-        )
-        st.logo(logo_text, icon_image=logo_path)
+with st.sidebar:
+    current_directory = os.path.dirname(__file__)
+    parent_directory = os.path.dirname(current_directory)
+    logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+    logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+    st.logo(logo_text, icon_image=logo_path)
 
-        st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-        st.write("---")
-        st.info(
-            i18n(
-                "Please select the embedded model when creating a knowledge base, as well as Reinitialize it once when switching knowledge bases."
+    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
+    st.write("---")
+    st.info(i18n("Please select the embedded model when creating a knowledge base, as well as Reinitialize it once when switching knowledge bases."))
+
+    embed_model_type = st.selectbox(
+        label=i18n("Embed Model Type"),
+        options=["openai", "huggingface"],
+        key="embed_model_type",
+    )
+
+    def embed_model_selector(embed_type):
+        if embed_type == "openai":
+            return ["text-embedding-ada-002"]
+        elif embed_type == "huggingface":
+            return ["bge-base-zh-v1.5", "bge-large-zh-v1.5"]
+        else:
+            return []
+
+    embed_model = st.selectbox(
+        label=i18n("Embed Model"),
+        options=embed_model_selector(st.session_state.embed_model_type),
+        key="embed_model",
+    )
+
+    with st.popover(label=i18n("Local embedding model download"), use_container_width=True):
+        huggingface_repo_id = st.text_input(
+            label=i18n("Huggingface repo id"),
+            placeholder=i18n("Paste huggingface repo id here"),
+        )
+        if st.button(label=i18n("Download embedding model")) and embed_model_type == "huggingface":
+            if "chroma_vectorstore_processor" not in locals():
+                chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi()
+            chroma_vectorstore_processor.download_model(
+                repo_id=huggingface_repo_id,
+                model_name_or_path=os.path.join(embedding_dir, embed_model),
             )
-        )
+            st.toast(i18n("Model downloaded successfully!"), icon="✅")
 
-        embed_model_type = st.selectbox(
-            label=i18n("Embed Model Type"),
-            options=["openai", "huggingface"],
-            key="embed_model_type",
-        )
-
-        # 定义embed_model_selector函数
-        def embed_model_selector(embed_type):
-            if embed_type == "openai":
-                return ["text-embedding-ada-002"]
-            elif embed_type == "huggingface":
-                return ["bge-base-zh-v1.5", "bge-large-zh-v1.5"]
-            else:
-                return []
-
-        embed_model = st.selectbox(
-            label=i18n("Embed Model"),
-            options=embed_model_selector(st.session_state.embed_model_type),
-            key="embed_model",
-        )
-
-        with st.popover(
-            label=i18n("Local embedding model download"), use_container_width=True
-        ):
-            huggingface_repo_id = st.text_input(
-                label=i18n("Huggingface repo id"),
-                placeholder=i18n("Paste huggingface repo id here"),
-            )
-            if (
-                st.button(label=i18n("Download embedding model"))
-                and embed_model_type == "huggingface"
-            ):
-                # 确保chroma_vectorstore_processor已定义
-                if "chroma_vectorstore_processor" not in locals():
-                    chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi()
-
-                chroma_vectorstore_processor.download_model(
-                    repo_id=huggingface_repo_id,
-                    model_name_or_path=os.path.join(embedding_dir, embed_model),
-                )
-                st.toast(i18n("Model downloaded successfully!"), icon="✅")
-
-    return embed_model_type, embed_model
-
+# 创建Chroma处理器
+chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors(embed_model_type, embed_model)
 
 # 知识库设置
-def knowledge_base_settings(chroma_vectorstore_processor, chroma_collection_processor):
-    st.write(i18n("### Knowledge Base Setting"))
+st.write(i18n("### Knowledge Base Setting"))
 
-    with st.container():
-        st.write(i18n("Knowledge Base Choose"))
-        col1, col2 = st.columns([0.7, 0.3])
-        with col1:
-            collection_choose = st.selectbox(
-                label=i18n("Knowledge Base Choose"),
-                label_visibility="collapsed",
-                options=chroma_vectorstore_processor.list_all_knowledgebase_collections(
-                    st.session_state.collection_counter
-                ),
-                key="collection_choose",
-            )
-        with col2:
-            if st.button(
-                label=i18n("Reinitialize Knowledge Base"),
-                use_container_width=True,
-                type="primary",
-            ):
-                st.session_state.collection_counter += 1
-                st.session_state.document_counter += 1
-                st.rerun()
-
-    with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
-        collection_name = st.text_input(
-            label=i18n("To be added Collection Name"),
-            placeholder=i18n("Collection Name"),
-            key="collection_name_input",
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button(
-                label=i18n("Add Collection"), use_container_width=True, type="primary"
-            ):
-                if collection_name:
-                    chroma_vectorstore_processor.create_knowledgebase_collection(
-                        name=collection_name
-                    )
-                    st.session_state.collection_counter += 1
-                    st.session_state.document_counter += 1
-                    st.success(i18n("Collection added successfully."))
-                    st.rerun()
-
-        with col2:
-            if st.button(label=i18n("Delete Collection"), use_container_width=True):
-                chroma_vectorstore_processor.delete_knowledgebase_collection(
-                    name=collection_name
-                )
-                st.session_state.collection_counter += 1
-                st.session_state.document_counter += 1
-                st.success(i18n("Collection deleted successfully."))
-                st.rerun()
-
-
-# 文件上传和处理
-def file_upload_and_processing(chroma_collection_processor):
-    st.write(i18n("### Choose files you want to embed"))
-
-    file_upload = st.file_uploader(
-        label=i18n("Upload File"),
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-        key=st.session_state["file_uploader_key"],
-    )
-
-    with st.expander(label=i18n("File Handling Configuration"), expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            split_chunk_size = st.number_input(
-                label=i18n("Chunk Size"),
-                value=chroma_collection_processor.get_embedding_model_max_seq_len(),
-                step=1,
-            )
-        with col2:
-            split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
-
+with st.container():
+    st.write(i18n("Knowledge Base Choose"))
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        upload_and_split = st.button(
-            label=i18n("① Upload and Split Files"), use_container_width=True
+        collection_choose = st.selectbox(
+            label=i18n("Knowledge Base Choose"),
+            label_visibility="collapsed",
+            options=chroma_vectorstore_processor.list_all_knowledgebase_collections(
+                st.session_state.collection_counter
+            ),
+            key="collection_choose",
         )
     with col2:
-        if st.button(label=i18n("Clear File"), use_container_width=True):
-            st.session_state["file_uploader_key"] += 1
-            st.session_state.pages = []
+        def reinitialize_knowledge_base():
+            st.session_state.collection_counter += 1
+            st.session_state.document_counter += 1
+            global chroma_vectorstore_processor, chroma_collection_processor
+            chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors(embed_model_type, embed_model)
+
+        st.button(
+            label=i18n("Reinitialize Knowledge Base"),
+            use_container_width=True,
+            type="primary",
+            on_click=reinitialize_knowledge_base
+        )
+
+with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
+    collection_name = st.text_input(
+        label=i18n("To be added Collection Name"),
+        placeholder=i18n("Collection Name"),
+        key="collection_name_input",
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button(label=i18n("Add Collection"), use_container_width=True, type="primary"):
+            if collection_name:
+                chroma_vectorstore_processor.create_knowledgebase_collection(name=collection_name)
+                st.session_state.collection_counter += 1
+                st.session_state.document_counter += 1
+                st.success(i18n("Collection added successfully."))
+                st.rerun()
+
+    with col2:
+        if st.button(label=i18n("Delete Collection"), use_container_width=True):
+            chroma_vectorstore_processor.delete_knowledgebase_collection(name=collection_name)
+            st.session_state.collection_counter += 1
+            st.session_state.document_counter += 1
+            st.success(i18n("Collection deleted successfully."))
             st.rerun()
 
-    embed_button = st.button(
-        label=i18n("② Embed Files"), use_container_width=True, type="primary"
-    )
+# 文件上传和处理
+st.write(i18n("### Choose files you want to embed"))
 
-    if file_upload and upload_and_split:
+file_upload = st.file_uploader(
+    label=i18n("Upload File"),
+    accept_multiple_files=True,
+    label_visibility="collapsed",
+    key=st.session_state["file_uploader_key"],
+)
+
+with st.expander(label=i18n("File Handling Configuration"), expanded=False):
+    col1, col2 = st.columns(2)
+    with col1:
+        split_chunk_size = st.number_input(
+            label=i18n("Chunk Size"),
+            value=chroma_collection_processor.get_embedding_model_max_seq_len(),
+            step=1,
+        )
+    with col2:
+        split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
+
+col1, col2 = st.columns([0.7, 0.3])
+with col1:
+    upload_and_split = st.button(label=i18n("① Upload and Split Files"), use_container_width=True)
+with col2:
+    if st.button(label=i18n("Clear File"), use_container_width=True):
+        st.session_state["file_uploader_key"] += 1
         st.session_state.pages = []
-        for file in file_upload:
-            splitted_docs = text_split_execute(
-                file=file,
-                split_chunk_size=split_chunk_size,
-                split_overlap=split_overlap,
-            )
-            st.session_state.pages.extend(splitted_docs)
+        st.rerun()
 
-    if st.session_state.pages:
-        st.write(i18n("Choose the file you want to preview"))
-        col1, col2 = st.columns([0.7, 0.3])
-        with col1:
-            pages_preview = {
-                f"{page.page_content[:50]}...": page.page_content
-                for page in st.session_state.pages
-            }
-            selected_page = st.selectbox(
-                label=i18n("Choose the file you want to preview"),
-                options=pages_preview.keys(),
-                label_visibility="collapsed",
-            )
-        with col2:
-            with st.popover(label=i18n("Content Preview"), use_container_width=True):
-                if selected_page:
-                    st.write(pages_preview[selected_page])
+embed_button = st.button(label=i18n("② Embed Files"), use_container_width=True, type="primary")
 
-    if embed_button:
-        if not st.session_state.pages:
-            st.warning(i18n("Please upload and split files first"))
-        else:
-            with st.spinner():
-                chroma_collection_processor.add_documents(
-                    documents=st.session_state.pages
-                )
-                st.session_state.document_counter += 1
-            st.toast("Embedding completed!")
+if file_upload and upload_and_split:
+    st.session_state.pages = []
+    for file in file_upload:
+        splitted_docs = text_split_execute(
+            file=file,
+            split_chunk_size=split_chunk_size,
+            split_overlap=split_overlap,
+        )
+        st.session_state.pages.extend(splitted_docs)
 
-
-# 知识库内容管理
-def knowledge_base_content_management(chroma_collection_processor):
-    st.write("---")
-    st.write(
-        i18n("Knowledge Base ")
-        + f"`{chroma_collection_processor.collection_name}`"
-        + i18n(" 's files: ")
-    )
-
+if st.session_state.pages:
+    st.write(i18n("Choose the file you want to preview"))
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
-        file_names = chroma_collection_processor.list_all_filechunks_metadata_name(
-            st.session_state.document_counter
-        )
-        selected_file = st.selectbox(
-            label=i18n("Files in Knowledge Base"),
-            options=file_names,
+        pages_preview = {
+            f"{page.page_content[:50]}...": page.page_content
+            for page in st.session_state.pages
+        }
+        selected_page = st.selectbox(
+            label=i18n("Choose the file you want to preview"),
+            options=pages_preview.keys(),
             label_visibility="collapsed",
         )
     with col2:
-        if st.button(label=i18n("Get Knowledge Base info")):
-            with st.spinner(i18n("Getting file info...")):
-                chroma_info_html = get_chroma_file_info(
-                    persist_path=KNOWLEDGE_BASE_DIR,
-                    collection_name=chroma_collection_processor.collection_name,
-                    file_name=selected_file,
-                    limit=len(
-                        chroma_collection_processor.list_collection_all_filechunks_content()
-                    ),
-                    advance_info=False,
-                )
-            components.html(chroma_info_html, height=800)
+        with st.popover(label=i18n("Content Preview"), use_container_width=True):
+            if selected_page:
+                st.write(pages_preview[selected_page])
 
-    if st.button(label=i18n("Delete the File"), use_container_width=True):
-        chroma_collection_processor.delete_documents_from_same_metadata(
-            files_name=selected_file
-        )
-        st.session_state.document_counter += 1
-        st.rerun()
+if embed_button:
+    if not st.session_state.pages:
+        st.warning(i18n("Please upload and split files first"))
+    else:
+        with st.spinner():
+            chroma_collection_processor.add_documents(documents=st.session_state.pages)
+            st.session_state.document_counter += 1
+        st.toast("Embedding completed!")
 
+# 知识库内容管理
+st.write(i18n("### Knowledge Base Content Management"))
+st.write(
+    i18n("Knowledge Base ")
+    + f"`{chroma_collection_processor.collection_name}`"
+    + i18n(" 's files: ")
+)
 
-# 主函数
-def main():
-    init_session_state()
-    embed_model_type, embed_model = sidebar()
-
-    chroma_vectorstore_processor, chroma_collection_processor = (
-        create_chroma_processors(embed_model_type, embed_model)
+col1, col2 = st.columns([0.7, 0.3])
+with col1:
+    file_names = chroma_collection_processor.list_all_filechunks_metadata_name(
+        st.session_state.document_counter
     )
+    selected_file = st.selectbox(
+        label=i18n("Files in Knowledge Base"),
+        options=file_names,
+        label_visibility="collapsed",
+    )
+with col2:
+    if st.button(label=i18n("Get Knowledge Base info")):
+        with st.spinner(i18n("Getting file info...")):
+            chroma_info_html = get_chroma_file_info(
+                persist_path=KNOWLEDGE_BASE_DIR,
+                collection_name=chroma_collection_processor.collection_name,
+                file_name=selected_file,
+                limit=len(chroma_collection_processor.list_collection_all_filechunks_content()),
+                advance_info=False,
+            )
+        components.html(chroma_info_html, height=800)
 
-    knowledge_base_settings(chroma_vectorstore_processor, chroma_collection_processor)
-    file_upload_and_processing(chroma_collection_processor)
-    knowledge_base_content_management(chroma_collection_processor)
-
-
-if __name__ == "__main__":
-    main()
+if st.button(label=i18n("Delete the File"), use_container_width=True):
+    chroma_collection_processor.delete_documents_from_same_metadata(files_name=selected_file)
+    st.session_state.document_counter += 1
+    st.rerun()
