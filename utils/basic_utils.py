@@ -20,6 +20,85 @@ from llm.groq.completion import get_groq_models
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from configs.chat_config import OAILikeConfigProcessor
 
+USER_CHAT_STYLE = """
+<style>
+    .stChatMessage:has(.chat-user) {
+        flex-direction: row-reverse;
+        text-align: right;
+        width: 85%;
+        margin-left: auto;
+        margin-right: 0;
+        background-color: #E7F8FF;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+ASSISTANT_CHAT_STYLE = """
+<style>
+    .stChatMessage:has(.chat-assistant) {
+        flex-direction: row;
+        text-align: left;
+        width: 85%;
+        margin-left: 0;
+        margin-right: auto;
+        background-color: #F7F8FA;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+RAG_CHAT_USER_STYLE = """
+<style>
+    .stChatMessage:has(.rag-chat-user) {
+        flex-direction: row-reverse;
+        text-align: right;
+        width: 90%;
+        margin-left: auto;
+        margin-right: 0;
+        background-color: #E7F8FF;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+RAG_CHAT_ASSISTANT_STYLE = """
+<style>
+    .stChatMessage:has(.rag-chat-assistant) {
+        flex-direction: row;
+        text-align: left;
+        width: 90%;
+        margin-left: 0;
+        margin-right: auto;
+        background-color: #F7F8FA;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+USER_AVATAR_SVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-square" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M9 10a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+    <path d="M6 21v-1a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v1" />
+    <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
+    </svg>
+"""
+
+AI_AVATAR_SVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-chatbot" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z" />
+    <path d="M9.5 9h.01" />
+    <path d="M14.5 9h.01" />
+    <path d="M9.5 13a3.5 3.5 0 0 0 5 0" />
+    </svg>
+"""
+
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
 @lru_cache(maxsize=10)
@@ -68,6 +147,12 @@ def oai_model_config_selector(oai_model_config:Dict):
 # Display chat messages from history on app rerun
 @st.cache_data
 def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
+    # 将SVG编码为base64
+    user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
+    # 将SVG编码为base64
+    ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
     if chat_history:
         for message in chat_history:
             try:
@@ -75,7 +160,8 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                     continue
             except:
                 pass
-            with st.chat_message(message["role"]):
+            with st.chat_message(message["role"], avatar=user_avatar if message["role"] == "user" else ai_avatar):
+                st.html(f"<span class='chat-{message['role']}'></span>")
                 if isinstance(message["content"], str):
                     st.markdown(message["content"])
                 elif isinstance(message["content"], List):
@@ -89,6 +175,33 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                                 st.image(image_data)
                             else:
                                 st.image(content["image_url"])
+        
+        st.html(
+            """
+            <style>
+                .stChatMessage:has(.chat-user) {
+                    flex-direction: row-reverse;
+                    text-align: right;
+                    width: 85%;
+                    margin-left: auto;
+                    margin-right: 0;
+                    background-color: #E7F8FF;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+                .stChatMessage:has(.chat-assistant) {
+                    flex-direction: row;
+                    text-align: left;
+                    width: 85%;
+                    margin-left: 0;
+                    margin-right: auto;
+                    background-color: #F7F8FA;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+            </style>
+            """
+        )
 
 def export_chat_history_callback(
         chat_history: List[Dict[str, str]], 

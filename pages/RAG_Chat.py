@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import base64
 from uuid import uuid4
 from copy import deepcopy
 from functools import lru_cache
@@ -26,6 +27,10 @@ from utils.basic_utils import (
     dict_filter,
     config_list_postprocess,
     export_chat_history_callback,
+    RAG_CHAT_USER_STYLE,
+    RAG_CHAT_ASSISTANT_STYLE,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 
@@ -79,23 +84,28 @@ def save_rag_chat_history(response: BaseRAGResponse):
 
 def display_rag_sources(response_sources):
     import itertools
+
     num_sources = len(response_sources["metadatas"])
     num_columns = min(3, num_sources)
     visible_sources = min(6, num_sources)
-    
+
     if num_sources == 0:
         st.toast(i18n("No sources found for this response."))
         return
-    
+
     rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
 
     def create_source_popover(column, index):
         file_name = response_sources["metadatas"][index]["source"]
         file_content = response_sources["page_content"][index]
-        with column.popover(i18n("Cited Source") + f" {index+1}", use_container_width=True):
+        with column.popover(
+            i18n("Cited Source") + f" {index+1}", use_container_width=True
+        ):
             st.text(i18n("Cited Source") + ": " + file_name)
             if "relevance_score" in response_sources["metadatas"][index]:
-                relevance_score = response_sources["metadatas"][index]["relevance_score"]
+                relevance_score = response_sources["metadatas"][index][
+                    "relevance_score"
+                ]
                 st.text(i18n("Relevance Score") + ": " + str(relevance_score))
             st.code(file_content, language="plaintext")
 
@@ -107,22 +117,35 @@ def display_rag_sources(response_sources):
         with st.expander(i18n("Show more sources"), expanded=False):
             remaining_sources = num_sources - visible_sources
             remaining_columns = min(3, remaining_sources)
-            remaining_rows = [st.columns(remaining_columns) for _ in range((remaining_sources + 2) // 3)]
-            
-            for index, column in enumerate(itertools.chain(*remaining_rows), start=visible_sources):
+            remaining_rows = [
+                st.columns(remaining_columns)
+                for _ in range((remaining_sources + 2) // 3)
+            ]
+
+            for index, column in enumerate(
+                itertools.chain(*remaining_rows), start=visible_sources
+            ):
                 if index < num_sources:
                     create_source_popover(column, index)
 
 
 @st.cache_data
 def write_custom_rag_chat_history(chat_history, _sources):
+    # 将SVG编码为base64
+    user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"  
+    ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
     for message in chat_history:
-        with st.chat_message(message["role"]):
+        with st.chat_message(message["role"], avatar=user_avatar if message["role"] == "user" else ai_avatar):
+            st.html(f"<span class='rag-chat-{message['role']}'></span>")
             st.markdown(message["content"])
 
             if message["role"] == "assistant":
                 rag_sources = _sources[message["response_id"]]
                 display_rag_sources(rag_sources)
+    combined_style = RAG_CHAT_USER_STYLE.strip() + "\n" + RAG_CHAT_ASSISTANT_STYLE.strip()
+    combined_style = combined_style.replace("</style>\n<style>", "")
+    st.html(combined_style)
 
 
 def handle_response(response: BaseRAGResponse, if_stream: bool):
@@ -140,8 +163,10 @@ def handle_response(response: BaseRAGResponse, if_stream: bool):
         st.write(answer)
 
     # 添加回答到 st.session
-    response_id = response["response_id"] if isinstance(response, dict) else response.response_id
-    
+    response_id = (
+        response["response_id"] if isinstance(response, dict) else response.response_id
+    )
+
     st.session_state.custom_rag_chat_history.append(
         {
             "role": "assistant",
@@ -175,6 +200,8 @@ current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
 logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
 chat_history_db_dir = os.path.join(parent_directory, "databases", "chat_history")
 chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
@@ -257,6 +284,7 @@ def update_rag_config_in_db_callback():
     Update rag chat llm config in db.
     """
     from copy import deepcopy
+
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
     if st.session_state["model_type"] == "OpenAI":
         config_list = oai_config_generator(
@@ -360,18 +388,25 @@ with st.sidebar:
         def rag_saved_dialog_change_callback():
             origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
             st.session_state.rag_run_id = st.session_state.rag_saved_dialog.run_id
-            st.session_state.rag_current_run_id_index = chat_history_storage.get_all_run_ids().index(st.session_state.rag_run_id)
+            st.session_state.rag_current_run_id_index = (
+                chat_history_storage.get_all_run_ids().index(
+                    st.session_state.rag_run_id
+                )
+            )
             st.session_state.rag_chat_config_list = [
                 chat_history_storage.get_specific_run(
                     st.session_state.rag_saved_dialog.run_id
                 ).llm
             ]
-            log_dict_changes(original_dict=origin_config_list[0], new_dict=st.session_state.rag_chat_config_list[0])
+            log_dict_changes(
+                original_dict=origin_config_list[0],
+                new_dict=st.session_state.rag_chat_config_list[0],
+            )
             try:
                 st.session_state.custom_rag_chat_history = (
-                    chat_history_storage.get_specific_run(st.session_state.rag_saved_dialog.run_id).memory[
-                        "chat_history"
-                    ]
+                    chat_history_storage.get_specific_run(
+                        st.session_state.rag_saved_dialog.run_id
+                    ).memory["chat_history"]
                 )
                 st.session_state.custom_rag_sources = (
                     chat_history_storage.get_specific_run(
@@ -404,7 +439,9 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.rag_run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
+                        llm=aoai_config_generator(
+                            model=model_selector("AOAI")[0], stream=True
+                        )[0],
                         memory={"chat_history": []},
                         task_data={
                             "source_documents": {},
@@ -435,7 +472,9 @@ with st.sidebar:
                         AssistantRun(
                             name="assistant",
                             run_id=st.session_state.rag_run_id,
-                            llm=aoai_config_generator(model=model_selector("AOAI")[0])[0],
+                            llm=aoai_config_generator(model=model_selector("AOAI")[0])[
+                                0
+                            ],
                             run_name="New dialog",
                             memory={"chat_history": []},
                             task_data={
@@ -528,7 +567,9 @@ with st.sidebar:
             min_value=1,
             value=32,
             step=1,
-            help=i18n("The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."),
+            help=i18n(
+                "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."
+            ),
             key="history_length",
         )
 
@@ -632,14 +673,22 @@ with st.sidebar:
                         options = model_selector(model_type)
                         if model in options:
                             options_index = options.index(model)
-                            logger.debug(f"model {model} in options, index: {options_index}")
+                            logger.debug(
+                                f"model {model} in options, index: {options_index}"
+                            )
                             return options_index
                         else:
-                            st.session_state.rag_chat_config_list[0].update({"model": options[0]})
-                            logger.debug(f"model {model} not in options, set model in config list to first option: {options[0]}")
+                            st.session_state.rag_chat_config_list[0].update(
+                                {"model": options[0]}
+                            )
+                            logger.debug(
+                                f"model {model} not in options, set model in config list to first option: {options[0]}"
+                            )
                             return 0
                 except ValueError:
-                    logger.warning(f"Model {model} not found in model_selector for {model_type}, returning 0")
+                    logger.warning(
+                        f"Model {model} not found in model_selector for {model_type}, returning 0"
+                    )
                     return 0
 
             select_box1 = model_choosing_container.selectbox(
@@ -737,7 +786,9 @@ with st.sidebar:
                     st.session_state.llamafile_api_key = next(
                         iter(st.session_state.oai_like_model_config_dict.values())
                     ).get("api_key")
-                    logger.info(f"Llamafile model config loaded: {st.session_state.oai_like_model_config_dict}")
+                    logger.info(
+                        f"Llamafile model config loaded: {st.session_state.oai_like_model_config_dict}"
+                    )
 
                     model_config = next(
                         iter(st.session_state.oai_like_model_config_dict.values())
@@ -746,10 +797,16 @@ with st.sidebar:
                     st.session_state["rag_chat_config_list"][0]["model"] = next(
                         iter(st.session_state.oai_like_model_config_dict.keys())
                     )
-                    st.session_state["rag_chat_config_list"][0]["api_key"] = model_config.get("api_key")
-                    st.session_state["rag_chat_config_list"][0]["base_url"] = model_config.get("base_url")
-                    
-                    logger.info(f"Chat config list updated: {st.session_state.rag_chat_config_list}")
+                    st.session_state["rag_chat_config_list"][0]["api_key"] = (
+                        model_config.get("api_key")
+                    )
+                    st.session_state["rag_chat_config_list"][0]["base_url"] = (
+                        model_config.get("base_url")
+                    )
+
+                    logger.info(
+                        f"Chat config list updated: {st.session_state.rag_chat_config_list}"
+                    )
                     chat_history_storage.upsert(
                         AssistantRun(
                             run_id=st.session_state.rag_run_id,
@@ -792,16 +849,21 @@ with st.sidebar:
                     embedding_config = json.load(f)
 
                 st.session_state.collection_config = next(
-                    (kb for kb in embedding_config.get("knowledge_bases", [])
-                     if kb["name"] == st.session_state["collection_name"]),
-                    {}
+                    (
+                        kb
+                        for kb in embedding_config.get("knowledge_bases", [])
+                        if kb["name"] == st.session_state["collection_name"]
+                    ),
+                    {},
                 )
 
             def get_collection_options():
                 try:
                     with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                         embedding_config = json.load(f)
-                    return [kb["name"] for kb in embedding_config.get("knowledge_bases", [])]
+                    return [
+                        kb["name"] for kb in embedding_config.get("knowledge_bases", [])
+                    ]
                 except FileNotFoundError:
                     logger.error(f"File not found: {embedding_config_file_path}")
                     return []
@@ -830,14 +892,19 @@ with st.sidebar:
                 with open(embedding_config_file_path, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
                 st.session_state.collection_config = next(
-                    (kb for kb in embedding_config.get("knowledge_bases", [])
-                     if kb["name"] == st.session_state["collection_name"]),
-                    {}
+                    (
+                        kb
+                        for kb in embedding_config.get("knowledge_bases", [])
+                        if kb["name"] == st.session_state["collection_name"]
+                    ),
+                    {},
                 )
                 collection_processor = ChromaCollectionProcessorWithNoApi(
                     collection_name=st.session_state["collection_name"],
                     embedding_config=EmbeddingConfiguration(**embedding_config),
-                    embedding_model_id=st.session_state.collection_config.get("embedding_model_id")
+                    embedding_model_id=st.session_state.collection_config.get(
+                        "embedding_model_id"
+                    ),
                 )
 
                 selected_collection_file = collection_files_placeholder.selectbox(
@@ -902,13 +969,15 @@ with st.sidebar:
 
     export_button = export_button_col.button(
         label=i18n("Export chat history"),
-        on_click=lambda: export_chat_history_callback(st.session_state.custom_rag_chat_history, is_rag=True),
-        use_container_width=True
+        on_click=lambda: export_chat_history_callback(
+            st.session_state.custom_rag_chat_history, is_rag=True
+        ),
+        use_container_width=True,
     )
     clear_button = clear_button_col.button(
         label=i18n("Clear chat history"),
         on_click=clear_chat_history_callback,
-        use_container_width=True
+        use_container_width=True,
     )
 
 
@@ -926,8 +995,10 @@ else:
 prompt = st.chat_input("What is up?", disabled=st.session_state.prompt_disabled)
 
 if prompt and st.session_state.model != None:
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar=user_avatar):
+        st.html("<span class='rag-chat-user'></span>")
         st.markdown(prompt)
+        st.html(RAG_CHAT_USER_STYLE)
 
     # Add user message to chat history
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
@@ -940,7 +1011,7 @@ if prompt and st.session_state.model != None:
         dict_filter(item, ["role", "content"]) for item in processed_messages
     ]
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=ai_avatar):
         with st.spinner("Thinking..."):
             refresh_retriever()
             agentchat_processor = get_agentchat_processor()
@@ -953,8 +1024,9 @@ if prompt and st.session_state.model != None:
                 stream=if_stream,
                 selected_file=selected_collection_file,
             )
-
+        st.html("<span class='rag-chat-assistant'></span>")
         handle_response(response=response, if_stream=if_stream)
+        st.html(RAG_CHAT_ASSISTANT_STYLE)
 
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
