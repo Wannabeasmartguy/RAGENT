@@ -360,6 +360,7 @@ with st.sidebar:
         def rag_saved_dialog_change_callback():
             origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
             st.session_state.rag_run_id = st.session_state.rag_saved_dialog.run_id
+            st.session_state.rag_current_run_id_index = chat_history_storage.get_all_run_ids().index(st.session_state.rag_run_id)
             st.session_state.rag_chat_config_list = [
                 chat_history_storage.get_specific_run(
                     st.session_state.rag_saved_dialog.run_id
