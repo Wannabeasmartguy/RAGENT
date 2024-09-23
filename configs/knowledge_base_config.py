@@ -206,7 +206,7 @@ class BaseChromaInitEmbeddingConfig:
 
 
 def create_embedding_model_config(
-    embedding_model_type: Literal["openai", "huggingface"],
+    embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
     embedding_model_name_or_path: str,
     **openai_kwargs,
 ):
@@ -215,13 +215,19 @@ def create_embedding_model_config(
             embedding_type="openai",
             embedding_model_name_or_path=embedding_model_name_or_path,
             api_key=openai_kwargs.get("api_key"),
+        )
+    elif embedding_model_type == "aoai":
+        embedding_model_config = EmbeddingModelConfig(
+            embedding_type="aoai",
+            embedding_model_name_or_path=embedding_model_name_or_path,
+            api_key=openai_kwargs.get("api_key"),
             api_type=openai_kwargs.get("api_type"),
             base_url=openai_kwargs.get("base_url"),
             api_version=openai_kwargs.get("api_version"),
         )
-    elif embedding_model_type == "huggingface":
+    elif embedding_model_type == "sentence_transformer":
         embedding_model_config = EmbeddingModelConfig(
-            embedding_type="huggingface",
+            embedding_type="sentence_transformer",
             embedding_model_name_or_path=embedding_model_name_or_path,
         )
 
@@ -237,7 +243,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
 
     def __init__(
         self,
-        embedding_model_type: Literal["openai", "huggingface"],
+        embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
         embedding_model_name_or_path: str,
         **openai_kwargs,
     ):
@@ -356,7 +362,7 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
     def __init__(
         self,
         collection_name: str,
-        embedding_model_type: Literal["openai", "huggingface"],
+        embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
         embedding_model_name_or_path: str,
         **openai_kwargs,
     ):
@@ -368,7 +374,7 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
     def update_parameters(
         self,
         collection_name: Optional[str] = None,
-        embedding_model_type: Optional[Literal["openai", "huggingface"]] = None,
+        embedding_model_type: Optional[Literal["openai", "aoai", "sentence_transformer"]] = None,
         embedding_model_name_or_path: Optional[str] = None,
         **openai_kwargs,
     ) -> None:
@@ -606,7 +612,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
     def __init__(
         self,
-        embedding_model_type: Literal["openai", "huggingface"],
+        embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
         embedding_model_name_or_path: str,
         **openai_kwargs,
     ):
@@ -614,22 +620,28 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self.embedding_model_name_or_path = embedding_model_name_or_path
 
         model_id = str(uuid.uuid4())
-        if embedding_model_type == "openai":
+        if embedding_model_type == "aoai":
+            embedding_model = EmbeddingModelConfiguration(
+                id=model_id,
+                name=f"Azure OpenAI Embedding Model {model_id[:8]}",
+                embedding_type="aoai",
+                embedding_model_name_or_path=embedding_model_name_or_path,
+                api_key=openai_kwargs.get("api_key"),
+            )
+        elif embedding_model_type == "openai":
             embedding_model = EmbeddingModelConfiguration(
                 id=model_id,
                 name=f"OpenAI Embedding Model {model_id[:8]}",
                 embedding_type="openai",
                 embedding_model_name_or_path=embedding_model_name_or_path,
                 api_key=openai_kwargs.get("api_key"),
-                api_type=openai_kwargs.get("api_type"),
                 base_url=openai_kwargs.get("base_url"),
-                api_version=openai_kwargs.get("api_version"),
             )
-        elif embedding_model_type == "huggingface":
+        elif embedding_model_type == "sentence_transformer":
             embedding_model = EmbeddingModelConfiguration(
                 id=model_id,
-                name=f"Huggingface Embedding Model {model_id[:8]}",
-                embedding_type="huggingface",
+                name=f"Sentence Transformer Embedding Model {model_id[:8]}",
+                embedding_type="sentence_transformer",
                 embedding_model_name_or_path=embedding_model_name_or_path,
             )
         else:
@@ -800,11 +812,16 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             return embedding_functions.OpenAIEmbeddingFunction(
                 model_name=model_config.embedding_model_name_or_path,
                 api_key=model_config.api_key,
+            )
+        elif model_config.embedding_type == "aoai":
+            return embedding_functions.OpenAIEmbeddingFunction(
+                model_name=model_config.embedding_model_name_or_path,
+                api_key=model_config.api_key,
                 api_base=model_config.base_url,
                 api_type=model_config.api_type,
                 api_version=model_config.api_version,
             )
-        elif model_config.embedding_type == "huggingface":
+        elif model_config.embedding_type == "sentence_transformer":
             try:
                 return embedding_functions.SentenceTransformerEmbeddingFunction(
                     model_name=model_config.embedding_model_name_or_path
@@ -868,10 +885,16 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 model_name=model_config.embedding_model_name_or_path,
                 api_key=model_config.api_key,
                 api_base=model_config.base_url,
+            )
+        elif model_config.embedding_type == "aoai":
+            return embedding_functions.OpenAIEmbeddingFunction(
+                model_name=model_config.embedding_model_name_or_path,
+                api_key=model_config.api_key,
+                api_base=model_config.base_url,
                 api_type=model_config.api_type,
                 api_version=model_config.api_version,
             )
-        elif model_config.embedding_type == "huggingface":
+        elif model_config.embedding_type == "sentence_transformer":
             try:
                 # 使用SentenceTransformerEmbeddingFunction加载模型
                 # 构造本地路径并传入
@@ -888,7 +911,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                     )
             except Exception as e:
                 raise ValueError(
-                    f"Huggingface model not found, please use 'Local embedding model download' to download the model"
+                    f"Sentence Transformer model not found, please use 'Local embedding model download' to download the model"
                 )
         else:
             raise ValueError("Unsupported embedding type")

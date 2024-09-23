@@ -28,7 +28,7 @@ embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.j
 # 辅助函数
 def init_session_state():
     if "embed_model_type" not in st.session_state:
-        st.session_state.embed_model_type = "huggingface"
+        st.session_state.embed_model_type = "sentence_transformer"
     if "pages" not in st.session_state:
         st.session_state.pages = []
     if "file_uploader_key" not in st.session_state:
@@ -58,7 +58,7 @@ def save_embedding_config(config):
         json.dump(config.model_dump(), f, indent=2, default=datetime_serializer)
 
 
-def create_chroma_processors(embed_model_type, embed_model):
+def create_chroma_vectorstore_processor(embed_model_type, embed_model):
     """
     创建Chroma处理器, 根据embed_model_type和embed_model创建相应的处理器
     :param embed_model_type: 嵌入模型类型
@@ -69,17 +69,26 @@ def create_chroma_processors(embed_model_type, embed_model):
         chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
             embedding_model_name_or_path=embed_model,
             embedding_model_type=embed_model_type,
+            api_key=os.getenv("OPENAI_API_KEY", default="OPENAI_API_KEY"),
+        )
+    elif embed_model_type == "aoai":
+        chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
+            embedding_model_name_or_path=embed_model,
+            embedding_model_type=embed_model_type,
             api_key=os.getenv("AZURE_OAI_KEY", default="OPENAI_API_KEY"),
             base_url=os.getenv("AZURE_OAI_ENDPOINT", default=None),
             api_version=os.getenv("API_VERSION", default="2024-02-15-preview"),
-            api_type=os.getenv("API_TYPE", default="openai"),
+            api_type=os.getenv("API_TYPE", default="azure"),
         )
-    elif embed_model_type == "huggingface":
+    elif embed_model_type == "sentence_transformer":
         chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
             embedding_model_name_or_path=os.path.join(embedding_dir, embed_model),
             embedding_model_type=embed_model_type,
         )
 
+    return chroma_vectorstore_processor
+
+def create_chroma_collection_processor():
     embedding_config = load_embedding_config()
     model_id = get_or_create_model_id(embedding_config, embed_model_type, embed_model)
 
@@ -89,8 +98,7 @@ def create_chroma_processors(embed_model_type, embed_model):
         embedding_model_id=model_id,
     )
 
-    return chroma_vectorstore_processor, chroma_collection_processor
-
+    return chroma_collection_processor
 
 def get_or_create_model_id(embedding_config, embed_model_type, embed_model):
     current_model = next(
@@ -113,16 +121,24 @@ def get_or_create_model_id(embedding_config, embed_model_type, embed_model):
             name=f"OpenAI Embedding Model {model_id[:8]}",
             embedding_type="openai",
             embedding_model_name_or_path=embed_model,
-            api_key=os.getenv("AZURE_OAI_KEY", default="OPENAI_API_KEY"),
-            base_url=os.getenv("AZURE_OAI_ENDPOINT", default=None),
-            api_version=os.getenv("API_VERSION", default="2024-02-15-preview"),
-            api_type=os.getenv("API_TYPE", default="openai"),
+            api_key=os.getenv("OPENAI_API_KEY", default="OPENAI_API_KEY"),
         )
-    elif embed_model_type == "huggingface":
+    elif embed_model_type == "aoai":
         new_model = EmbeddingModelConfiguration(
             id=model_id,
-            name=f"Huggingface Embedding Model {model_id[:8]}",
-            embedding_type="huggingface",
+            name=f"Azure OpenAI Embedding Model {model_id[:8]}",
+            embedding_type="aoai",
+            embedding_model_name_or_path=embed_model,
+            api_key=os.getenv("AZURE_OAI_KEY"),
+            base_url=os.getenv("AZURE_OAI_ENDPOINT", default=None),
+            api_version=os.getenv("API_VERSION", default="2024-02-15-preview"),
+            api_type=os.getenv("API_TYPE", default="azure"),
+        )
+    elif embed_model_type == "sentence_transformer":
+        new_model = EmbeddingModelConfiguration(
+            id=model_id,
+            name=f"Huggingface (SentenceTransformer) Embedding Model {model_id[:8]}",
+            embedding_type="sentence_transformer",
             embedding_model_name_or_path=embed_model,
         )
 
@@ -149,14 +165,17 @@ with st.sidebar:
 
     embed_model_type = st.selectbox(
         label=i18n("Embed Model Type"),
-        options=["openai", "huggingface"],
+        options=["openai", "aoai", "sentence_transformer"],
         key="embed_model_type",
+        format_func=lambda x: "OpenAI" if x == "openai" else "Azure OpenAI" if x == "aoai" else "Sentence Transformer" if x == "sentence_transformer" else "Unknown"
     )
 
     def embed_model_selector(embed_type):
         if embed_type == "openai":
             return ["text-embedding-ada-002"]
-        elif embed_type == "huggingface":
+        elif embed_type == "aoai":
+            return ["text-embedding-ada-002"]
+        elif embed_type == "sentence_transformer":
             return ["bge-base-zh-v1.5", "bge-large-zh-v1.5"]
         else:
             return []
@@ -172,17 +191,16 @@ with st.sidebar:
             label=i18n("Huggingface repo id"),
             placeholder=i18n("Paste huggingface repo id here"),
         )
-        if st.button(label=i18n("Download embedding model")) and embed_model_type == "huggingface":
-            if "chroma_vectorstore_processor" not in locals():
-                chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi()
-            chroma_vectorstore_processor.download_model(
+        if st.button(label=i18n("Download embedding model")) and embed_model_type == "sentence_transformer":
+            ChromaVectorStoreProcessorWithNoApi.download_model(
                 repo_id=huggingface_repo_id,
                 model_name_or_path=os.path.join(embedding_dir, embed_model),
             )
             st.toast(i18n("Model downloaded successfully!"), icon="✅")
 
 # 创建Chroma处理器
-chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors(embed_model_type, embed_model)
+chroma_vectorstore_processor = create_chroma_vectorstore_processor(embed_model_type, embed_model)
+chroma_collection_processor = create_chroma_collection_processor()
 
 # 知识库设置
 st.write(i18n("### Knowledge Base Setting"))
@@ -191,6 +209,12 @@ with st.container():
     st.write(i18n("Knowledge Base Choose"))
     col1, col2 = st.columns([0.7, 0.3])
     with col1:
+
+        def collection_change():
+            st.session_state.document_counter += 1
+            global chroma_collection_processor
+            chroma_collection_processor = create_chroma_collection_processor()
+            
         collection_choose = st.selectbox(
             label=i18n("Knowledge Base Choose"),
             label_visibility="collapsed",
@@ -198,13 +222,15 @@ with st.container():
                 st.session_state.collection_counter
             ),
             key="collection_choose",
+            on_change=collection_change
         )
     with col2:
         def reinitialize_knowledge_base():
             st.session_state.collection_counter += 1
             st.session_state.document_counter += 1
             global chroma_vectorstore_processor, chroma_collection_processor
-            chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors(embed_model_type, embed_model)
+            chroma_vectorstore_processor = create_chroma_vectorstore_processor(embed_model_type, embed_model)
+            chroma_collection_processor = create_chroma_collection_processor()
 
         st.button(
             label=i18n("Reinitialize Knowledge Base"),
@@ -214,29 +240,38 @@ with st.container():
         )
 
 with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
-    collection_name = st.text_input(
-        label=i18n("To be added Collection Name"),
-        placeholder=i18n("Collection Name"),
-        key="collection_name_input",
-    )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(label=i18n("Add Collection"), use_container_width=True, type="primary"):
-            if collection_name:
-                chroma_vectorstore_processor.create_knowledgebase_collection(name=collection_name)
-                st.session_state.collection_counter += 1
-                st.session_state.document_counter += 1
-                st.success(i18n("Collection added successfully."))
-                st.rerun()
+    def add_collection_callback():
+        chroma_vectorstore_processor.create_knowledgebase_collection(name=st.session_state.create_collection_name_input)
+        st.session_state.create_collection_name_input = ""
+        st.session_state.collection_counter += 1
+        st.session_state.document_counter += 1
+        st.success(i18n("Collection added successfully."))
 
-    with col2:
-        if st.button(label=i18n("Delete Collection"), use_container_width=True):
-            chroma_vectorstore_processor.delete_knowledgebase_collection(name=collection_name)
-            st.session_state.collection_counter += 1
-            st.session_state.document_counter += 1
-            st.success(i18n("Collection deleted successfully."))
-            st.rerun()
+    def delete_collection_callback():
+        chroma_vectorstore_processor.delete_knowledgebase_collection(name=st.session_state.delete_collection_name_selectbox)
+        st.session_state.collection_counter += 1
+        st.session_state.document_counter += 1
+        st.success(i18n("Collection deleted successfully."))
+
+    add_collection_tab, delete_collection_tab = st.tabs([i18n("Add Collection"), i18n("Delete Collection")])
+    with add_collection_tab:
+        create_collection_name_input = st.text_input(
+            label=i18n("To be added Collection Name"),
+            placeholder=i18n("Collection Name"),
+            key="create_collection_name_input",
+        )
+        st.button(label=i18n("Add Collection"), use_container_width=True, type="primary", on_click=add_collection_callback)
+
+    with delete_collection_tab:
+        delete_collection_name_selectbox = st.selectbox(
+            label=i18n("To be deleted Collection Name"),
+            options=chroma_vectorstore_processor.list_all_knowledgebase_collections(
+                st.session_state.collection_counter
+            ),
+            key="delete_collection_name_selectbox",
+        )
+        st.button(label=i18n("Delete Collection"), use_container_width=True, on_click=delete_collection_callback)
 
 # 文件上传和处理
 st.write(i18n("### Choose files you want to embed"))
@@ -303,8 +338,16 @@ if embed_button:
         st.warning(i18n("Please upload and split files first"))
     else:
         with st.spinner():
-            chroma_collection_processor.add_documents(documents=st.session_state.pages)
-            st.session_state.document_counter += 1
+            # 始终使用当前知识库的处理器
+            current_collection = next((kb for kb in load_embedding_config().knowledge_bases if kb.name == st.session_state.collection_choose), None)
+            if current_collection:
+                current_collection_processor = ChromaCollectionProcessorWithNoApi(
+                    collection_name=current_collection.name,
+                    embedding_config=load_embedding_config(),
+                    embedding_model_id=current_collection.embedding_model_id,
+                )
+                current_collection_processor.add_documents(documents=st.session_state.pages)
+                st.session_state.document_counter += 1
         st.toast("Embedding completed!")
 
 # 知识库内容管理

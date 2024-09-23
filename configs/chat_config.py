@@ -365,19 +365,22 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
                 raise ValueError(f"在embedding_config中没有找到id为 {model_id} 的embedding模型配置")
             
             embedding_model_or_path = embedding_model.get("embedding_model_name_or_path")
+            embedding_type = embedding_model.get("embedding_type")
             if not embedding_model_or_path:
                 raise ValueError(f"embedding模型 {model_id} 缺少embedding_model_name_or_path配置")
         except Exception as e:
             raise ValueError(f"处理embedding配置时出错: {str(e)}") from e
         
-        # 如果id在models中对应的embedding_type是huggingface, 则路径需要加上"embeddings/"
-        if embedding_model.get("embedding_type") == "huggingface":
+        # 如果id在models中对应的embedding_type是sentence_transformer, 则路径需要加上"embeddings/"
+        if embedding_model.get("embedding_type") == "sentence_transformer":
             embedding_model_or_path = os.path.join("embeddings", embedding_model_or_path)
+            embedding_type = "sentence_transformer"
         
         retriever = ChromaContextualRetriever(
             llm=llm,
             collection_name=collection_name,
             embedding_model=embedding_model_or_path,
+            embedding_type=embedding_type,
         )
         retriever.update_context_messages(context_messages)
         

@@ -192,7 +192,7 @@ oailike_config_processor = OAILikeConfigProcessor()
 vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
     # 仅需要展示所有的 Collection 即可，故所有参数都为空
     embedding_model_name_or_path="",
-    embedding_model_type="huggingface",
+    embedding_model_type="sentence_transformer",
 )
 
 VERSION = "0.1.1"
