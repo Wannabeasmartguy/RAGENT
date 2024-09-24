@@ -37,6 +37,12 @@ def init_session_state():
         st.session_state.collection_counter = 0
     if "document_counter" not in st.session_state:
         st.session_state.document_counter = 0
+    if "collection_name_check" not in st.session_state:
+        # 用于检查collection name是否合法，初始合法以启用add collection按钮
+        st.session_state.collection_name_check = True
+    if "create_collection_expander_state" not in st.session_state:
+        # 用于控制collection add/delete expander的展开状态，初始不展开
+        st.session_state.create_collection_expander_state = False
 
 
 def load_embedding_config():
@@ -239,16 +245,25 @@ with st.container():
             on_click=reinitialize_knowledge_base
         )
 
-with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
+with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.create_collection_expander_state):
 
     def add_collection_callback():
-        chroma_vectorstore_processor.create_knowledgebase_collection(name=st.session_state.create_collection_name_input)
-        st.session_state.create_collection_name_input = ""
-        st.session_state.collection_counter += 1
-        st.session_state.document_counter += 1
-        st.success(i18n("Collection added successfully."))
+        # 更新expander状态
+        st.session_state.create_collection_expander_state = True
+        # 检查collection name是否合法
+        if st.session_state.collection_name_check:
+            chroma_vectorstore_processor.create_knowledgebase_collection(name=st.session_state.create_collection_name_input)
+            st.session_state.create_collection_name_input = ""
+            st.session_state.collection_counter += 1
+            st.session_state.document_counter += 1
+            st.success(i18n("Collection added successfully."))
+        else:
+            st.error(i18n("Collection name is invalid."))
 
     def delete_collection_callback():
+        # 更新expander状态
+        st.session_state.create_collection_expander_state = True
+        # 删除collection
         chroma_vectorstore_processor.delete_knowledgebase_collection(name=st.session_state.delete_collection_name_selectbox)
         st.session_state.collection_counter += 1
         st.session_state.document_counter += 1
@@ -256,12 +271,63 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=False):
 
     add_collection_tab, delete_collection_tab = st.tabs([i18n("Add Collection"), i18n("Delete Collection")])
     with add_collection_tab:
+        def collection_name_change():
+            """
+            collection name 修改时，对collection name是否合法进行检查
+
+            1. 名称的长度必须介于 3 到 63 个字符之间。
+            2. 名称必须以小写字母或数字开头和结尾，并且两者之间可以包含点、短划线和下划线。
+            3. 名称不得包含两个连续的点。
+            4. 名称不得包含两个连续的下划线。
+            5. 名称不得为有效的IPv4地址。
+            """
+            # 更新expander状态
+            st.session_state.create_collection_expander_state = True
+            # 检查collection name是否合法
+            collection_name = st.session_state.create_collection_name_input
+            if len(collection_name) < 3 or len(collection_name) > 63:
+                st.error(i18n("Collection name must be between 3 and 63 characters long."))
+                st.session_state.collection_name_check = False
+                return False
+            if not collection_name[0].islower() or not collection_name[-1].islower():
+                st.error(i18n("Collection name must start and end with a lowercase letter."))
+                st.session_state.collection_name_check = False
+                return False
+            if ".." in collection_name:
+                st.error(i18n("Collection name must not contain two consecutive dots."))
+                st.session_state.collection_name_check = False
+                return False
+            if "__" in collection_name:
+                st.error(i18n("Collection name must not contain two consecutive underscores."))
+                st.session_state.collection_name_check = False
+                return False
+            
+            # 检查是否为有效的IPv4地址
+            import re
+            ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+            if re.match(ipv4_pattern, collection_name):
+                octets = collection_name.split('.')
+                if all(0 <= int(octet) <= 255 for octet in octets):
+                    st.error(i18n("Collection name must not be a valid IPv4 address."))
+                    st.session_state.collection_name_check = False
+                    return False
+            
+            st.session_state.collection_name_check = True
+            return True
+
         create_collection_name_input = st.text_input(
             label=i18n("To be added Collection Name"),
             placeholder=i18n("Collection Name"),
             key="create_collection_name_input",
+            on_change=collection_name_change
         )
-        st.button(label=i18n("Add Collection"), use_container_width=True, type="primary", on_click=add_collection_callback)
+        st.button(
+            label=i18n("Add Collection"), 
+            use_container_width=True, 
+            type="primary", 
+            on_click=add_collection_callback,
+            disabled=not st.session_state.collection_name_check
+        )
 
     with delete_collection_tab:
         delete_collection_name_selectbox = st.selectbox(
