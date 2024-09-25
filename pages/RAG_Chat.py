@@ -189,12 +189,6 @@ requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
-vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
-    # 仅需要展示所有的 Collection 即可，故所有参数都为空
-    embedding_model_name_or_path="",
-    embedding_model_type="sentence_transformer",
-)
-
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
@@ -856,6 +850,8 @@ with st.sidebar:
                     ),
                     {},
                 )
+
+                st.session_state.reset_counter += 1
 
             def get_collection_options():
                 try:

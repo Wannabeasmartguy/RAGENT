@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import os
 import json
 import uuid
+from loguru import logger
 from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES, KNOWLEDGE_BASE_DIR
 from configs.knowledge_base_config import (
     ChromaVectorStoreProcessorWithNoApi,
@@ -17,6 +18,11 @@ from model.config.embeddings import (
     GlobalSettings,
     KnowledgeBaseConfiguration,
 )
+
+# 全局变量声明
+global chroma_vectorstore_processor, chroma_collection_processor
+chroma_vectorstore_processor = None
+chroma_collection_processor = None
 
 # 全局变量和初始化
 language = os.getenv("LANGUAGE", "简体中文")
@@ -88,7 +94,7 @@ def create_chroma_vectorstore_processor(embed_model_type, embed_model):
         )
     elif embed_model_type == "sentence_transformer":
         chroma_vectorstore_processor = ChromaVectorStoreProcessorWithNoApi(
-            embedding_model_name_or_path=os.path.join(embedding_dir, embed_model),
+            embedding_model_name_or_path=embed_model,
             embedding_model_type=embed_model_type,
         )
 
@@ -96,29 +102,48 @@ def create_chroma_vectorstore_processor(embed_model_type, embed_model):
 
 def create_chroma_collection_processor():
     embedding_config = load_embedding_config()
-    model_id = get_or_create_model_id(embedding_config, embed_model_type, embed_model)
+    model_id = get_or_create_model_id(st.session_state.get("collection_choose"), embedding_config)
 
     chroma_collection_processor = ChromaCollectionProcessorWithNoApi(
-        collection_name=st.session_state.get("collection_choose", ""),
+        collection_name=st.session_state.get("collection_choose"),
         embedding_config=embedding_config,
         embedding_model_id=model_id,
     )
 
     return chroma_collection_processor
 
-def get_or_create_model_id(embedding_config, embed_model_type, embed_model):
-    current_model = next(
+# 创建Chroma处理器
+def create_chroma_processors():
+    global chroma_vectorstore_processor, chroma_collection_processor
+    chroma_vectorstore_processor = create_chroma_vectorstore_processor(embed_model_type, embed_model)
+    
+    # 如果没有collection,创建一个默认的
+    if not chroma_vectorstore_processor.knowledgebase_collections:
+        logger.info("No collection, create a default collection.")
+        chroma_vectorstore_processor.create_knowledgebase_collection(collection_name="default")
+        st.session_state.collection_choose = "default"
+        st.toast(i18n("First time creation of knowledge base, create a new default collection."), icon="🔔")
+    
+    # 确保collection_choose存在且有效
+    if "collection_choose" not in st.session_state or st.session_state.collection_choose not in chroma_vectorstore_processor.knowledgebase_collections:
+        st.session_state.collection_choose = next(iter(chroma_vectorstore_processor.knowledgebase_collections))
+    
+    chroma_collection_processor = create_chroma_collection_processor()
+    return chroma_vectorstore_processor, chroma_collection_processor
+
+def get_or_create_model_id(collection_name, embedding_config):
+    # 先从embedding_config中获得collection_name对应的embedding_model_id
+    current_collection = next(
         (
-            model
-            for model in embedding_config.models
-            if model.embedding_type == embed_model_type
-            and model.embedding_model_name_or_path == embed_model
+            collection
+            for collection in embedding_config.knowledge_bases
+            if collection.name == collection_name
         ),
         None,
     )
 
-    if current_model:
-        return current_model.id
+    if current_collection:
+        return current_collection.embedding_model_id
 
     model_id = str(uuid.uuid4())
     if embed_model_type == "openai":
@@ -205,8 +230,7 @@ with st.sidebar:
             st.toast(i18n("Model downloaded successfully!"), icon="✅")
 
 # 创建Chroma处理器
-chroma_vectorstore_processor = create_chroma_vectorstore_processor(embed_model_type, embed_model)
-chroma_collection_processor = create_chroma_collection_processor()
+chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors()
 
 # 知识库设置
 st.write(i18n("### Knowledge Base Setting"))
@@ -218,15 +242,14 @@ with st.container():
 
         def collection_change():
             st.session_state.document_counter += 1
-            global chroma_collection_processor
-            chroma_collection_processor = create_chroma_collection_processor()
+            global chroma_vectorstore_processor, chroma_collection_processor
+            chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors()
+            logger.info(f"Selected collection: {st.session_state.collection_choose}")
             
         collection_choose = st.selectbox(
             label=i18n("Knowledge Base Choose"),
             label_visibility="collapsed",
-            options=chroma_vectorstore_processor.list_all_knowledgebase_collections(
-                st.session_state.collection_counter
-            ),
+            options=chroma_vectorstore_processor.knowledgebase_collections,
             key="collection_choose",
             on_change=collection_change
         )
@@ -236,7 +259,7 @@ with st.container():
             st.session_state.document_counter += 1
             global chroma_vectorstore_processor, chroma_collection_processor
             chroma_vectorstore_processor = create_chroma_vectorstore_processor(embed_model_type, embed_model)
-            chroma_collection_processor = create_chroma_collection_processor()
+            # chroma_collection_processor = create_chroma_collection_processor()
 
         st.button(
             label=i18n("Reinitialize Knowledge Base"),
@@ -252,7 +275,7 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
         st.session_state.create_collection_expander_state = True
         # 检查collection name是否合法
         if st.session_state.collection_name_check:
-            chroma_vectorstore_processor.create_knowledgebase_collection(name=st.session_state.create_collection_name_input)
+            chroma_vectorstore_processor.create_knowledgebase_collection(collection_name=st.session_state.create_collection_name_input)
             st.session_state.create_collection_name_input = ""
             st.session_state.collection_counter += 1
             st.session_state.document_counter += 1
@@ -261,56 +284,60 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
             st.error(i18n("Collection name is invalid."))
 
     def delete_collection_callback():
+        global chroma_vectorstore_processor, chroma_collection_processor
         # 更新expander状态
         st.session_state.create_collection_expander_state = True
         # 删除collection
-        chroma_vectorstore_processor.delete_knowledgebase_collection(name=st.session_state.delete_collection_name_selectbox)
+        chroma_vectorstore_processor.delete_knowledgebase_collection(collection_name=st.session_state.delete_collection_name_selectbox)
         st.session_state.collection_counter += 1
         st.session_state.document_counter += 1
         st.success(i18n("Collection deleted successfully."))
+        
+        # 如果删除后，vectorstore中没有collection，则创建新的默认collection
+        if not chroma_vectorstore_processor.knowledgebase_collections:
+            chroma_vectorstore_processor.create_knowledgebase_collection(collection_name="default")
+            # 并提醒
+            st.toast(i18n("No collection left, create a new default collection."), icon="🔔")
+        
+        # 更新collection_choose
+        chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors()
 
     add_collection_tab, delete_collection_tab = st.tabs([i18n("Add Collection"), i18n("Delete Collection")])
     with add_collection_tab:
         def collection_name_change():
             """
-            collection name 修改时，对collection name是否合法进行检查
+            检查collection name是否合法
 
-            1. 名称的长度必须介于 3 到 63 个字符之间。
-            2. 名称必须以小写字母或数字开头和结尾，并且两者之间可以包含点、短划线和下划线。
+            1. 名称的长度必须介于 1 到 63 个字符之间。
+            2. 名称只能包含Unicode字符、数字、点、短划线和下划线。
             3. 名称不得包含两个连续的点。
             4. 名称不得包含两个连续的下划线。
-            5. 名称不得为有效的IPv4地址。
+            5. 名称不得为纯数字。
             """
             # 更新expander状态
             st.session_state.create_collection_expander_state = True
             # 检查collection name是否合法
             collection_name = st.session_state.create_collection_name_input
-            if len(collection_name) < 3 or len(collection_name) > 63:
-                st.error(i18n("Collection name must be between 3 and 63 characters long."))
+            if len(collection_name) < 1 or len(collection_name) > 63:
+                st.error(i18n("Knowledge Base name must be between 1 and 63 characters long, containing only Unicode characters, numbers, dots, hyphens, and underscores."))
                 st.session_state.collection_name_check = False
                 return False
-            if not collection_name[0].islower() or not collection_name[-1].islower():
-                st.error(i18n("Collection name must start and end with a lowercase letter."))
+            if not all(c.isalnum() or c in ".-_" for c in collection_name):
+                st.error(i18n("Knowledge Base name can only contain Unicode characters, numbers, dots, hyphens, and underscores."))
                 st.session_state.collection_name_check = False
                 return False
             if ".." in collection_name:
-                st.error(i18n("Collection name must not contain two consecutive dots."))
+                st.error(i18n("Knowledge Base name must not contain two consecutive dots."))
                 st.session_state.collection_name_check = False
                 return False
             if "__" in collection_name:
-                st.error(i18n("Collection name must not contain two consecutive underscores."))
+                st.error(i18n("Knowledge Base name must not contain two consecutive underscores."))
                 st.session_state.collection_name_check = False
                 return False
-            
-            # 检查是否为有效的IPv4地址
-            import re
-            ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-            if re.match(ipv4_pattern, collection_name):
-                octets = collection_name.split('.')
-                if all(0 <= int(octet) <= 255 for octet in octets):
-                    st.error(i18n("Collection name must not be a valid IPv4 address."))
-                    st.session_state.collection_name_check = False
-                    return False
+            if collection_name.isdigit():
+                st.error(i18n("Knowledge Base name must not be a pure number."))
+                st.session_state.collection_name_check = False
+                return False
             
             st.session_state.collection_name_check = True
             return True
@@ -332,9 +359,7 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
     with delete_collection_tab:
         delete_collection_name_selectbox = st.selectbox(
             label=i18n("To be deleted Collection Name"),
-            options=chroma_vectorstore_processor.list_all_knowledgebase_collections(
-                st.session_state.collection_counter
-            ),
+            options=chroma_vectorstore_processor.knowledgebase_collections,
             key="delete_collection_name_selectbox",
         )
         st.button(label=i18n("Delete Collection"), use_container_width=True, on_click=delete_collection_callback)
@@ -405,16 +430,9 @@ if embed_button:
     else:
         with st.spinner():
             # 始终使用当前知识库的处理器
-            current_collection = next((kb for kb in load_embedding_config().knowledge_bases if kb.name == st.session_state.collection_choose), None)
-            if current_collection:
-                current_collection_processor = ChromaCollectionProcessorWithNoApi(
-                    collection_name=current_collection.name,
-                    embedding_config=load_embedding_config(),
-                    embedding_model_id=current_collection.embedding_model_id,
-                )
-                current_collection_processor.add_documents(documents=st.session_state.pages)
-                st.session_state.document_counter += 1
-        st.toast("Embedding completed!")
+            chroma_collection_processor.add_documents(documents=st.session_state.pages)
+            st.session_state.document_counter += 1
+        st.toast(i18n("Embedding completed!"), icon="✅")
 
 # 知识库内容管理
 st.write(i18n("### Knowledge Base Content Management"))

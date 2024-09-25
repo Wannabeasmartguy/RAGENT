@@ -665,7 +665,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self.embedding_model: chromadb.EmbeddingFunction = self._create_embedding_model(
             embedding_model
         )
-        self.knowledgebase_collections: List[str] = self._list_chroma_collections()
+        self.knowledgebase_collections: Dict[str, str] = self._list_chroma_collections()
     
     @classmethod
     def download_model(cls, model_name_or_path: str, repo_id: str) -> str:
@@ -718,31 +718,28 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             # 模型目录存在
             return None
 
-    @st.cache_data
-    def list_all_knowledgebase_collections(
-        _self, counter: Optional[int] = None
-    ) -> List[str]:
+    @classmethod
+    def _list_chroma_collections(cls) -> Dict[str, str]:
         """
-        List all knowledgebase collections.
-
-        Args:
-            counter (int): No usage, just for update cache data.
+        列出所有知识库集合。
 
         Returns:
-            List[str]: A list of collection names.
+            Dict[str, str]：键为用户指定的collection_name，值为内部使用的collection_id。
         """
-        collections = _self._list_chroma_collections()
+        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
+        raw_collections = client.list_collections()
+        collections = {collection.metadata.get('user_collection_name', collection.name): collection.name for collection in raw_collections}
         return collections
 
     def create_knowledgebase_collection(
         self,
-        name: str,
+        collection_name: str,
     ) -> None:
         """
         创建一个知识库 collection
 
         Args:
-            name (str): 知识库名称
+            collection_name (str): 用户指定的知识库名称
 
         Returns:
             None
@@ -750,53 +747,69 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
         # 检查集合是否已存在
-        if name in self.knowledgebase_collections:
+        if collection_name in self.knowledgebase_collections:
             raise ValueError("Collection already exists")
 
-        # 创建集合
-        client.create_collection(name=name, embedding_function=self.embedding_model)
+        # 生成内部使用的collection_id
+        collection_id = str(uuid.uuid4())
+
+        # 创建集合，使用collection_id作为实际的collection名称，并在metadata中存储用户指定的名称
+        client.create_collection(
+            name=collection_id, 
+            embedding_function=self.embedding_model,
+            metadata={"user_collection_name": collection_name}
+        )
 
         # 获取当前使用的嵌入模型的ID
         current_model_id = self._get_current_model_id()
 
         # 添加新的知识库到配置中
         new_kb = KnowledgeBaseConfiguration(
-            id=str(uuid.uuid4()), name=name, embedding_model_id=current_model_id
+            id=collection_id, 
+            name=collection_name, 
+            embedding_model_id=current_model_id
         )
         self.embedding_config.knowledge_bases.append(new_kb)
+
+        # 更新内部的knowledgebase_collections字典
+        self.knowledgebase_collections[collection_name] = collection_id
 
         # 更新配置文件
         self._update_embedding_config()
 
     def delete_knowledgebase_collection(
         self,
-        name: str,
+        collection_name: str,
     ) -> None:
         """
         删除指定名称的 collection
 
         Args:
-            name (str): 知识库名称
+            collection_name (str): 用户指定的知识库名称
 
         Returns:
             None
         """
-        knowledgebase_collections: List[str] = self._list_chroma_collections()
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
 
-        # Check if collection exists
-        if name not in knowledgebase_collections:
+        # 检查集合是否存在
+        if collection_name not in self.knowledgebase_collections:
             raise ValueError("Collection does not exist")
 
-        # Delete collection
-        client.delete_collection(name=name)
+        collection_id = self.knowledgebase_collections[collection_name]
 
-        # Remove the knowledge base from the configuration
+        # 删除collection
+        client.delete_collection(name=collection_id)
+
+        # 从配置中移除知识库
         self.embedding_config.knowledge_bases = [
-            kb for kb in self.embedding_config.knowledge_bases if kb.name != name
+            kb for kb in self.embedding_config.knowledge_bases if kb.name != collection_name
         ]
 
-        # Update the configuration file
+        # 从内部字典中移除
+        del self.knowledgebase_collections[collection_name]
+
+        # 更新配置文件
         self._update_embedding_config()
 
     def _update_embedding_config(self):
@@ -822,11 +835,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 api_version=model_config.api_version,
             )
         elif model_config.embedding_type == "sentence_transformer":
-            try:
+            local_model_path = os.path.join(
+                "embeddings", model_config.embedding_model_name_or_path
+            )
+            if os.path.exists(local_model_path):
                 return embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name=model_config.embedding_model_name_or_path
+                    model_name=local_model_path
                 )
-            except OSError:
+            else:
                 raise ValueError(
                     "Huggingface model not found, please use 'Local embedding model download' to download the model"
                 )
@@ -863,11 +879,56 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     ):
         self.embedding_config = embedding_config
         self.embedding_model = self._get_embedding_model(embedding_model_id)
-        self.collection = self._get_chroma_specific_collection(
-            collection_name, self.embedding_model
-        )
         self.collection_name = collection_name
+        self.collection_id = self._get_collection_id(collection_name)
+        self.collection = self._get_chroma_specific_collection(
+            self.collection_id, self.embedding_model
+        )
 
+    def _get_collection_id(self, collection_name: str) -> str:
+        """
+        根据用户指定的collection_name获取对应的内部collection_id
+
+        Args:
+            collection_name (str): 用户指定的collection名称
+
+        Returns:
+            str: 对应的内部collection_id
+
+        Raises:
+            ValueError: 如果找不到对应的collection
+        """
+        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
+        collections = client.list_collections()
+        for collection in collections:
+            if collection.metadata.get('user_collection_name') == collection_name:
+                return collection.name
+        raise ValueError(f"No collection found with name: {collection_name}")
+
+    @classmethod
+    def _get_chroma_specific_collection(
+        cls, collection_id: str, embedding_model: chromadb.EmbeddingFunction
+    ) -> chromadb.Collection:
+        """
+        获取知识库的特定 collection
+
+        参数：
+            collection_id (str): 知识库某个 collection 的内部ID
+            embedding_model (chromadb.EmbeddingFunction): 嵌入模型
+
+        返回：
+            chromadb.Collection: 知识库中ID为 collection_id 的 collection
+        """
+        client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
+
+        try:
+            collection = client.get_collection(
+                name=collection_id, embedding_function=embedding_model
+            )
+            return collection
+        except ValueError:
+            return None
+    
     def _get_embedding_model(self, model_id: str) -> chromadb.EmbeddingFunction:
         model_config = next(
             (model for model in self.embedding_config.models if model.id == model_id),

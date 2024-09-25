@@ -354,6 +354,9 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         try:
             knowledge_bases = embedding_config.get("knowledge_bases", [])
             collection_config = next((kb for kb in knowledge_bases if kb.get("name") == collection_name), None)
+            # 实际要传入的collection_name是collection_name的值，而不是collection_name的key
+            collection_id = collection_config.get("id")
+
             if not collection_config:
                 raise ValueError(f"在embedding_config中没有找到collection_name: {collection_name} 的配置")
             
@@ -378,7 +381,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         
         retriever = ChromaContextualRetriever(
             llm=llm,
-            collection_name=collection_name,
+            collection_name=collection_id,
             embedding_model=embedding_model_or_path,
             embedding_type=embedding_type,
         )
