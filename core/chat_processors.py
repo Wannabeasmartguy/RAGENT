@@ -11,13 +11,13 @@ from groq import Groq
 
 from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
 from api.routers.chat import LLMConfig, LLMParams
-from configs.strategy import (
+from core.strategy import (
     ChatProcessStrategy,
     AgentChatProcessoStrategy,
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
-from configs.basic_config import (
+from core.basic_config import (
     CONFIGS_BASE_DIR,
     CONFIGS_DB_FILE,
     EMBEDDING_CONFIGS_DB_TABLE,

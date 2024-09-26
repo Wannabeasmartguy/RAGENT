@@ -6,7 +6,7 @@ import whisper
 from streamlit_float import *
 from audiorecorder import audiorecorder
 
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from utils.basic_utils import copy_to_clipboard
 from tools.toolkits import TO_TOOLS
 

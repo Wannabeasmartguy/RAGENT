@@ -9,7 +9,7 @@ from loguru import logger
 from datetime import datetime
 from pydantic import ValidationError
 
-from configs.basic_config import (
+from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
@@ -34,8 +34,8 @@ from utils.basic_utils import (
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 
-from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
-from configs.knowledge_base_config import (
+from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
+from core.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )

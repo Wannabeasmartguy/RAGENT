@@ -11,7 +11,7 @@ from langchain_core.documents.base import Document
 
 from typing import List, Dict, Literal
 
-from configs.basic_config import KNOWLEDGE_BASE_DIR
+from core.basic_config import KNOWLEDGE_BASE_DIR
 
 
 router = APIRouter(

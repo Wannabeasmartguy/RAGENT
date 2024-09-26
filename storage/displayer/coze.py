@@ -3,7 +3,7 @@ import pyperclip
 
 from typing import Dict, List
 
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from model.coze.message import CozeBotResponse, Message
 from utils.basic_utils import copy_to_clipboard
 

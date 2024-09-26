@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from loguru import logger
 
-from configs.basic_config import (
+from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
@@ -23,8 +23,8 @@ from utils.basic_utils import (
     write_chat_history,
 )
 from llm.aoai.tools.tools import TO_TOOLS
-from configs.chat_config import AgentChatProcessor, OAILikeConfigProcessor
-from configs.knowledge_base_config import ChromaVectorStoreProcessor
+from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
+from core.kb_processors import ChromaVectorStoreProcessor
 from api.dependency import APIRequestHandler
 from autogen.cache import Cache
 from typing import List
@@ -37,7 +37,7 @@ oailike_config_processor = OAILikeConfigProcessor()
 vectorstore_processor = ChromaVectorStoreProcessor(
     # 仅需要展示所有的 Collection 即可，故所有参数都为空
     embedding_model_name_or_path="",
-    embedding_model_type="huggingface",
+    embedding_model_type="sentence_transformer",
 )
 
 

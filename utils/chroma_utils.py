@@ -2,7 +2,7 @@ import chromadb
 import tabulate
 import pandas as pd
 
-from configs.basic_config import I18nAuto
+from core.basic_config import I18nAuto
 
 i18n = I18nAuto()
 

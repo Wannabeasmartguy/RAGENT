@@ -17,8 +17,8 @@ load_dotenv(override=True)
 
 from llm.ollama.completion import get_ollama_model_list
 from llm.groq.completion import get_groq_models
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from configs.chat_config import OAILikeConfigProcessor
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.chat_processors import OAILikeConfigProcessor
 
 USER_CHAT_STYLE = """
 <style>

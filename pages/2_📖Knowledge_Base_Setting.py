@@ -4,8 +4,8 @@ import os
 import json
 import uuid
 from loguru import logger
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES, KNOWLEDGE_BASE_DIR
-from configs.knowledge_base_config import (
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES, KNOWLEDGE_BASE_DIR
+from core.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )

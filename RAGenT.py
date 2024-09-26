@@ -22,12 +22,12 @@ from llm.aoai.completion import aoai_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
-from configs.basic_config import (
+from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
+from core.chat_processors import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
