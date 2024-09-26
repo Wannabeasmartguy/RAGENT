@@ -126,5 +126,6 @@
     "Knowledge Base name must not be a pure number.": "Knowledge Base name must not be a pure number.",
     "First time creation of knowledge base, create a new default collection.": "First time creation of knowledge base, a new default knowledge base has been automatically created.",
     "No collection left, create a new default collection.": "No collection left, a new default knowledge base has been automatically created.",
-    "Embed Model Owner Organization": "Embed Model Owner Organization"
+    "Embed Model Owner Organization": "Embed Model Owner Organization",
+    "Knowledge Base name must not be repeated.": "Knowledge Base name must not be repeated."
 }

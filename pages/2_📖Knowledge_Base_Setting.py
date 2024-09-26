@@ -5,7 +5,12 @@ import json
 import uuid
 from typing import Dict, List
 from loguru import logger
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES, KNOWLEDGE_BASE_DIR
+from core.basic_config import (
+    I18nAuto, 
+    set_pages_configs_in_common,
+    SUPPORTED_LANGUAGES, 
+    KNOWLEDGE_BASE_DIR
+)
 from core.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
@@ -185,6 +190,16 @@ def get_or_create_model_id(collection_name, embedding_config):
 
     return model_id
 
+try:
+    VERSION = "0.1.1"
+    current_directory = os.path.dirname(__file__)
+    parent_directory = os.path.dirname(current_directory)
+    logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+    set_pages_configs_in_common(
+        version=VERSION, title="Knowledge Base Management", page_icon_path=logo_path
+    )
+except:
+    st.rerun()
 
 init_session_state()
 
@@ -290,6 +305,7 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
             st.session_state.collection_counter += 1
             st.session_state.document_counter += 1
             st.success(i18n("Collection added successfully."))
+            st.session_state.create_collection_expander_state = False
         else:
             st.error(i18n("Collection name is invalid."))
 
@@ -323,6 +339,7 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
             3. 名称不得包含两个连续的点。
             4. 名称不得包含两个连续的下划线。
             5. 名称不得为纯数字。
+            6. 名称不得重复
             """
             # 更新expander状态
             st.session_state.create_collection_expander_state = True
@@ -346,6 +363,10 @@ with st.expander(label=i18n("Collection Add/Delete"), expanded=st.session_state.
                 return False
             if collection_name.isdigit():
                 st.error(i18n("Knowledge Base name must not be a pure number."))
+                st.session_state.collection_name_check = False
+                return False
+            if collection_name in chroma_vectorstore_processor.knowledgebase_collections:
+                st.error(i18n("Knowledge Base name must not be repeated."))
                 st.session_state.collection_name_check = False
                 return False
             

@@ -126,5 +126,6 @@
     "Knowledge Base name must not be a pure number.": "知识库名称不得为纯数字。",
     "First time creation of knowledge base, create a new default collection.": "首次创建知识库，已自动创建一个新的默认知识库。",
     "No collection left, create a new default collection.": "没有知识库，已自动创建一个新的默认知识库。",
-    "Embed Model Owner Organization": "嵌入模型所属组织"
+    "Embed Model Owner Organization": "嵌入模型所属组织",
+    "Knowledge Base name must not be repeated.": "知识库名称不得重复。"
 }
