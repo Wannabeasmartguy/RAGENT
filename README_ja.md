@@ -4,7 +4,7 @@
 
 おそらく最も軽量なネイティブRAG + Agentアプリの1つであり、複雑な設定なしで、ワンクリックでAgentによるモデルと知識ベースの強力な機能を体験できます。
 
-![image](https://github.com/user-attachments/assets/d78df76f-ee2a-4dbd-955f-5c7b790c9d6d)
+![image](https://github.com/user-attachments/assets/f50c9b86-55c8-4881-a7cf-b2ccf3b35ece)
 
 ## 特徴
 
@@ -34,15 +34,13 @@
 
 ### RAGチャット
 
-![image](https://github.com/user-attachments/assets/03d56128-9fe1-48d4-98ae-9beeae3cca52)
-
 モデルの設定（サイドバー）と詳細な参照の表示:
 
-![image](https://github.com/user-attachments/assets/1c2daa5f-b348-4f27-845c-d9499c517456)
+![image](https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720)
 
 RAGの設定：
 
-![image](https://github.com/user-attachments/assets/e4f31a65-94ff-417b-af21-677ff56c7cd7)
+![image](https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77)
 
 ### Function Call
 
@@ -76,6 +74,7 @@ Function CallはLLMの能力を大幅に強化することができ、現在はO
 1. モデル依存関係を設定します：`.env_sample`ファイルを`.env`に変更し、以下の内容を記入します：
 
     - `LANGUAGE`: `English`と`简体中文`をサポートし、デフォルトは`English`です。
+    - `OPENAI_API_KEY` : OpenAIモデルを使用している場合、ここにAPIキーを記入します。
     - `AZURE_OAI_KEY` : Azure OpenAIモデルを使用している場合、ここにAPIキーを記入します。
     - `AZURE_OAI_ENDPOINT` : OpenAIモデルを使用している場合、ここにエンドポイントを記入します。
     - `API_VERSION`: Azure OpenAIモデルを使用している場合、ここにAPIバージョンを記入します。
@@ -87,7 +86,7 @@ Function CallはLLMの能力を大幅に強化することができ、現在はO
 
 2. アプリケーションを起動します：
 
-コマンドラインで`python startup.py`を実行すると起動します。
+コマンドラインで`streamlit run RAGenT.py`を実行すると起動します。
 
 ## ルート
 

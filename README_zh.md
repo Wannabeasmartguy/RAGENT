@@ -6,7 +6,7 @@
 
 > 如果你喜欢这个项目，请为它点一个 star ，这对我很重要！
 
-![image](https://github.com/user-attachments/assets/89638402-ca9d-4dda-94b2-cb40035cf543)
+![image](https://github.com/user-attachments/assets/d87905e8-bbb8-4c36-baa6-2bcf95c882bb)
 
 ## 特点
 
@@ -38,15 +38,13 @@
 
 ### RAG Chat
 
-![image](https://github.com/user-attachments/assets/54c254b6-44d6-4e38-a4f8-eebf1d826f75)
-
 设置模型（边栏）及查看详细引用：
 
-![image](https://github.com/user-attachments/assets/f825f2a4-8e26-4478-99fc-b8d18d33a4a7)
+![image](https://github.com/user-attachments/assets/e9a4ffb3-72da-4dbf-b82a-4c47e81231f2)
 
 配置 RAG ：
 
-![image](https://github.com/user-attachments/assets/53344031-0920-43f7-be2e-717119e4c081)
+![image](https://github.com/user-attachments/assets/ce26b34d-6620-4517-a008-02f35cde2588)
 
 ### Function Call（工具调用）
 
@@ -80,6 +78,7 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 1. 配置模型依赖项：修改 `.env_sample` 文件为 `.env` 并填写以下内容：
 
    - `LANGUAGE`: 支持`English`和`简体中文`，默认为`English`。
+   - `OPENAI_API_KEY` : 如果你使用 OpenAI 模型，请在此处填写 api key；
    - `AZURE_OAI_KEY` : 如果你使用 Azure OpenAI 模型，请在此处填写 api key；
    - `AZURE_OAI_ENDPOINT` : 如果你使用 OpenAI 模型，请在此处填写 end_point；
    - `API_VERSION`: 如果你使用 Azure OpenAI 模型，请在此处填写 api version；
@@ -91,7 +90,7 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 
 2. 启动应用：
 
-   命令行运行：`python startup.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
+   命令行运行：`streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
 > 你可以通过设置 `FRONT_PORT` 和`SERVER_PORT` 来修改前端和后端端口，它们的默认值分别为 5998 和 8000 。
 
