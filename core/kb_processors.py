@@ -233,7 +233,10 @@ def create_embedding_model_config(
 
     return embedding_model_config
 
-@deprecated("This class is deprecated and will be removed in a future version. Use ChromaVectorStoreProcessorWithNoApi instead.")
+
+@deprecated(
+    "This class is deprecated and will be removed in a future version. Use ChromaVectorStoreProcessorWithNoApi instead."
+)
 class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
     """Chroma向量存储处理器，用于在*使用FastAPI后端时*，使用request向后端请求以处理向量存储。"""
 
@@ -357,7 +360,10 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
         with open(self.embedding_config_file_path, "w") as f:
             json.dump(collections_embedding_config, f, indent=4)
 
-@deprecated("This class is deprecated and will be removed in a future version. Use ChromaCollectionProcessorWithNoApi instead.")
+
+@deprecated(
+    "This class is deprecated and will be removed in a future version. Use ChromaCollectionProcessorWithNoApi instead."
+)
 class ChromaCollectionProcessor(BaseProcessStrategy):
     def __init__(
         self,
@@ -374,7 +380,9 @@ class ChromaCollectionProcessor(BaseProcessStrategy):
     def update_parameters(
         self,
         collection_name: Optional[str] = None,
-        embedding_model_type: Optional[Literal["openai", "aoai", "sentence_transformer"]] = None,
+        embedding_model_type: Optional[
+            Literal["openai", "aoai", "sentence_transformer"]
+        ] = None,
         embedding_model_name_or_path: Optional[str] = None,
         **openai_kwargs,
     ) -> None:
@@ -666,7 +674,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             embedding_model
         )
         self.knowledgebase_collections: Dict[str, str] = self._list_chroma_collections()
-    
+
     @classmethod
     def download_model(cls, model_name_or_path: str, repo_id: str) -> str:
         """
@@ -728,7 +736,12 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         """
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
         raw_collections = client.list_collections()
-        collections = {collection.metadata.get('user_collection_name', collection.name): collection.name for collection in raw_collections}
+        collections = {
+            collection.metadata.get(
+                "user_collection_name", collection.name
+            ): collection.name
+            for collection in raw_collections
+        }
         return collections
 
     def create_knowledgebase_collection(
@@ -755,9 +768,9 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
         # 创建集合，使用collection_id作为实际的collection名称，并在metadata中存储用户指定的名称
         client.create_collection(
-            name=collection_id, 
+            name=collection_id,
             embedding_function=self.embedding_model,
-            metadata={"user_collection_name": collection_name}
+            metadata={"user_collection_name": collection_name},
         )
 
         # 获取当前使用的嵌入模型的ID
@@ -765,9 +778,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
         # 添加新的知识库到配置中
         new_kb = KnowledgeBaseConfiguration(
-            id=collection_id, 
-            name=collection_name, 
-            embedding_model_id=current_model_id
+            id=collection_id, name=collection_name, embedding_model_id=current_model_id
         )
         self.embedding_config.knowledge_bases.append(new_kb)
 
@@ -803,7 +814,9 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
         # 从配置中移除知识库
         self.embedding_config.knowledge_bases = [
-            kb for kb in self.embedding_config.knowledge_bases if kb.name != collection_name
+            kb
+            for kb in self.embedding_config.knowledge_bases
+            if kb.name != collection_name
         ]
 
         # 从内部字典中移除
@@ -901,7 +914,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         client = chromadb.PersistentClient(path=KNOWLEDGE_BASE_DIR)
         collections = client.list_collections()
         for collection in collections:
-            if collection.metadata.get('user_collection_name') == collection_name:
+            if collection.metadata.get("user_collection_name") == collection_name:
                 return collection.name
         raise ValueError(f"No collection found with name: {collection_name}")
 
@@ -928,7 +941,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             return collection
         except ValueError:
             return None
-    
+
     def _get_embedding_model(self, model_id: str) -> chromadb.EmbeddingFunction:
         model_config = next(
             (model for model in self.embedding_config.models if model.id == model_id),

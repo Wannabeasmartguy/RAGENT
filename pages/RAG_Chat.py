@@ -132,18 +132,23 @@ def display_rag_sources(response_sources):
 @st.cache_data
 def write_custom_rag_chat_history(chat_history, _sources):
     # 将SVG编码为base64
-    user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"  
+    user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
     ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
     for message in chat_history:
-        with st.chat_message(message["role"], avatar=user_avatar if message["role"] == "user" else ai_avatar):
+        with st.chat_message(
+            message["role"],
+            avatar=user_avatar if message["role"] == "user" else ai_avatar,
+        ):
             st.html(f"<span class='rag-chat-{message['role']}'></span>")
             st.markdown(message["content"])
 
             if message["role"] == "assistant":
                 rag_sources = _sources[message["response_id"]]
                 display_rag_sources(rag_sources)
-    combined_style = RAG_CHAT_USER_STYLE.strip() + "\n" + RAG_CHAT_ASSISTANT_STYLE.strip()
+    combined_style = (
+        RAG_CHAT_USER_STYLE.strip() + "\n" + RAG_CHAT_ASSISTANT_STYLE.strip()
+    )
     combined_style = combined_style.replace("</style>\n<style>", "")
     st.html(combined_style)
 
