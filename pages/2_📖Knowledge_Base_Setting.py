@@ -201,33 +201,39 @@ with st.sidebar:
         format_func=lambda x: "OpenAI" if x == "openai" else "Azure OpenAI" if x == "aoai" else "Sentence Transformer" if x == "sentence_transformer" else "Unknown"
     )
 
-    def embed_model_selector(embed_type):
+    def embed_model_selector(embed_type, owner_organization):
         if embed_type == "openai":
             return ["text-embedding-ada-002"]
         elif embed_type == "aoai":
             return ["text-embedding-ada-002"]
         elif embed_type == "sentence_transformer":
-            return ["bge-base-zh-v1.5", "bge-large-zh-v1.5"]
+            if owner_organization == "BAAI":
+                return ["bge-base-zh-v1.5", "bge-large-zh-v1.5", "bge-base-en-v1.5", "bge-large-en-v1.5"]
         else:
             return []
 
+    if embed_model_type == "sentence_transformer":
+        embed_model_owner_organization = st.selectbox(
+            label=i18n("Embed Model Owner Organization"),
+            options=["BAAI"],
+            key="embed_model_owner_organization",
+        )
+
     embed_model = st.selectbox(
         label=i18n("Embed Model"),
-        options=embed_model_selector(st.session_state.embed_model_type),
+        options=embed_model_selector(st.session_state.embed_model_type, st.session_state.get("embed_model_owner_organization")),
         key="embed_model",
     )
 
-    with st.popover(label=i18n("Local embedding model download"), use_container_width=True):
-        huggingface_repo_id = st.text_input(
-            label=i18n("Huggingface repo id"),
-            placeholder=i18n("Paste huggingface repo id here"),
-        )
-        if st.button(label=i18n("Download embedding model")) and embed_model_type == "sentence_transformer":
-            ChromaVectorStoreProcessorWithNoApi.download_model(
-                repo_id=huggingface_repo_id,
-                model_name_or_path=os.path.join(embedding_dir, embed_model),
-            )
-            st.toast(i18n("Model downloaded successfully!"), icon="✅")
+    if st.session_state.embed_model_type == "sentence_transformer":
+        with st.expander(label=i18n("Local embedding model download"), expanded=False):
+            if st.button(label=i18n("Download embedding model"), use_container_width=True):
+                # huggingface repo id就是organization+model_name
+                ChromaVectorStoreProcessorWithNoApi.download_model(
+                    repo_id=f"{st.session_state.embed_model_owner_organization}/{st.session_state.embed_model}",
+                    model_name_or_path=os.path.join(embedding_dir, st.session_state.embed_model),
+                )
+                st.toast(i18n("Model downloaded successfully!"), icon="✅")
 
 # 创建Chroma处理器
 chroma_vectorstore_processor, chroma_collection_processor = create_chroma_processors()

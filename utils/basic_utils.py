@@ -291,44 +291,6 @@ def split_list_by_key_value(dict_list, key, value):
     return result
 
 
-def save_basic_chat_history(
-        chat_name: str,
-        chat_history: List[Dict[str, str]], 
-        chat_history_file: str = 'chat_history.json'):
-    """
-    保存一般 LLM Chat 聊天记录
-    
-    Args:
-        user_id (str): 用户id
-        chat_history (List[Tuple[str, str]]): 聊天记录
-        chat_history_file (str, optional): 聊天记录文件. Defaults to 'chat_history.json'.
-    """
-    # TODO: 添加重名检测，如果重名则添加时间戳
-    # 如果聊天历史记录文件不存在，则创建一个空的文件
-    if not os.path.exists(chat_history_file):
-        with open(chat_history_file, 'w', encoding='utf-8') as f:
-            json.dump({}, f)
-    
-    # 打开聊天历史记录文件，读取数据
-    with open(chat_history_file, 'r', encoding='utf-8') as f:
-        data:dict = json.load(f)
-        
-    # 如果聊天室名字不在数据中，则添加聊天的名字和完整聊天历史记录
-    if chat_name not in data:
-        data.update(
-            {
-                chat_name: {
-                    "chat_history":chat_history,
-                    "id": str(uuid.uuid4())
-                }
-            }
-        )
-        
-    # 打开聊天历史记录文件，写入更新后的数据
-    with open(chat_history_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-
 def list_length_transform(n, lst) -> List:
     '''
     聊天上下文限制函数

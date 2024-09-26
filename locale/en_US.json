@@ -50,7 +50,7 @@
     "Local embedding model download": "Local embedding model download",
     "Huggingface repo id": "Huggingface repo id",
     "Paste huggingface repo id here": "Paste huggingface repo id here",
-    "Download embedding model": "Download embedding model",
+    "Download embedding model": "Download selected embedding model",
     "### Choose files you want to embed": "## Choose files you want to embed",
     "### Knowledge Base Setting": "## Knowledge Base Setting",
     "Content Preview": "Content Preview",
@@ -125,5 +125,6 @@
     "Knowledge Base name must not contain two consecutive underscores.": "Knowledge Base name must not contain two consecutive underscores.",
     "Knowledge Base name must not be a pure number.": "Knowledge Base name must not be a pure number.",
     "First time creation of knowledge base, create a new default collection.": "First time creation of knowledge base, a new default knowledge base has been automatically created.",
-    "No collection left, create a new default collection.": "No collection left, a new default knowledge base has been automatically created."
+    "No collection left, create a new default collection.": "No collection left, a new default knowledge base has been automatically created.",
+    "Embed Model Owner Organization": "Embed Model Owner Organization"
 }

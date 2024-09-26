@@ -50,7 +50,7 @@
     "Local embedding model download": "本地嵌入模型下载",
     "Huggingface repo id": "Huggingface 仓库 id",
     "Paste huggingface repo id here": "在这里粘贴 huggingface 仓库 id",
-    "Download embedding model": "下载嵌入模型",
+    "Download embedding model": "下载当前选中嵌入模型",
     "### Choose files you want to embed": "### 嵌入文件管理",
     "### Knowledge Base Setting": "### 知识库设置",
     "Content Preview": "内容预览",
@@ -125,5 +125,6 @@
     "Knowledge Base name must not contain two consecutive underscores.": "知识库名称不得包含两个连续的下划线。",
     "Knowledge Base name must not be a pure number.": "知识库名称不得为纯数字。",
     "First time creation of knowledge base, create a new default collection.": "首次创建知识库，已自动创建一个新的默认知识库。",
-    "No collection left, create a new default collection.": "没有知识库，已自动创建一个新的默认知识库。"
+    "No collection left, create a new default collection.": "没有知识库，已自动创建一个新的默认知识库。",
+    "Embed Model Owner Organization": "嵌入模型所属组织"
 }
