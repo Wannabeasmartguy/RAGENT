@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 import os
 import json
 import uuid
+from typing import Dict, List
 from loguru import logger
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES, KNOWLEDGE_BASE_DIR
 from core.kb_processors import (
@@ -30,6 +31,11 @@ i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 embedding_dir = "embeddings"
 embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
+# 更新加载embed model配置文件的函数
+def load_embedding_model_config() -> Dict[str, Dict[str, List[str]]]:
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'configs', 'embedding_model_config.json')
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 # 辅助函数
 def init_session_state():
@@ -194,36 +200,34 @@ with st.sidebar:
     st.write("---")
     st.info(i18n("Please select the embedded model when creating a knowledge base, as well as Reinitialize it once when switching knowledge bases."))
 
+    # 获取embed model的配置
+    embedding_config = load_embedding_model_config()
+    
     embed_model_type = st.selectbox(
         label=i18n("Embed Model Type"),
-        options=["openai", "aoai", "sentence_transformer"],
+        options=list(embedding_config.keys()),
         key="embed_model_type",
-        format_func=lambda x: "OpenAI" if x == "openai" else "Azure OpenAI" if x == "aoai" else "Sentence Transformer" if x == "sentence_transformer" else "Unknown"
+        format_func=lambda x: embedding_config[x].get("display_name", x)
     )
-
-    def embed_model_selector(embed_type, owner_organization):
-        if embed_type == "openai":
-            return ["text-embedding-ada-002"]
-        elif embed_type == "aoai":
-            return ["text-embedding-ada-002"]
-        elif embed_type == "sentence_transformer":
-            if owner_organization == "BAAI":
-                return ["bge-base-zh-v1.5", "bge-large-zh-v1.5", "bge-base-en-v1.5", "bge-large-en-v1.5"]
-        else:
-            return []
 
     if embed_model_type == "sentence_transformer":
         embed_model_owner_organization = st.selectbox(
             label=i18n("Embed Model Owner Organization"),
-            options=["BAAI"],
+            options=list(embedding_config["sentence_transformer"]["owner_organization"]),
             key="embed_model_owner_organization",
         )
 
-    embed_model = st.selectbox(
-        label=i18n("Embed Model"),
-        options=embed_model_selector(st.session_state.embed_model_type, st.session_state.get("embed_model_owner_organization")),
-        key="embed_model",
-    )
+        embed_model = st.selectbox(
+            label=i18n("Embed Model"),
+            options=embedding_config["sentence_transformer"]["owner_organization"][st.session_state.embed_model_owner_organization],
+            key="embed_model",
+        )
+    else:
+        embed_model = st.selectbox(
+            label=i18n("Embed Model"),
+            options=embedding_config[embed_model_type]["models"],
+            key="embed_model",
+        )
 
     if st.session_state.embed_model_type == "sentence_transformer":
         with st.expander(label=i18n("Local embedding model download"), expanded=False):

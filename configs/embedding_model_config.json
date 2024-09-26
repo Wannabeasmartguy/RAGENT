@@ -1,0 +1,16 @@
+{
+    "openai": {
+      "display_name": "OpenAI",
+      "models": ["text-embedding-ada-002"]
+    },
+    "aoai": {
+      "display_name": "Azure OpenAI",
+      "models": ["text-embedding-ada-002"]
+    },
+    "sentence_transformer": {
+      "display_name": "Sentence Transformer",
+      "owner_organization": {
+        "BAAI": ["bge-base-zh-v1.5", "bge-large-zh-v1.5", "bge-base-en-v1.5", "bge-large-en-v1.5"]
+      }
+    }
+}
