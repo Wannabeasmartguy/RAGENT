@@ -24,7 +24,6 @@ from utils.basic_utils import (
 )
 from llm.aoai.tools.tools import TO_TOOLS
 from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
-from core.kb_processors import ChromaVectorStoreProcessor
 from api.dependency import APIRequestHandler
 from autogen.cache import Cache
 from typing import List
@@ -33,12 +32,6 @@ from typing import List
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
-
-vectorstore_processor = ChromaVectorStoreProcessor(
-    # 仅需要展示所有的 Collection 即可，故所有参数都为空
-    embedding_model_name_or_path="",
-    embedding_model_type="sentence_transformer",
-)
 
 
 language = os.getenv("LANGUAGE", "简体中文")

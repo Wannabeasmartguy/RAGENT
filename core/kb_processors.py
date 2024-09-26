@@ -140,7 +140,7 @@ class BaseChromaInitEmbeddingConfig:
         collections = [collection.name for collection in raw_collections]
         return collections
 
-    @classmethod
+    @abstractmethod
     def _create_embedding_model(
         cls, embedding_config: EmbeddingModelConfiguration
     ) -> chromadb.EmbeddingFunction:
