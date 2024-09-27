@@ -8,6 +8,7 @@ test*.ipynb
 *Chat history*.md
 *Agent_chat_history*.md
 *RAG Chat history*.md
+chat histories export
 
 # Embedding models and knowledge bases
 embeddings

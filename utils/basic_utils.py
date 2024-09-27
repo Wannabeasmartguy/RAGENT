@@ -3,8 +3,6 @@ import pyperclip
 from streamlit import cache_resource
 
 import os
-import json
-import uuid
 import copy
 import base64
 from datetime import datetime, timezone
@@ -19,6 +17,7 @@ from llm.ollama.completion import get_ollama_model_list
 from llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from core.chat_processors import OAILikeConfigProcessor
+from css.export_themes import default_theme, glassmorphism_theme
 
 USER_CHAT_STYLE = """
 <style>
@@ -206,7 +205,9 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
 def export_chat_history_callback(
         chat_history: List[Dict[str, str]], 
         history_length: Optional[int] = None,
-        is_rag: bool = False
+        is_rag: bool = False,
+        export_type: str = "html",
+        theme: str = "default"
     ):
     """
     导出聊天历史记录
@@ -219,6 +220,54 @@ def export_chat_history_callback(
     if history_length is not None:
         chat_history = chat_history[-history_length:]
 
+    if export_type == "markdown":
+        markdown_content = generate_markdown_chat(chat_history)
+
+        export_folder = "chat histories export"
+        filename = "RAG Chat history.md" if is_rag else "Chat history.md"
+        i = 1
+        while os.path.exists(os.path.join(export_folder, filename)):
+            filename = f"{'RAG ' if is_rag else ''}Chat history({i}).md"
+            i += 1
+
+        os.makedirs(export_folder, exist_ok=True)
+        with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
+            f.write(markdown_content)
+        st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+    
+    elif export_type == "html":
+        html_content = generate_html_chat(chat_history, theme=theme)
+        export_folder = "chat histories export"
+        filename = "RAG Chat history.html" if is_rag else "Chat history.html"
+        i = 1
+        while os.path.exists(os.path.join(export_folder, filename)):
+            filename = f"{'RAG ' if is_rag else ''}Chat history({i}).html"
+            i += 1
+
+        os.makedirs(export_folder, exist_ok=True)
+        with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
+            f.write(html_content)
+        st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+    # elif export_type == "jpg":
+    #     image_stream = html_to_jpg(html_content)
+    #     export_folder = "chat histories export"
+    #     filename = "RAG Chat history.jpg" if is_rag else "Chat history.jpg"
+    #     i = 1
+    #     while os.path.exists(os.path.join(export_folder, filename)):
+    #         filename = f"{'RAG ' if is_rag else ''}Chat history({i}).jpg"
+    #         i += 1
+        
+    #     os.makedirs(export_folder, exist_ok=True)
+    #     with open(os.path.join(export_folder, filename), "wb") as f:
+    #         image_stream.save(f, format="JPEG")
+    #     st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+    else:
+        st.error(i18n("Unsupported export type"))
+
+def generate_markdown_chat(chat_history: List[Dict[str, str]]) -> str:
+    """
+    生成Markdown格式的聊天历史
+    """
     formatted_history = []
     image_references = []
     image_counter = 0
@@ -253,17 +302,102 @@ def export_chat_history_callback(
     
     chat_history_text = "".join(formatted_history)
 
-    export_folder = "chat histories export"
-    filename = "RAG Chat history.md" if is_rag else "Chat history.md"
-    i = 1
-    while os.path.exists(os.path.join(export_folder, filename)):
-        filename = f"{'RAG ' if is_rag else ''}Chat history({i}).md"
-        i += 1
+    return chat_history_text
 
-    os.makedirs(export_folder, exist_ok=True)
-    with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
-        f.write(chat_history_text)
-    st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+def generate_html_chat(chat_history: List[Dict[str, str]], theme: str = "default") -> str:
+    """
+    生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
+    """
+    if theme == "default":
+        css_theme = default_theme
+    elif theme == "glassmorphism":
+        css_theme = glassmorphism_theme
+    else:
+        css_theme = default_theme  # 默认使用 default 主题
+
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>聊天历史</title>
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <style>
+            {css_theme}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="chat-container">
+                {chat_messages}
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', (event) => {{
+                document.querySelectorAll('.markdown-content').forEach((element) => {{
+                    element.innerHTML = marked.parse(element.textContent);
+                }});
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+    chat_messages = []
+    for message in chat_history:
+        role = message['role']
+        content = message['content']
+        
+        message_html = f'<div class="message {role}">'
+        message_html += f'<div class="role">{role.capitalize()}</div>'
+        
+        if isinstance(content, str):
+            message_html += f'<div class="markdown-content">{content}</div>'
+        elif isinstance(content, list):
+            for item in content:
+                if item['type'] == 'text':
+                    message_html += f'<div class="markdown-content">{item["text"]}</div>'
+                elif item['type'] == 'image_url':
+                    image_url = item['image_url'].get('url', '')
+                    message_html += f'<img src="{image_url}" alt="Image">'
+        
+        message_html += '</div>'
+        chat_messages.append(message_html)
+    
+    # 使用 str.replace() 来插入 CSS 主题
+    html_content = html_template.replace("{css_theme}", css_theme)
+    # 然后使用 .format() 插入聊天消息
+    html_content = html_content.format(chat_messages="\n".join(chat_messages))
+    
+    return html_content
+
+# def html_to_jpg(html_content: str) -> Image:
+#     """
+#     将HTML内容转换为JPG图片
+#     """
+#     image_bytes = html_to_image_bytes(html_content)
+#     image = bytes_to_jpg(image_bytes)
+#     return image
+
+# def html_to_image_bytes(html_content: str) -> BytesIO:
+#     """
+#     将HTML内容转换为BytesIO对象
+#     """
+#     from weasyprint import HTML
+    
+#     html = HTML(string=html_content)
+#     img_io = BytesIO()
+#     html.write_png(img_io)
+#     img_io.seek(0)
+#     return img_io
+
+# def bytes_to_jpg(bytes_content: BytesIO) -> Image:
+#     """
+#     将BytesIO内容转换为JPG图片
+#     """
+#     image = Image.open(bytes_content)
+#     return image
 
 def split_list_by_key_value(dict_list, key, value):
     result = []

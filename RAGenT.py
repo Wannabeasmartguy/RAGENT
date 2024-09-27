@@ -34,7 +34,6 @@ from utils.basic_utils import (
     write_chat_history,
     config_list_postprocess,
     user_input_constructor,
-    export_chat_history_callback,
     USER_CHAT_STYLE,
     ASSISTANT_CHAT_STYLE,
     USER_AVATAR_SVG,
@@ -46,6 +45,7 @@ try:
         float_chat_input_with_audio_recorder,
         back_to_top,
         back_to_bottom,
+        export_dialog,
     )
 except:
     st.rerun()
@@ -719,7 +719,7 @@ with st.sidebar:
             value=16,
             step=1,
             help=i18n(
-                "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."
+                "The number of messages to keep in the llm memory."
             ),
             key="history_length",
         )
@@ -748,11 +748,11 @@ with st.sidebar:
 
         export_button = export_button_col.button(
             label=i18n("Export chat history"),
-            on_click=lambda: export_chat_history_callback(
-                st.session_state.chat_history
-            ),
             use_container_width=True,
         )
+        if export_button:
+            export_dialog(st.session_state.chat_history)
+        
         clear_button = clear_button_col.button(
             label=i18n("Clear chat history"),
             on_click=clear_chat_history_callback,

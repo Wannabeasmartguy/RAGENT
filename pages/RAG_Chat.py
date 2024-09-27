@@ -26,13 +26,13 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
-    export_chat_history_callback,
     RAG_CHAT_USER_STYLE,
     RAG_CHAT_ASSISTANT_STYLE,
     USER_AVATAR_SVG,
     AI_AVATAR_SVG,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
+from utils.st_utils import export_dialog
 
 from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
 from core.kb_processors import (
@@ -355,8 +355,10 @@ def update_rag_config_in_db_callback():
         )
     )
 
-
-set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
+try:
+    set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
+except:
+    st.rerun()
 
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
@@ -561,13 +563,13 @@ with st.sidebar:
         #     key="system_prompt",
         # )
 
-        history_length = st.number_input(
+        history_length = dialog_details_settings_popover.number_input(
             label=i18n("History length"),
             min_value=1,
             value=32,
             step=1,
             help=i18n(
-                "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported."
+                "The number of messages to keep in the llm memory."
             ),
             key="history_length",
         )
@@ -970,11 +972,10 @@ with st.sidebar:
 
     export_button = export_button_col.button(
         label=i18n("Export chat history"),
-        on_click=lambda: export_chat_history_callback(
-            st.session_state.custom_rag_chat_history, is_rag=True
-        ),
         use_container_width=True,
     )
+    if export_button:
+        export_dialog(st.session_state.custom_rag_chat_history, is_rag=True)
     clear_button = clear_button_col.button(
         label=i18n("Clear chat history"),
         on_click=clear_chat_history_callback,

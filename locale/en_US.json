@@ -118,7 +118,7 @@
     "Show more sources": "Show more sources",
     "Please create a new collection first": "Please create a new collection first",
     "### Knowledge Base Content Management": "### Knowledge Base Content Management",
-    "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported.": "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported.",
+    "The number of messages to keep in the llm memory.": "The number of messages to keep in the llm memory.",
     "Knowledge Base name must be between 1 and 63 characters long, containing only Unicode characters, numbers, dots, hyphens, and underscores.": "Knowledge Base name must be between 1 and 63 characters long, containing only Unicode characters, numbers, dots, hyphens, and underscores.",
     "Knowledge Base name can only contain Unicode characters, numbers, dots, hyphens, and underscores.": "Knowledge Base name can only contain Unicode characters, numbers, dots, hyphens, and underscores.",
     "Knowledge Base name must not contain two consecutive dots.": "Knowledge Base name must not contain two consecutive dots.",

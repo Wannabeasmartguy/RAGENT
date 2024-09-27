@@ -118,7 +118,7 @@
     "Show more sources": "显示更多来源",
     "Please create a new collection first": "请先创建一个知识库",
     "### Knowledge Base Content Management": "### 知识库内容管理",
-    "The number of messages to keep in the chat history. When exporting, only the latest history_length messages will be exported.": "在聊天历史记录中保留的消息数量。导出时，仅导出最新 history_length 条消息。",
+    "The number of messages to keep in the llm memory.": "传入 LLM 的记忆中保留的消息数量。",
     "Knowledge Base name must be between 1 and 63 characters long, containing only Unicode characters, numbers, dots, hyphens, and underscores.": "知识库名称必须介于 1 到 63 个字符之间，只能包含 Unicode 字符、数字、点、短划线和下划线。",
     "Knowledge Base name can only contain Unicode characters, numbers, dots, hyphens, and underscores.": "知识库名称只能包含 Unicode 字符、数字、点、短划线和下划线。",
     "Knowledge Base name must not contain two consecutive dots.": "知识库名称不得包含两个连续的点。",

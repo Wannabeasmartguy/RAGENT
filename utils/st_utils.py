@@ -3,11 +3,15 @@ import streamlit.components.v1 as components
 import os
 import time
 import whisper
+from typing import List, Dict
 from streamlit_float import *
 from audiorecorder import audiorecorder
 
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from utils.basic_utils import copy_to_clipboard
+from utils.basic_utils import (
+    copy_to_clipboard,
+    export_chat_history_callback
+)
 from tools.toolkits import TO_TOOLS
 
 # TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
@@ -166,3 +170,57 @@ def define_fragment_image_uploader(
         accept_multiple_files=True,
         key=key,
     )
+
+@st.dialog(title=i18n("Export Setting"), width="large")
+def export_dialog(chat_history: List[Dict], is_rag: bool = False):
+    with st.container(border=True):
+        export_type = st.selectbox(
+            label=i18n("Export File Type"),
+            options=["markdown", "html"],
+            format_func=lambda x: x.title()
+        )
+        if export_type == "html":
+            export_theme = st.selectbox(
+                label=i18n("Please select the theme to use"),
+                options=["default", "glassmorphism"],
+                format_func=lambda x: x.title()
+            )
+        export_length = st.number_input(
+            label=i18n("Export dialogue length"),
+            min_value=1,
+            max_value=len(chat_history),
+            step=1,
+            value=len(chat_history)
+        )
+        export_submit_button = st.button(
+            label=i18n("Submit"),
+            use_container_width=True,
+            type="primary"
+        )
+    
+    if export_type == "markdown":
+        from utils.basic_utils import generate_markdown_chat
+        preview_content = generate_markdown_chat(chat_history)
+        with st.expander(i18n("Preview")):
+            content_preview = st.markdown(preview_content)
+    elif export_type == "html":
+        from utils.basic_utils import generate_html_chat
+        preview_content = generate_html_chat(chat_history)
+        with st.expander(i18n("Preview")):
+            st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
+            content_preview = st.html(preview_content)
+    # elif export_type == "jpg":
+    #     from utils.basic_utils import html_to_jpg
+    #     preview_content = html_to_jpg(chat_history)
+    #     with st.expander(i18n("Preview")):
+    #         st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
+    #         content_preview = st.image(preview_content)
+
+    if export_submit_button:
+        export_chat_history_callback(
+            chat_history=chat_history,
+            history_length=export_length,
+            is_rag=is_rag,
+            export_type=export_type,
+            theme=export_theme if export_type == "html" else None
+        )
