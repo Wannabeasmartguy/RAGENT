@@ -192,6 +192,33 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
             step=1,
             value=len(chat_history)
         )
+
+        with st.expander(i18n("Advanced Options")):
+            include_range = st.select_slider(
+                label=i18n("Include range"),
+                options=["All", "Custom"],
+                value="All"
+            )
+            if include_range == "Custom":
+                start_position = st.slider(
+                    label=i18n("Start Position"),
+                    min_value=0,
+                    max_value=len(chat_history),
+                    value=0
+                )
+                end_position = st.slider(
+                    label=i18n("End Position"),
+                    min_value=start_position,
+                    max_value=len(chat_history)-1,
+                    value=len(chat_history)-1
+                )
+                exclude_indexes = st.multiselect(
+                    label=i18n("Exclude indexes"),
+                    options=list(range(len(chat_history))),
+                    default=[],
+                    format_func=lambda x: f"Message {x+1}"
+                )
+
         export_submit_button = st.button(
             label=i18n("Submit"),
             use_container_width=True,
@@ -200,12 +227,20 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
     
     if export_type == "markdown":
         from utils.basic_utils import generate_markdown_chat
-        preview_content = generate_markdown_chat(chat_history)
+        preview_content = generate_markdown_chat(
+            chat_history=chat_history,
+            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            exclude_indexes=exclude_indexes if include_range == "Custom" else None
+        )
         with st.expander(i18n("Preview")):
             content_preview = st.markdown(preview_content)
     elif export_type == "html":
         from utils.basic_utils import generate_html_chat
-        preview_content = generate_html_chat(chat_history)
+        preview_content = generate_html_chat(
+            chat_history=chat_history,
+            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            exclude_indexes=exclude_indexes if include_range == "Custom" else None
+        )
         with st.expander(i18n("Preview")):
             st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
             content_preview = st.html(preview_content)
@@ -219,7 +254,8 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
     if export_submit_button:
         export_chat_history_callback(
             chat_history=chat_history,
-            history_length=export_length,
+            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            exclude_indexes=exclude_indexes if include_range == "Custom" else None,
             is_rag=is_rag,
             export_type=export_type,
             theme=export_theme if export_type == "html" else None

@@ -8,7 +8,7 @@ import base64
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -204,7 +204,8 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
 
 def export_chat_history_callback(
         chat_history: List[Dict[str, str]], 
-        history_length: Optional[int] = None,
+        include_range: Optional[Tuple[int, int]] = None,
+        exclude_indexes: Optional[List[int]] = None,
         is_rag: bool = False,
         export_type: str = "html",
         theme: str = "default"
@@ -217,11 +218,17 @@ def export_chat_history_callback(
         history_length (int): 聊天历史记录长度
         is_rag (bool, optional): 是否是RAG聊天记录. Defaults to False.
     """
-    if history_length is not None:
-        chat_history = chat_history[-history_length:]
+    if include_range is not None:
+        chat_history = chat_history[include_range[0]:include_range[1]]
+    if exclude_indexes is not None:
+        chat_history = [message for i, message in enumerate(chat_history) if i not in exclude_indexes]
 
     if export_type == "markdown":
-        markdown_content = generate_markdown_chat(chat_history)
+        markdown_content = generate_markdown_chat(
+            chat_history=chat_history,
+            include_range=include_range,
+            exclude_indexes=exclude_indexes
+        )
 
         export_folder = "chat histories export"
         filename = "RAG Chat history.md" if is_rag else "Chat history.md"
@@ -236,7 +243,12 @@ def export_chat_history_callback(
         st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
     
     elif export_type == "html":
-        html_content = generate_html_chat(chat_history, theme=theme)
+        html_content = generate_html_chat(
+            chat_history=chat_history,
+            include_range=include_range,
+            exclude_indexes=exclude_indexes,
+            theme=theme
+        )
         export_folder = "chat histories export"
         filename = "RAG Chat history.html" if is_rag else "Chat history.html"
         i = 1
@@ -264,15 +276,39 @@ def export_chat_history_callback(
     else:
         st.error(i18n("Unsupported export type"))
 
-def generate_markdown_chat(chat_history: List[Dict[str, str]]) -> str:
+def generate_markdown_chat(
+    chat_history: List[Dict[str, str]], 
+    include_range: Optional[Tuple[int, int]] = None, 
+    exclude_indexes: Optional[List[int]] = None
+) -> str:
     """
     生成Markdown格式的聊天历史
+
+    Args:
+        chat_history (List[Dict[str, str]]): 完整的聊天历史
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
+
+    Returns:
+        str: 生成的Markdown格式聊天历史
     """
     formatted_history = []
     image_references = []
     image_counter = 0
 
-    for message in chat_history:
+    # 如果没有指定范围，则处理所有消息
+    if include_range is None:
+        include_range = (0, len(chat_history) - 1)
+    
+    # 如果没有指定排除索引，初始化为空列表
+    if exclude_indexes is None:
+        exclude_indexes = []
+
+    for i in range(include_range[0], include_range[1] + 1):
+        if i in exclude_indexes:
+            continue
+
+        message = chat_history[i]
         role = message['role'].title()
         content = message['content']
         
@@ -304,7 +340,12 @@ def generate_markdown_chat(chat_history: List[Dict[str, str]]) -> str:
 
     return chat_history_text
 
-def generate_html_chat(chat_history: List[Dict[str, str]], theme: str = "default") -> str:
+def generate_html_chat(
+        chat_history: List[Dict[str, str]], 
+        include_range: Optional[Tuple[int, int]] = None, 
+        exclude_indexes: Optional[List[int]] = None,
+        theme: str = "default"
+    ) -> str:
     """
     生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
     """
@@ -344,8 +385,18 @@ def generate_html_chat(chat_history: List[Dict[str, str]], theme: str = "default
     </html>
     """
 
+
+    if include_range is None:
+        include_range = (0, len(chat_history) - 1)
+    if exclude_indexes is None:
+        exclude_indexes = []
+
     chat_messages = []
-    for message in chat_history:
+    for i in range(include_range[0], include_range[1] + 1):
+        if i in exclude_indexes:
+            continue
+
+        message = chat_history[i]
         role = message['role']
         content = message['content']
         
