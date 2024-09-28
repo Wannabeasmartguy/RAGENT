@@ -215,14 +215,12 @@ def export_chat_history_callback(
     
     Args:
         chat_history (List[Dict[str, str]]): 聊天历史记录
-        history_length (int): 聊天历史记录长度
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
         is_rag (bool, optional): 是否是RAG聊天记录. Defaults to False.
+        export_type (str, optional): 导出类型，支持 "markdown" 和 "html". Defaults to "html".
+        theme (str, optional): 导出主题. Defaults to "default".仅当export_type为html时有效
     """
-    if include_range is not None:
-        chat_history = chat_history[include_range[0]:include_range[1]]
-    if exclude_indexes is not None:
-        chat_history = [message for i, message in enumerate(chat_history) if i not in exclude_indexes]
-
     if export_type == "markdown":
         markdown_content = generate_markdown_chat(
             chat_history=chat_history,
@@ -348,6 +346,15 @@ def generate_html_chat(
     ) -> str:
     """
     生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
+
+    Args:
+        chat_history (List[Dict[str, str]]): 完整的聊天历史
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
+        theme (str, optional): 导出主题. Defaults to "default".
+
+    Returns:
+        str: 生成的HTML格式聊天历史
     """
     if theme == "default":
         css_theme = default_theme

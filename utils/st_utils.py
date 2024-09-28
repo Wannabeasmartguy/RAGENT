@@ -171,7 +171,7 @@ def define_fragment_image_uploader(
         key=key,
     )
 
-@st.dialog(title=i18n("Export Setting"), width="large")
+@st.dialog(title=i18n("Export Settings"), width="large")
 def export_dialog(chat_history: List[Dict], is_rag: bool = False):
     with st.container(border=True):
         export_type = st.selectbox(
@@ -185,13 +185,6 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
                 options=["default", "glassmorphism"],
                 format_func=lambda x: x.title()
             )
-        export_length = st.number_input(
-            label=i18n("Export dialogue length"),
-            min_value=1,
-            max_value=len(chat_history),
-            step=1,
-            value=len(chat_history)
-        )
 
         with st.expander(i18n("Advanced Options")):
             include_range = st.select_slider(
@@ -200,45 +193,54 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
                 value="All"
             )
             if include_range == "Custom":
-                start_position = st.slider(
-                    label=i18n("Start Position"),
-                    min_value=0,
-                    max_value=len(chat_history),
-                    value=0
-                )
-                end_position = st.slider(
-                    label=i18n("End Position"),
-                    min_value=start_position,
-                    max_value=len(chat_history)-1,
-                    value=len(chat_history)-1
-                )
+                start_position_column, end_position_column = st.columns(2)
+                with start_position_column:
+                    # 起始位置，从1开始（符合用户习惯）
+                    start_position = st.slider(
+                        label=i18n("Start Position"),
+                        min_value=1,
+                        max_value=len(chat_history)-1,
+                        value=1,
+                    )
+                with end_position_column:
+                    # 结束位置，从1开始（符合用户习惯）
+                    end_position = st.slider(
+                        label=i18n("End Position"),
+                        min_value=start_position,
+                        max_value=len(chat_history),
+                        value=len(chat_history)
+                    )
+                # 排除的对话消息索引
                 exclude_indexes = st.multiselect(
                     label=i18n("Exclude indexes"),
                     options=list(range(len(chat_history))),
                     default=[],
-                    format_func=lambda x: f"Message {x+1}"
+                    format_func=lambda x: f"Message {x+1}",
+                    placeholder=i18n("Selected messages will not be exported")
                 )
 
         export_submit_button = st.button(
-            label=i18n("Submit"),
+            label=i18n("Export"),
             use_container_width=True,
             type="primary"
         )
     
     if export_type == "markdown":
         from utils.basic_utils import generate_markdown_chat
+        # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_markdown_chat(
             chat_history=chat_history,
-            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
             exclude_indexes=exclude_indexes if include_range == "Custom" else None
         )
         with st.expander(i18n("Preview")):
             content_preview = st.markdown(preview_content)
     elif export_type == "html":
         from utils.basic_utils import generate_html_chat
+        # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_html_chat(
             chat_history=chat_history,
-            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
             exclude_indexes=exclude_indexes if include_range == "Custom" else None
         )
         with st.expander(i18n("Preview")):
@@ -252,9 +254,10 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
     #         content_preview = st.image(preview_content)
 
     if export_submit_button:
+        # 传入的值从1开始，但要求传入的值从0开始
         export_chat_history_callback(
             chat_history=chat_history,
-            include_range=(start_position, end_position) if include_range == "Custom" else None,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
             exclude_indexes=exclude_indexes if include_range == "Custom" else None,
             is_rag=is_rag,
             export_type=export_type,

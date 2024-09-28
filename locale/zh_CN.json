@@ -127,5 +127,16 @@
     "First time creation of knowledge base, create a new default collection.": "首次创建知识库，已自动创建一个新的默认知识库。",
     "No collection left, create a new default collection.": "没有知识库，已自动创建一个新的默认知识库。",
     "Embed Model Owner Organization": "嵌入模型所属组织",
-    "Knowledge Base name must not be repeated.": "知识库名称不得重复。"
+    "Knowledge Base name must not be repeated.": "知识库名称不得重复。",
+    "Export Settings": "导出设置",
+    "Export File Type": "导出文件类型",
+    "Please select the theme to use": "请选择要使用的主题",
+    "Include range": "包含范围",
+    "Advanced Options": "高级选项",
+    "Start Position": "起始位置",
+    "End Position": "结束位置",
+    "Exclude indexes": "排除的对话消息编号",
+    "Export": "导出",
+    "Preview": "预览",
+    "Selected messages will not be exported": "选择的对话消息不会被导出"
 }
