@@ -975,7 +975,11 @@ with st.sidebar:
         use_container_width=True,
     )
     if export_button:
-        export_dialog(st.session_state.custom_rag_chat_history, is_rag=True)
+        export_dialog(
+            chat_history=st.session_state.custom_rag_chat_history, 
+            is_rag=True,
+            chat_name=st.session_state.rag_run_name
+        )
     clear_button = clear_button_col.button(
         label=i18n("Clear chat history"),
         on_click=clear_chat_history_callback,

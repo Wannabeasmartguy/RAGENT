@@ -172,7 +172,11 @@ def define_fragment_image_uploader(
     )
 
 @st.dialog(title=i18n("Export Settings"), width="large")
-def export_dialog(chat_history: List[Dict], is_rag: bool = False):
+def export_dialog(
+    chat_history: List[Dict],
+    is_rag: bool = False,
+    chat_name: str = "Chat history"
+):
     with st.container(border=True):
         export_type = st.selectbox(
             label=i18n("Export File Type"),
@@ -230,6 +234,7 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
         # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_markdown_chat(
             chat_history=chat_history,
+            chat_name=chat_name,
             include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
             exclude_indexes=exclude_indexes if include_range == "Custom" else None
         )
@@ -240,8 +245,10 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
         # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_html_chat(
             chat_history=chat_history,
+            chat_name=chat_name,
             include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
-            exclude_indexes=exclude_indexes if include_range == "Custom" else None
+            exclude_indexes=exclude_indexes if include_range == "Custom" else None,
+            theme=export_theme
         )
         with st.expander(i18n("Preview")):
             st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
@@ -261,5 +268,6 @@ def export_dialog(chat_history: List[Dict], is_rag: bool = False):
             exclude_indexes=exclude_indexes if include_range == "Custom" else None,
             is_rag=is_rag,
             export_type=export_type,
-            theme=export_theme if export_type == "html" else None
+            theme=export_theme if export_type == "html" else None,
+            chat_name=chat_name
         )

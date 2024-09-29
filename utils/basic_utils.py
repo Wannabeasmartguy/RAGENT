@@ -3,6 +3,7 @@ import pyperclip
 from streamlit import cache_resource
 
 import os
+import re
 import copy
 import base64
 from datetime import datetime, timezone
@@ -207,8 +208,9 @@ def export_chat_history_callback(
         include_range: Optional[Tuple[int, int]] = None,
         exclude_indexes: Optional[List[int]] = None,
         is_rag: bool = False,
-        export_type: str = "html",
-        theme: str = "default"
+        export_type: Optional[str] = "html",
+        theme: Optional[str] = "default",
+        chat_name: Optional[str] = "Chat history"
     ):
     """
     导出聊天历史记录
@@ -220,44 +222,55 @@ def export_chat_history_callback(
         is_rag (bool, optional): 是否是RAG聊天记录. Defaults to False.
         export_type (str, optional): 导出类型，支持 "markdown" 和 "html". Defaults to "html".
         theme (str, optional): 导出主题. Defaults to "default".仅当export_type为html时有效
+        chat_name (str, optional): 聊天记录的名称. Defaults to "Chat history".
     """
+    # 清理文件名，移除非法字符
+    chat_name = re.sub(r'[\\/*?:"<>|]', "", chat_name).strip()
+    if not chat_name:
+        chat_name = "Chat history"
+
+    export_folder = "chat histories export"
+    os.makedirs(export_folder, exist_ok=True)
+
     if export_type == "markdown":
         markdown_content = generate_markdown_chat(
             chat_history=chat_history,
             include_range=include_range,
-            exclude_indexes=exclude_indexes
+            exclude_indexes=exclude_indexes,
+            chat_name=chat_name
         )
 
-        export_folder = "chat histories export"
-        filename = "RAG Chat history.md" if is_rag else "Chat history.md"
+        filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name}.md"
         i = 1
         while os.path.exists(os.path.join(export_folder, filename)):
-            filename = f"{'RAG ' if is_rag else ''}Chat history({i}).md"
+            filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name} ({i}).md"
             i += 1
 
-        os.makedirs(export_folder, exist_ok=True)
-        with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
+        full_path = os.path.join(export_folder, filename)
+        with open(full_path, "w", encoding="utf-8") as f:
             f.write(markdown_content)
-        st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+        st.toast(body=i18n(f"Chat history exported to: {full_path}"), icon="🎉")
     
     elif export_type == "html":
         html_content = generate_html_chat(
             chat_history=chat_history,
             include_range=include_range,
             exclude_indexes=exclude_indexes,
-            theme=theme
+            theme=theme,
+            chat_name=chat_name
         )
-        export_folder = "chat histories export"
-        filename = "RAG Chat history.html" if is_rag else "Chat history.html"
+
+        filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name}.html"
         i = 1
         while os.path.exists(os.path.join(export_folder, filename)):
-            filename = f"{'RAG ' if is_rag else ''}Chat history({i}).html"
+            filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name} ({i}).html"
             i += 1
 
-        os.makedirs(export_folder, exist_ok=True)
-        with open(os.path.join(export_folder, filename), "w", encoding="utf-8") as f:
+        full_path = os.path.join(export_folder, filename)
+        with open(full_path, "w", encoding="utf-8") as f:
             f.write(html_content)
-        st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+        st.toast(body=i18n(f"Chat history exported to: {full_path}"), icon="🎉")
+
     # elif export_type == "jpg":
     #     image_stream = html_to_jpg(html_content)
     #     export_folder = "chat histories export"
@@ -277,7 +290,8 @@ def export_chat_history_callback(
 def generate_markdown_chat(
     chat_history: List[Dict[str, str]], 
     include_range: Optional[Tuple[int, int]] = None, 
-    exclude_indexes: Optional[List[int]] = None
+    exclude_indexes: Optional[List[int]] = None,
+    chat_name: Optional[str] = "Chat history"
 ) -> str:
     """
     生成Markdown格式的聊天历史
@@ -302,6 +316,8 @@ def generate_markdown_chat(
     if exclude_indexes is None:
         exclude_indexes = []
 
+    formatted_history.append(f"# {chat_name}\n\n")
+
     for i in range(include_range[0], include_range[1] + 1):
         if i in exclude_indexes:
             continue
@@ -310,7 +326,7 @@ def generate_markdown_chat(
         role = message['role'].title()
         content = message['content']
         
-        formatted_history.append(f"# {role}\n\n")
+        formatted_history.append(f"## {role}\n\n")
         
         if isinstance(content, str):
             formatted_history.append(f"{content}\n\n")
@@ -342,7 +358,8 @@ def generate_html_chat(
         chat_history: List[Dict[str, str]], 
         include_range: Optional[Tuple[int, int]] = None, 
         exclude_indexes: Optional[List[int]] = None,
-        theme: str = "default"
+        theme: Optional[str] = "default",
+        chat_name: Optional[str] = "Chat history"
     ) -> str:
     """
     生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
@@ -369,7 +386,7 @@ def generate_html_chat(
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>聊天历史</title>
+        <title>{chat_name}</title>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <style>
             {css_theme}
@@ -377,6 +394,8 @@ def generate_html_chat(
     </head>
     <body>
         <div class="card">
+            <div class="chat-title">{chat_name}</div>
+            <div class="chat-subtitle">Created by github.com/Wannabeasmartguy/RAGENT</div>
             <div class="chat-container">
                 {chat_messages}
             </div>
@@ -426,7 +445,10 @@ def generate_html_chat(
     # 使用 str.replace() 来插入 CSS 主题
     html_content = html_template.replace("{css_theme}", css_theme)
     # 然后使用 .format() 插入聊天消息
-    html_content = html_content.format(chat_messages="\n".join(chat_messages))
+    html_content = html_content.format(
+        chat_messages="\n".join(chat_messages),
+        chat_name=chat_name
+    )
     
     return html_content
 

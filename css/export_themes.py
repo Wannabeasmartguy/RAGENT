@@ -8,6 +8,21 @@ body {{
     padding: 20px;
     background-color: #f0f0f0;
 }}
+.chat-title {{
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+    margin-top: 30px;
+}}
+.chat-subtitle {{
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #666;
+    margin-bottom: 30px;
+}}
 .message {{
     margin-bottom: 20px;
     padding: 15px;
@@ -16,9 +31,11 @@ body {{
 .user {{
     background-color: #E7F8FF;
     text-align: right;
+    padding-right: 20px;
 }}
 .assistant {{
     background-color: #F7F8FA;
+    padding-left: 20px;
 }}
 .role {{
     font-weight: bold;
@@ -53,6 +70,21 @@ body {{
     margin: 0;
     padding: 20px;
 }}
+.chat-title {{
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+    margin-top: 20px;
+}}
+.chat-subtitle {{
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #666;
+    margin-bottom: 30px;
+}}
 .card {{
     backdrop-filter: blur(16px) saturate(180%);
     -webkit-backdrop-filter: blur(16px) saturate(180%);
@@ -72,9 +104,11 @@ body {{
 .user {{
     background-color: rgba(231, 248, 255, 0.6);
     text-align: right;
+    padding-right: 20px;
 }}
 .assistant {{
     background-color: rgba(247, 248, 250, 0.6);
+    padding-left: 20px;
 }}
 .role {{
     font-weight: bold;

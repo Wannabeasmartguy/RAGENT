@@ -751,7 +751,10 @@ with st.sidebar:
             use_container_width=True,
         )
         if export_button:
-            export_dialog(st.session_state.chat_history)
+            export_dialog(
+                chat_history=st.session_state.chat_history,
+                chat_name=st.session_state.run_name
+            )
         
         clear_button = clear_button_col.button(
             label=i18n("Clear chat history"),
