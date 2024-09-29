@@ -14,8 +14,8 @@ from utils.basic_utils import (
 )
 from tools.toolkits import TO_TOOLS
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 
 def back_to_top(script_container = st.empty(), buttom_container = st.empty()):
