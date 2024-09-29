@@ -15,6 +15,8 @@
 - [x] ネイティブのFunction Call（OpenAI、Azure OpenAI、OpenAI Like、Ollama）
 - [x] 🤖 複数のエージェントモードをオンプレミスで提供
 - [x] 🖥️ ダイアログデータのローカルストレージと管理
+  - [x] 複数のエクスポート形式（Markdown、HTML）
+  - [x] 複数のテーマ（HTML）
 
 知識ベース:
 - [x] **ネイティブ実装**のリトリーバル強化生成（RAG）、軽量で効率的
@@ -30,17 +32,31 @@
 
 #### 音声入力:
 
-![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
+<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
+
+#### エクスポート
+
+エクスポート形式、テーマ選択、エクスポート範囲の制御をサポートします。
+
+<img src="https://github.com/user-attachments/assets/f4e1461e-2334-4b45-b4d9-2ff0d79a0e63" alt="Export settings and preview" style="zoom:40%;" />
+
+現在サポートされているテーマ:
+
+| デフォルト | ガラス化 |
+| :-----: | :-----------: |
+| <img src="https://github.com/user-attachments/assets/6ac8132c-0821-4487-9a1a-a0297a35783a" alt="default theme" width="300" /> | <img src="https://github.com/user-attachments/assets/87b07e86-dd98-4e66-a850-17b776fbeb1c" alt="Glassmorphism theme" width="300" /> |
+
+
 
 ### RAGチャット
 
 モデルの設定（サイドバー）と詳細な参照の表示:
 
-![image](https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720)
+<img src="https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720" alt="image" style="zoom:50%;" />
 
 RAGの設定：
 
-![image](https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77)
+<img src="https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77" alt="image" style="zoom:50%;" />
 
 ### Function Call
 
@@ -50,7 +66,7 @@ Function Callは`Chat`と`AgentChat`の両方のページでサポートされ�
 
 このページのFunction Callはネイティブであり、すべてのOpenAI互換モデルで動作しますが、モデル自体がFunction Callをサポートしている必要があります。
 
-![image](https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715)
+<img src="https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715" alt="image" style="zoom:50%;" />
 
 > 呼び出したい関数をカスタマイズすることもできます。記述ルールについては[toolkits.py](tools/toolkits.py)を参照してください。
 
@@ -60,7 +76,7 @@ AutoGenフレームワークに依存して実装されています（テスト�
 
 Function CallはLLMの能力を大幅に強化することができ、現在はOpenAI、Azure OpenAI、Groq、およびローカルモデルをサポートしています。（[LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)による）
 
-![openai function call](https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67)
+<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
 
 > 呼び出したい関数をカスタマイズすることもできます。AutoGenの関数記述はネイティブの関数呼び出し記述ルールとは**異なる**ことに注意してください。詳細については[公式ドキュメント](https://microsoft.github.io/autogen/docs/tutorial/tool-use/)およびこのプロジェクトの[tools.py](llm/aoai/tools/tools.py)を参照してください。
 

@@ -15,6 +15,8 @@ Chat and Agent interactions:
 - [x] Native Function Call (OpenAI, Azure OpenAI, OpenAI Like, Ollama)
 - [x] 🤖 Multiple Agent modes on-premises
 - [x] 🖥️ Local storage of dialog data and management
+  - [x] Multiple export formats(Markdown, HTML)
+  - [x] Multiple themes(HTML)
 
 Knowledgebase:
 - [x] **Native implementation** of Retrieval Augmentation Generation (RAG), lightweight and efficient
@@ -30,17 +32,31 @@ Knowledgebase:
 
 #### Voice to text input:
 
-![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
+<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
+
+#### Export
+
+Support export format, theme selection and export range control:
+
+<img src="https://github.com/user-attachments/assets/f4e1461e-2334-4b45-b4d9-2ff0d79a0e63" alt="Export settings and preview" style="zoom:40%;" />
+
+Currently supported themes: 
+
+| Default | Glassmorphism |
+| :-----: | :-----------: |
+| <img src="https://github.com/user-attachments/assets/6ac8132c-0821-4487-9a1a-a0297a35783a" alt="default theme" width="300" /> | <img src="https://github.com/user-attachments/assets/87b07e86-dd98-4e66-a850-17b776fbeb1c" alt="Glassmorphism theme" width="300" /> |
+
+
 
 ### RAG Chat
 
 Set up the model (sidebar) and view detailed references:
 
-![image](https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720)
+<img src="https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720" alt="image" style="zoom:50%;" />
 
 Configure RAG ：
 
-![image](https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77)
+<img src="https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77" alt="image" style="zoom:50%;" />
 
 ### Function Call
 
@@ -50,7 +66,7 @@ Function calls are supported on both `Chat` and `AgentChat` pages, but are imple
 
 The Function Calls on this page are native and work for all OpenAI Compatible models, but require the model itself to support Function calls.
 
-![image](https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715)
+<img src="https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715" alt="image" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
 
@@ -60,7 +76,7 @@ Relying on the AutoGen framework for implementation (testing), please refer to t
 
 Function call can significantly enhance the capabilities of LLM and currently supports OpenAI, Azure OpenAI, Groq, and local models.（[by LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
 
-![openai function call](https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67)
+<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please note that AutoGen's function writing is **different** from the native function calling writing rules, please refer to the [Official Documentation](https://microsoft.github.io/autogen/docs/tutorial/tool-use/) and this project's [tools.py](llm/aoai/tools/tools.py).
 
