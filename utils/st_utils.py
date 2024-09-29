@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import os
 import time
 import whisper
-from typing import List, Dict
+from typing import List, Dict, Optional
 from streamlit_float import *
 from audiorecorder import audiorecorder
 
@@ -175,7 +175,8 @@ def define_fragment_image_uploader(
 def export_dialog(
     chat_history: List[Dict],
     is_rag: bool = False,
-    chat_name: str = "Chat history"
+    chat_name: str = "Chat history",
+    model_name: Optional[str] = None
 ):
     with st.container(border=True):
         export_type = st.selectbox(
@@ -214,12 +215,16 @@ def export_dialog(
                         max_value=len(chat_history),
                         value=len(chat_history)
                     )
+
+                # 动态生成 exclude_indexes 的选项
+                exclude_options = list(range(start_position, end_position + 1))
+                
                 # 排除的对话消息索引
                 exclude_indexes = st.multiselect(
                     label=i18n("Exclude indexes"),
-                    options=list(range(len(chat_history))),
+                    options=exclude_options,
                     default=[],
-                    format_func=lambda x: f"Message {x+1}",
+                    format_func=lambda x: f"Message {x}",
                     placeholder=i18n("Selected messages will not be exported")
                 )
 
@@ -236,7 +241,7 @@ def export_dialog(
             chat_history=chat_history,
             chat_name=chat_name,
             include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
-            exclude_indexes=exclude_indexes if include_range == "Custom" else None
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
         )
         with st.expander(i18n("Preview")):
             content_preview = st.markdown(preview_content)
@@ -246,8 +251,9 @@ def export_dialog(
         preview_content = generate_html_chat(
             chat_history=chat_history,
             chat_name=chat_name,
+            model_name=model_name,
             include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
-            exclude_indexes=exclude_indexes if include_range == "Custom" else None,
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
             theme=export_theme
         )
         with st.expander(i18n("Preview")):
@@ -265,9 +271,10 @@ def export_dialog(
         export_chat_history_callback(
             chat_history=chat_history,
             include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
-            exclude_indexes=exclude_indexes if include_range == "Custom" else None,
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
             is_rag=is_rag,
             export_type=export_type,
             theme=export_theme if export_type == "html" else None,
-            chat_name=chat_name
+            chat_name=chat_name,
+            model_name=model_name
         )

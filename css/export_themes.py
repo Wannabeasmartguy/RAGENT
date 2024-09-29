@@ -8,20 +8,55 @@ body {{
     padding: 20px;
     background-color: #f0f0f0;
 }}
-.chat-title {{
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 20px;
-    color: #333;
-    margin-top: 30px;
+.card {{
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
 }}
-.chat-subtitle {{
-    font-size: 16px;
-    text-align: center;
+.info-card {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    padding: 15px;
     margin-bottom: 20px;
+}}
+.info-left {{
+    text-align: left;
+}}
+.info-right {{
+    text-align: right;
+}}
+.info-right-content {{
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 4px 12px;
+    margin-bottom: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: left;
+    max-width: 300px;
+    word-wrap: break-word;
+}}
+.project-name {{
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}}
+.project-url {{
+    font-size: 14px;
     color: #666;
-    margin-bottom: 30px;
+}}
+.project-url a {{
+    color: #007bff;
+    text-decoration: none;
+}}
+.model-name, .message-count, .chat-name {{
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
 }}
 .message {{
     margin-bottom: 20px;
@@ -70,20 +105,55 @@ body {{
     margin: 0;
     padding: 20px;
 }}
-.chat-title {{
-    font-size: 24px;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 20px;
-    color: #333;
-    margin-top: 20px;
+.card {{
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
 }}
-.chat-subtitle {{
-    font-size: 16px;
-    text-align: center;
+.info-card {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(248, 249, 250, 0.8);
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 15px;
     margin-bottom: 20px;
+}}
+.info-left {{
+    text-align: left;
+}}
+.info-right {{
+    text-align: right;
+}}
+.info-right-content {{
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 4px 12px;
+    margin-bottom: 3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    text-align: left;
+    max-width: 300px;
+    word-wrap: break-word;
+}}
+.project-name {{
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}}
+.project-url {{
+    font-size: 14px;
     color: #666;
-    margin-bottom: 30px;
+}}
+.project-url a {{
+    color: #007bff;
+    text-decoration: none;
+}}
+.model-name, .message-count, .chat-name {{
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
 }}
 .card {{
     backdrop-filter: blur(16px) saturate(180%);

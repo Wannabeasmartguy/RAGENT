@@ -6,6 +6,7 @@ import os
 import re
 import copy
 import base64
+import textwrap
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
@@ -203,6 +204,13 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
             """
         )
 
+def wrap_long_text(text: str, max_length: int = 60) -> str:
+    """
+    将长文本按指定长度换行
+    """
+    wrapped_lines = textwrap.wrap(text, max_length)
+    return '<br>'.join(wrapped_lines)
+
 def export_chat_history_callback(
         chat_history: List[Dict[str, str]], 
         include_range: Optional[Tuple[int, int]] = None,
@@ -210,7 +218,8 @@ def export_chat_history_callback(
         is_rag: bool = False,
         export_type: Optional[str] = "html",
         theme: Optional[str] = "default",
-        chat_name: Optional[str] = "Chat history"
+        chat_name: Optional[str] = "Chat history",
+        model_name: Optional[str] = None
     ):
     """
     导出聊天历史记录
@@ -223,6 +232,7 @@ def export_chat_history_callback(
         export_type (str, optional): 导出类型，支持 "markdown" 和 "html". Defaults to "html".
         theme (str, optional): 导出主题. Defaults to "default".仅当export_type为html时有效
         chat_name (str, optional): 聊天记录的名称. Defaults to "Chat history".
+        model_name (str, optional): 模型名称. Defaults to None.仅当export_type为html时有效
     """
     # 清理文件名，移除非法字符
     chat_name = re.sub(r'[\\/*?:"<>|]', "", chat_name).strip()
@@ -257,7 +267,8 @@ def export_chat_history_callback(
             include_range=include_range,
             exclude_indexes=exclude_indexes,
             theme=theme,
-            chat_name=chat_name
+            chat_name=chat_name,
+            model_name=model_name
         )
 
         filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name}.html"
@@ -359,7 +370,8 @@ def generate_html_chat(
         include_range: Optional[Tuple[int, int]] = None, 
         exclude_indexes: Optional[List[int]] = None,
         theme: Optional[str] = "default",
-        chat_name: Optional[str] = "Chat history"
+        chat_name: Optional[str] = "Chat history",
+        model_name: Optional[str] = None
     ) -> str:
     """
     生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
@@ -394,8 +406,21 @@ def generate_html_chat(
     </head>
     <body>
         <div class="card">
-            <div class="chat-title">{chat_name}</div>
-            <div class="chat-subtitle">Created by github.com/Wannabeasmartguy/RAGENT</div>
+            <div class="info-card">
+                <div class="info-left">
+                    <div class="project-name">RAGENT</div>
+                    <div class="project-url">
+                        <a href="https://github.com/Wannabeasmartguy/RAGENT" target="_blank">
+                            github.com/Wannabeasmartguy/RAGENT
+                        </a>
+                    </div>
+                </div>
+                <div class="info-right">
+                    <div class="info-right-content model-name">Model: {model_name}</div>
+                    <div class="info-right-content message-count">Messages: {message_count}</div>
+                    <div class="info-right-content chat-name">Chat: {chat_name}</div>
+                </div>
+            </div>
             <div class="chat-container">
                 {chat_messages}
             </div>
@@ -411,11 +436,16 @@ def generate_html_chat(
     </html>
     """
 
+    model_name = model_name if model_name is not None else "Not specified"
+    wrapped_chat_name = wrap_long_text(chat_name)
 
     if include_range is None:
         include_range = (0, len(chat_history) - 1)
     if exclude_indexes is None:
         exclude_indexes = []
+    
+    # 计算消息数量，方法为：include_range范围长度 - exclude_indexes的元素个数
+    message_count = include_range[1] - include_range[0] + 1 - len(exclude_indexes)
 
     chat_messages = []
     for i in range(include_range[0], include_range[1] + 1):
@@ -447,7 +477,9 @@ def generate_html_chat(
     # 然后使用 .format() 插入聊天消息
     html_content = html_content.format(
         chat_messages="\n".join(chat_messages),
-        chat_name=chat_name
+        chat_name=wrapped_chat_name,
+        model_name=model_name,
+        message_count=message_count
     )
     
     return html_content

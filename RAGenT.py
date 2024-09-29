@@ -753,7 +753,8 @@ with st.sidebar:
         if export_button:
             export_dialog(
                 chat_history=st.session_state.chat_history,
-                chat_name=st.session_state.run_name
+                chat_name=st.session_state.run_name,
+                model_name=st.session_state.model
             )
         
         clear_button = clear_button_col.button(

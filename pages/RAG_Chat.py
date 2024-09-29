@@ -978,7 +978,8 @@ with st.sidebar:
         export_dialog(
             chat_history=st.session_state.custom_rag_chat_history, 
             is_rag=True,
-            chat_name=st.session_state.rag_run_name
+            chat_name=st.session_state.rag_run_name,
+            model_name=st.session_state.model
         )
     clear_button = clear_button_col.button(
         label=i18n("Clear chat history"),
