@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 import base64
+from streamlit_float import *
 from uuid import uuid4
 from copy import deepcopy
 from functools import lru_cache
@@ -32,7 +33,12 @@ from utils.basic_utils import (
     AI_AVATAR_SVG,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
-from utils.st_utils import export_dialog
+from utils.st_utils import (
+    export_dialog,
+    back_to_top,
+    back_to_bottom,
+    float_chat_input_with_audio_recorder,
+)
 
 from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
 from core.kb_processors import (
@@ -651,17 +657,17 @@ with st.sidebar:
                     "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
                 ),
             )
-            if_tools_call = st.toggle(
-                label=i18n("Tools call"),
-                value=False,
-                key="if_tools_call",
-                help=i18n(
-                    "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."
-                ),
-                on_change=lambda: logger.info(
-                    f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}"
-                ),
-            )
+            # if_tools_call = st.toggle(
+            #     label=i18n("Tools call"),
+            #     value=False,
+            #     key="if_tools_call",
+            #     help=i18n(
+            #         "Whether to enable the use of tools. Only available for some models. For unsupported models, normal chat mode will be used by default."
+            #     ),
+            #     on_change=lambda: logger.info(
+            #         f"Tools call toggled, current status: {str(st.session_state.if_tools_call)}"
+            #     ),
+            # )
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != "Llamafile":
@@ -986,20 +992,28 @@ with st.sidebar:
         on_click=clear_chat_history_callback,
         use_container_width=True,
     )
+    back_to_top_placeholder0 = st.empty()
+    back_to_top_placeholder1 = st.empty()
+    back_to_top_bottom_placeholder0 = st.empty()
+    back_to_top_bottom_placeholder1 = st.empty()
 
 
+float_init()
 # st.write(st.session_state.rag_chat_config_list)
 st.title(st.session_state.rag_run_name)
 write_custom_rag_chat_history(
     st.session_state.custom_rag_chat_history, st.session_state.custom_rag_sources
 )
-
+back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
+back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 # Control the chat input to prevent error when the model is not selected
 if st.session_state.model == None:
     st.session_state.prompt_disabled = True
 else:
     st.session_state.prompt_disabled = False
-prompt = st.chat_input("What is up?", disabled=st.session_state.prompt_disabled)
+prompt = float_chat_input_with_audio_recorder(
+    if_tools_call=False, prompt_disabled=st.session_state.prompt_disabled
+)
 
 if prompt and st.session_state.model != None:
     with st.chat_message("user", avatar=user_avatar):

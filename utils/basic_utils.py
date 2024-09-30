@@ -44,7 +44,7 @@ ASSISTANT_CHAT_STYLE = """
         width: 85%;
         margin-left: 0;
         margin-right: auto;
-        background-color: #F7F8FA;
+        background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
     }
@@ -74,7 +74,7 @@ RAG_CHAT_ASSISTANT_STYLE = """
         width: 90%;
         margin-left: 0;
         margin-right: auto;
-        background-color: #F7F8FA;
+        background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
     }
@@ -196,7 +196,7 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                     width: 85%;
                     margin-left: 0;
                     margin-right: auto;
-                    background-color: #F7F8FA;
+                    background-color: #F3F4F6;
                     border-radius: 10px;
                     padding: 20px;
                 }

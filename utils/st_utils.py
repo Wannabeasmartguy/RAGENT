@@ -104,6 +104,18 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
         #     storage.upsert()
 
         # the chat input in the middle
+        st.markdown(
+            """
+            <style> 
+                .stChatInput > div {
+                    background-color: #FFFFFF;
+                    border-radius: 10px;
+                    border: 1px solid #E0E0E0;
+                }
+            </style>
+            """, 
+            unsafe_allow_html=True
+        )
         character_input_placeholder = character_input_column.empty()
         prompt = character_input_placeholder.chat_input("What is up?", disabled=prompt_disabled)
 
