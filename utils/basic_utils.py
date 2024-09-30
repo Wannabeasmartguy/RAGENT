@@ -371,7 +371,8 @@ def generate_html_chat(
         exclude_indexes: Optional[List[int]] = None,
         theme: Optional[str] = "default",
         chat_name: Optional[str] = "Chat history",
-        model_name: Optional[str] = None
+        model_name: Optional[str] = None,
+        code_theme: Optional[str] = "github-dark"
     ) -> str:
     """
     生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
@@ -381,6 +382,9 @@ def generate_html_chat(
         include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
         exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
         theme (str, optional): 导出主题. Defaults to "default".
+        chat_name (str, optional): 聊天记录的名称. Defaults to "Chat history".
+        model_name (str, optional): 模型名称. Defaults to None.
+        code_theme (str, optional): 代码主题. Defaults to "github-dark".可选值见 https://highlightjs.org/examples
 
     Returns:
         str: 生成的HTML格式聊天历史
@@ -400,8 +404,34 @@ def generate_html_chat(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{chat_name}</title>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/{code_theme}.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
         <style>
             {css_theme}
+            pre {{
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                background-color: #1A1B26;
+                border-radius: 5px;
+                padding: 1em;
+                margin: 1em 0;
+            }}
+            code {{
+                display: block;
+                overflow-x: auto;
+                padding: 0.5em;
+                background-color: #1A1B26;
+                font-family: 'Courier New', Courier, monospace;
+                color: #CBD2EA;
+            }}
+            code[class*="language-"] {{
+                background-color: #1A1B26;
+                color: #CBD2EA;
+            }}
+            .message.user pre,
+            .message.user code {{
+                text-align: left;
+            }}
         </style>
     </head>
     <body>
@@ -427,8 +457,25 @@ def generate_html_chat(
         </div>
         <script>
             document.addEventListener('DOMContentLoaded', (event) => {{
+                marked.setOptions({{
+                    breaks: true,
+                    gfm: true,
+                    highlight: function(code, lang) {{
+                        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                        return hljs.highlight(code, {{ language }}).value;
+                    }},
+                    langPrefix: 'hljs language-'
+                }});
+                
                 document.querySelectorAll('.markdown-content').forEach((element) => {{
                     element.innerHTML = marked.parse(element.textContent);
+                }});
+                
+                hljs.highlightAll();
+
+                // 确保代码块内的换行符被保留
+                document.querySelectorAll('pre code').forEach((block) => {{
+                    block.innerHTML = block.innerHTML.replace(/\\n/g, '<br>');
                 }});
             }});
         </script>
@@ -479,7 +526,8 @@ def generate_html_chat(
         chat_messages="\n".join(chat_messages),
         chat_name=wrapped_chat_name,
         model_name=model_name,
-        message_count=message_count
+        message_count=message_count,
+        code_theme=code_theme
     )
     
     return html_content

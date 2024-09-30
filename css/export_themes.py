@@ -80,15 +80,6 @@ img {{
     max-width: 100%;
     height: auto;
 }}
-pre {{
-    background-color: #f4f4f4;
-    padding: 10px;
-    border-radius: 5px;
-    overflow-x: auto;
-}}
-code {{
-    font-family: 'Courier New', Courier, monospace;
-}}
 """
 
 glassmorphism_theme = """
@@ -187,15 +178,6 @@ body {{
 img {{
     max-width: 100%;
     height: auto;
-}}
-pre {{
-    background-color: rgba(244, 244, 244, 0.6);
-    padding: 10px;
-    border-radius: 5px;
-    overflow-x: auto;
-}}
-code {{
-    font-family: 'Courier New', Courier, monospace;
 }}
 """
 
