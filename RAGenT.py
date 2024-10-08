@@ -483,7 +483,7 @@ with st.sidebar:
                     config = oailike_config_processor.get_model_config(config_id=selected_config_id)
                     
                     if config:
-                        config_data = next(iter(config.values()))
+                        config_data = config  # 不再需要 next(iter(config.values()))
                         st.session_state.oai_like_model_config_dict = {config_data['model']: config_data}
                         st.session_state.current_run_id_index = run_id_list.index(
                             st.session_state.run_id
@@ -491,7 +491,7 @@ with st.sidebar:
                         st.session_state.model = config_data['model']
                         st.session_state.llamafile_endpoint = config_data['base_url']
                         st.session_state.llamafile_api_key = config_data['api_key']
-                        st.session_state.config_description = config_data['description']
+                        st.session_state.config_description = config_data.get('description', '')
                         
                         logger.info(
                             f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"

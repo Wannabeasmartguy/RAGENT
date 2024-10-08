@@ -24,6 +24,7 @@ from core.basic_config import (
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )
+from core.encryption import Encryptor
 from storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
@@ -480,6 +481,7 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
     def __init__(self):
+        self.encryptor = Encryptor()
         # 如果本地没有custom_model_config.json文件，则创建文件夹及文件
         if not os.path.exists(self.config_path):
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
@@ -525,8 +527,8 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
         config_id = str(uuid.uuid4())
         config = {
             "model": model,
-            "base_url": base_url,
-            "api_key": api_key,
+            "base_url": self.encryptor.encrypt(base_url),
+            "api_key": self.encryptor.encrypt(api_key),
             "custom_name": custom_name,
             "description": description
         }
@@ -561,11 +563,19 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
             Dict: 匹配的配置信息字典
         """
         if config_id:
-            return {config_id: self.exist_config.get(config_id, {})}
+            config = self.exist_config.get(config_id, {})
+            if config:
+                config["base_url"] = self.encryptor.decrypt(config["base_url"])
+                config["api_key"] = self.encryptor.decrypt(config["api_key"])
+            return config
         elif model:
             return {
-                config_id: config 
-                for config_id, config in self.exist_config.items() 
+                config_id: {
+                    **config,
+                    "base_url": self.encryptor.decrypt(config["base_url"]),
+                    "api_key": self.encryptor.decrypt(config["api_key"]),
+                }
+                for config_id, config in self.exist_config.items()
                 if config["model"] == model
             }
         else:
@@ -579,7 +589,10 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
             List[Dict]: 包含所有配置信息的列表
         """
         return [
-            {"id": config_id, **config}
+            {
+                "id": config_id, 
+                **{k: v if k not in ['base_url', 'api_key'] else '******' for k, v in config.items()}
+            }
             for config_id, config in self.exist_config.items()
         ]
 

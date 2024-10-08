@@ -24,6 +24,9 @@ custom_model_config.json
 # User data
 *.db
 
+# Encrypted data
+encryption_key.txt
+
 # C extensions
 *.so
 
