@@ -138,5 +138,12 @@
     "Exclude indexes": "Exclude indexes",
     "Export": "Export",
     "Preview": "Preview",
-    "Selected messages will not be exported": "Selected messages will not be exported"
+    "Selected messages will not be exported": "Selected messages will not be exported",
+    "Model config saved successfully": "Model config saved successfully",
+    "Config Description": "Config Description",
+    "Enter a description for this configuration": "Enter a description for this configuration",
+    "Failed to load model config": "Failed to load model config",
+    "Model config deleted successfully": "Model config deleted successfully",
+    "Chat history cleared": "Chat history cleared",
+    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."
 }

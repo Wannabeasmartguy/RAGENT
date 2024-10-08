@@ -203,42 +203,45 @@ def export_dialog(
                 format_func=lambda x: x.title()
             )
 
-        with st.expander(i18n("Advanced Options")):
-            include_range = st.select_slider(
-                label=i18n("Include range"),
-                options=["All", "Custom"],
-                value="All"
-            )
-            if include_range == "Custom":
-                start_position_column, end_position_column = st.columns(2)
-                with start_position_column:
-                    # 起始位置，从1开始（符合用户习惯）
-                    start_position = st.slider(
-                        label=i18n("Start Position"),
-                        min_value=1,
-                        max_value=len(chat_history)-1,
-                        value=1,
-                    )
-                with end_position_column:
-                    # 结束位置，从1开始（符合用户习惯）
-                    end_position = st.slider(
-                        label=i18n("End Position"),
-                        min_value=start_position,
-                        max_value=len(chat_history),
-                        value=len(chat_history)
-                    )
-
-                # 动态生成 exclude_indexes 的选项
-                exclude_options = list(range(start_position, end_position + 1))
-                
-                # 排除的对话消息索引
-                exclude_indexes = st.multiselect(
-                    label=i18n("Exclude indexes"),
-                    options=exclude_options,
-                    default=[],
-                    format_func=lambda x: f"Message {x}",
-                    placeholder=i18n("Selected messages will not be exported")
+        if len(chat_history) > 2:
+            with st.expander(i18n("Advanced Options")):
+                include_range = st.select_slider(
+                    label=i18n("Include range"),
+                    options=["All", "Custom"],
+                    value="All"
                 )
+                if include_range == "Custom":
+                    start_position_column, end_position_column = st.columns(2)
+                    with start_position_column:
+                        # 起始位置，从1开始（符合用户习惯）
+                        start_position = st.slider(
+                            label=i18n("Start Position"),
+                            min_value=1,
+                            max_value=len(chat_history)-1,
+                            value=1,
+                        )
+                    with end_position_column:
+                        # 结束位置，从1开始（符合用户习惯）
+                        end_position = st.slider(
+                            label=i18n("End Position"),
+                            min_value=start_position,
+                            max_value=len(chat_history),
+                            value=len(chat_history)
+                        )
+
+                    # 动态生成 exclude_indexes 的选项
+                    exclude_options = list(range(start_position, end_position + 1))
+                    
+                    # 排除的对话消息索引
+                    exclude_indexes = st.multiselect(
+                        label=i18n("Exclude indexes"),
+                        options=exclude_options,
+                        default=[],
+                        format_func=lambda x: f"Message {x}",
+                        placeholder=i18n("Selected messages will not be exported")
+                    )
+        else:
+            include_range = "All"
 
         export_submit_button = st.button(
             label=i18n("Export"),

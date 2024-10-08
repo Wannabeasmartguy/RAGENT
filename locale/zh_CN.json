@@ -138,5 +138,12 @@
     "Exclude indexes": "排除的对话消息编号",
     "Export": "导出",
     "Preview": "预览",
-    "Selected messages will not be exported": "选择的对话消息不会被导出"
+    "Selected messages will not be exported": "选择的对话消息不会被导出",
+    "Model config saved successfully": "模型配置保存成功",
+    "Config Description": "配置描述",
+    "Enter a description for this configuration": "输入此配置的描述",
+    "Failed to load model config": "加载模型配置失败",
+    "Model config deleted successfully": "模型配置删除成功",
+    "Chat history cleared": "聊天记录已清空",
+    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "由于 Streamlit 限制，背景外观无法实时预览，请点击提交按钮以导出并查看结果。"
 }

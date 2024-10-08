@@ -437,74 +437,88 @@ with st.sidebar:
                     key="llamafile_api_key",
                     placeholder=i18n("Fill in your API key. (Optional)"),
                 )
+                def save_oai_like_config_button_callback():
+                    config_id = oailike_config_processor.update_config(
+                        model=select_box1,
+                        base_url=llamafile_endpoint,
+                        api_key=llamafile_api_key,
+                        description=st.session_state.get("config_description", "")
+                    )
+                    st.toast(i18n("Model config saved successfully"), icon="✅")
+                    return config_id
+
+                config_description = st.text_input(
+                    label=i18n("Config Description"),
+                    key="config_description",
+                    placeholder=i18n("Enter a description for this configuration")
+                )
+
                 save_oai_like_config_button = st.button(
                     label=i18n("Save model config"),
-                    on_click=oailike_config_processor.update_config,
-                    args=(select_box1, llamafile_endpoint, llamafile_api_key),
+                    on_click=save_oai_like_config_button_callback,
                     use_container_width=True,
                 )
 
                 st.write("---")
 
-                oai_like_config_list = st.selectbox(
+                config_list = oailike_config_processor.list_model_configs()
+                config_options = [f"{config['model']} - {config['description']}" for config in config_list]
+                
+                selected_config = st.selectbox(
                     label=i18n("Select model config"),
-                    options=oailike_config_processor.get_config(),
+                    options=config_options,
+                    format_func=lambda x: x,
                     on_change=lambda: st.toast(
                         i18n("Click the Load button to apply the configuration"),
                         icon="🚨",
                     ),
+                    key="selected_config"
                 )
 
                 def load_oai_like_config_button_callback():
-                    logger.info(f"Loading model config: {oai_like_config_list}")
-                    st.session_state.oai_like_model_config_dict = (
-                        oailike_config_processor.get_model_config(oai_like_config_list)
-                    )
-                    st.session_state.current_run_id_index = run_id_list.index(
-                        st.session_state.run_id
-                    )
-                    st.session_state.model = next(
-                        iter(st.session_state.oai_like_model_config_dict.keys())
-                    )
-                    st.session_state.llamafile_endpoint = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    ).get("base_url")
-                    st.session_state.llamafile_api_key = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    ).get("api_key")
-                    logger.info(
-                        f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
-                    )
-
-                    model_config = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    )
-                    # 只更新model、api_key和base_url参数
-                    st.session_state["chat_config_list"][0]["model"] = next(
-                        iter(st.session_state.oai_like_model_config_dict.keys())
-                    )
-                    st.session_state["chat_config_list"][0]["api_key"] = (
-                        model_config.get("api_key")
-                    )
-                    st.session_state["chat_config_list"][0]["base_url"] = (
-                        model_config.get("base_url")
-                    )
-
-                    logger.info(
-                        f"Chat config list updated: {st.session_state.chat_config_list}"
-                    )
-                    chat_history_storage.upsert(
-                        AssistantRun(
-                            run_id=st.session_state.run_id,
-                            llm=st.session_state["chat_config_list"][0],
-                            assistant_data={
-                                "model_type": st.session_state["model_type"],
-                                "system_prompt": st.session_state["system_prompt"],
-                            },
-                            updated_at=datetime.now(),
+                    selected_index = config_options.index(st.session_state.selected_config)
+                    selected_config_id = config_list[selected_index]['id']
+                    
+                    logger.info(f"Loading model config: {selected_config_id}")
+                    config = oailike_config_processor.get_model_config(config_id=selected_config_id)
+                    
+                    if config:
+                        config_data = next(iter(config.values()))
+                        st.session_state.oai_like_model_config_dict = {config_data['model']: config_data}
+                        st.session_state.current_run_id_index = run_id_list.index(
+                            st.session_state.run_id
                         )
-                    )
-                    st.toast(i18n("Model config loaded successfully"))
+                        st.session_state.model = config_data['model']
+                        st.session_state.llamafile_endpoint = config_data['base_url']
+                        st.session_state.llamafile_api_key = config_data['api_key']
+                        st.session_state.config_description = config_data['description']
+                        
+                        logger.info(
+                            f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
+                        )
+
+                        # 更新chat_config_list
+                        st.session_state["chat_config_list"][0]["model"] = config_data['model']
+                        st.session_state["chat_config_list"][0]["api_key"] = config_data['api_key']
+                        st.session_state["chat_config_list"][0]["base_url"] = config_data['base_url']
+
+                        logger.info(
+                            f"Chat config list updated: {st.session_state.chat_config_list}"
+                        )
+                        chat_history_storage.upsert(
+                            AssistantRun(
+                                run_id=st.session_state.run_id,
+                                llm=st.session_state["chat_config_list"][0],
+                                assistant_data={
+                                    "model_type": st.session_state["model_type"],
+                                    "system_prompt": st.session_state["system_prompt"],
+                                },
+                                updated_at=datetime.now(),
+                            )
+                        )
+                        st.toast(i18n("Model config loaded successfully"), icon="✅")
+                    else:
+                        st.toast(i18n("Failed to load model config"), icon="❌")
 
                 load_oai_like_config_button = st.button(
                     label=i18n("Load model config"),
@@ -513,11 +527,17 @@ with st.sidebar:
                     on_click=load_oai_like_config_button_callback,
                 )
 
+                def delete_oai_like_config_button_callback():
+                    selected_index = config_options.index(st.session_state.selected_config)
+                    selected_config_id = config_list[selected_index]['id']
+                    oailike_config_processor.delete_model_config(selected_config_id)
+                    st.toast(i18n("Model config deleted successfully"), icon="🗑️")
+                    # st.rerun()
+
                 delete_oai_like_config_button = st.button(
                     label=i18n("Delete model config"),
                     use_container_width=True,
-                    on_click=oailike_config_processor.delete_model_config,
-                    args=(oai_like_config_list,),
+                    on_click=delete_oai_like_config_button_callback,
                 )
 
         reset_model_button = model_choosing_container.button(
