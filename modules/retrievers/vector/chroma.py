@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from loguru import logger
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
@@ -5,12 +7,14 @@ from modules.retrievers.base import BaseRetriever, BaseContextualRetriever
 from modules.llm.openai import OpenAILLM
 from typing import List, Dict, Optional, Literal, Any, Coroutine
 
+load_dotenv(override=True)
 
 class ChromaRetriever(BaseRetriever):
     def __init__(
         self,
         collection_name: str,
         embedding_model: str,
+        embedding_type: Literal["openai", "aoai", "sentence_transformer"] = "sentence_transformer",
         device: Literal["mps", "cuda", "cpu"] = "cpu",
         *,
         n_results: int = 6,
@@ -19,9 +23,22 @@ class ChromaRetriever(BaseRetriever):
         knowledge_base_path: str = "./databases/knowledgebase",
     ):
         self.client = PersistentClient(path=knowledge_base_path)
-        self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
+
+        if embedding_type == "openai":
+            self.embedding_model = embedding_functions.OpenAIEmbeddingFunction(
+                model_name=embedding_model, api_key=os.getenv("OPENAI_API_KEY")
+            )
+        elif embedding_type == "aoai":
+            self.embedding_model = embedding_functions.OpenAIEmbeddingFunction(
+                model_name=embedding_model, api_key=os.getenv("AZURE_OAI_KEY"),api_base=os.getenv("AZURE_OAI_ENDPOINT"),api_type="azure", api_version=os.getenv("API_VERSION")
+            )
+        elif embedding_type == "sentence_transformer":
+            self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=embedding_model, device=device
         )
+        else:
+            raise ValueError(f"Invalid embedding type: {embedding_type}")
+        
         self.collection = self.client.get_collection(
             collection_name, embedding_function=self.embedding_model
         )
@@ -98,6 +115,7 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         collection_name: str,
         embedding_model: str,
         llm: OpenAILLM,
+        embedding_type: Literal["openai", "aoai", "sentence_transformer"] = "sentence_transformer",
         device: Literal["mps", "cuda", "cpu"] = "cpu",
         *,
         rewrite_by_llm: bool = True,
@@ -110,6 +128,7 @@ class ChromaContextualRetriever(BaseContextualRetriever):
             ChromaRetriever(
                 collection_name=collection_name,
                 embedding_model=embedding_model,
+                embedding_type=embedding_type,
                 device=device,
                 n_results=n_results,
                 where=where,

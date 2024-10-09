@@ -4,7 +4,7 @@
 
 Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 
-![image](https://github.com/user-attachments/assets/d78df76f-ee2a-4dbd-955f-5c7b790c9d6d)
+![image](https://github.com/user-attachments/assets/f50c9b86-55c8-4881-a7cf-b2ccf3b35ece)
 
 ## Features
 
@@ -15,6 +15,8 @@ Chat and Agent interactions:
 - [x] Native Function Call (OpenAI, Azure OpenAI, OpenAI Like, Ollama)
 - [x] 🤖 Multiple Agent modes on-premises
 - [x] 🖥️ Local storage of dialog data and management
+  - [x] Multiple export formats(Markdown, HTML)
+  - [x] Multiple themes(HTML)
 
 Knowledgebase:
 - [x] **Native implementation** of Retrieval Augmentation Generation (RAG), lightweight and efficient
@@ -30,19 +32,31 @@ Knowledgebase:
 
 #### Voice to text input:
 
-![image](https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58)
+<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
+
+#### Export
+
+Support export format, theme selection and export range control:
+
+<img src="https://github.com/user-attachments/assets/f4e1461e-2334-4b45-b4d9-2ff0d79a0e63" alt="Export settings and preview" style="zoom:40%;" />
+
+Currently supported themes: 
+
+| Default | Glassmorphism |
+| :-----: | :-----------: |
+| <img src="https://github.com/user-attachments/assets/6ac8132c-0821-4487-9a1a-a0297a35783a" alt="default theme" width="300" /> | <img src="https://github.com/user-attachments/assets/87b07e86-dd98-4e66-a850-17b776fbeb1c" alt="Glassmorphism theme" width="300" /> |
+
+
 
 ### RAG Chat
 
-![image](https://github.com/user-attachments/assets/03d56128-9fe1-48d4-98ae-9beeae3cca52)
-
 Set up the model (sidebar) and view detailed references:
 
-![image](https://github.com/user-attachments/assets/1c2daa5f-b348-4f27-845c-d9499c517456)
+<img src="https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720" alt="image" style="zoom:50%;" />
 
 Configure RAG ：
 
-![image](https://github.com/user-attachments/assets/e4f31a65-94ff-417b-af21-677ff56c7cd7)
+<img src="https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77" alt="image" style="zoom:50%;" />
 
 ### Function Call
 
@@ -52,7 +66,7 @@ Function calls are supported on both `Chat` and `AgentChat` pages, but are imple
 
 The Function Calls on this page are native and work for all OpenAI Compatible models, but require the model itself to support Function calls.
 
-![image](https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715)
+<img src="https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715" alt="image" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
 
@@ -62,7 +76,7 @@ Relying on the AutoGen framework for implementation (testing), please refer to t
 
 Function call can significantly enhance the capabilities of LLM and currently supports OpenAI, Azure OpenAI, Groq, and local models.（[by LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
 
-![openai function call](https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67)
+<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please note that AutoGen's function writing is **different** from the native function calling writing rules, please refer to the [Official Documentation](https://microsoft.github.io/autogen/docs/tutorial/tool-use/) and this project's [tools.py](llm/aoai/tools/tools.py).
 
@@ -76,6 +90,7 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 1. Configure the model dependencies: Modify the `.env_sample` file to `.env` and fill in the following:
 
     - `LANGUAGE`: Support `English` and `简体中文`, defualt is `English`;
+    - `OPENAI_API_KEY` : If you are using an OpenAI model, fill in the api key here;
     - `AZURE_OAI_KEY` : If you are using an Azure OpenAI model, fill in the api key here;
     - `AZURE_OAI_ENDPOINT` : If you are using an OpenAI model, fill in the end_point here;
     - `API_VERSION`: If you are using an Azure OpenAI model, fill in the api version here;
@@ -87,7 +102,7 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
 2. launch the application:
 
-Run: Run `python startup.py` on the command line can start it.
+Run: Run `streamlit run RAGenT.py` on the command line can start it.
 
 ## Route
 

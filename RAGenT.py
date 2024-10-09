@@ -4,6 +4,7 @@ from streamlit_float import *
 from autogen.agentchat.contrib.capabilities import transforms
 
 import os
+import base64
 from datetime import datetime
 from typing import Optional, List, Dict, Union
 from uuid import uuid4
@@ -21,18 +22,22 @@ from llm.aoai.completion import aoai_config_generator
 from llm.ollama.completion import ollama_config_generator
 from llm.groq.completion import groq_openai_config_generator
 from llm.llamafile.completion import llamafile_config_generator
-from configs.basic_config import (
+from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from configs.chat_config import ChatProcessor, OAILikeConfigProcessor
+from core.chat_processors import ChatProcessor, OAILikeConfigProcessor
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
     write_chat_history,
     config_list_postprocess,
     user_input_constructor,
+    USER_CHAT_STYLE,
+    ASSISTANT_CHAT_STYLE,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG
 )
 
 try:
@@ -40,6 +45,7 @@ try:
         float_chat_input_with_audio_recorder,
         back_to_top,
         back_to_bottom,
+        export_dialog,
     )
 except:
     st.rerun()
@@ -111,6 +117,10 @@ logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
 logo_text = os.path.join(
     os.path.dirname(__file__), "img", "RAGenT_logo_with_text_horizon.png"
 )
+# 将SVG编码为base64
+user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
 # Solve set_pages error caused by "Go to top/bottom of page" button.
 # Only need st.rerun once to fix it, and it works fine thereafter.
 try:
@@ -351,14 +361,22 @@ with st.sidebar:
                         options = model_selector(model_type)
                         if model in options:
                             options_index = options.index(model)
-                            logger.debug(f"model {model} in options, index: {options_index}")
+                            logger.debug(
+                                f"model {model} in options, index: {options_index}"
+                            )
                             return options_index
                         else:
-                            st.session_state.chat_config_list[0].update({"model": options[0]})
-                            logger.debug(f"model {model} not in options, set model in config list to first option: {options[0]}")
+                            st.session_state.chat_config_list[0].update(
+                                {"model": options[0]}
+                            )
+                            logger.debug(
+                                f"model {model} not in options, set model in config list to first option: {options[0]}"
+                            )
                             return 0
                 except (ValueError, AttributeError, IndexError):
-                    logger.warning(f"Model {model} not found in model_selector for {model_type}, returning 0")
+                    logger.warning(
+                        f"Model {model} not found in model_selector for {model_type}, returning 0"
+                    )
                     return 0
 
             select_box1 = model_choosing_container.selectbox(
@@ -419,66 +437,88 @@ with st.sidebar:
                     key="llamafile_api_key",
                     placeholder=i18n("Fill in your API key. (Optional)"),
                 )
+                def save_oai_like_config_button_callback():
+                    config_id = oailike_config_processor.update_config(
+                        model=select_box1,
+                        base_url=llamafile_endpoint,
+                        api_key=llamafile_api_key,
+                        description=st.session_state.get("config_description", "")
+                    )
+                    st.toast(i18n("Model config saved successfully"), icon="✅")
+                    return config_id
+
+                config_description = st.text_input(
+                    label=i18n("Config Description"),
+                    key="config_description",
+                    placeholder=i18n("Enter a description for this configuration")
+                )
+
                 save_oai_like_config_button = st.button(
                     label=i18n("Save model config"),
-                    on_click=oailike_config_processor.update_config,
-                    args=(select_box1, llamafile_endpoint, llamafile_api_key),
+                    on_click=save_oai_like_config_button_callback,
                     use_container_width=True,
                 )
 
                 st.write("---")
 
-                oai_like_config_list = st.selectbox(
+                config_list = oailike_config_processor.list_model_configs()
+                config_options = [f"{config['model']} - {config['description']}" for config in config_list]
+                
+                selected_config = st.selectbox(
                     label=i18n("Select model config"),
-                    options=oailike_config_processor.get_config(),
+                    options=config_options,
+                    format_func=lambda x: x,
                     on_change=lambda: st.toast(
                         i18n("Click the Load button to apply the configuration"),
                         icon="🚨",
                     ),
+                    key="selected_config"
                 )
 
                 def load_oai_like_config_button_callback():
-                    logger.info(f"Loading model config: {oai_like_config_list}")
-                    st.session_state.oai_like_model_config_dict = (
-                        oailike_config_processor.get_model_config(oai_like_config_list)
-                    )
-                    st.session_state.current_run_id_index = run_id_list.index(
-                        st.session_state.run_id
-                    )
-                    st.session_state.model = next(
-                        iter(st.session_state.oai_like_model_config_dict.keys())
-                    )
-                    st.session_state.llamafile_endpoint = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    ).get("base_url")
-                    st.session_state.llamafile_api_key = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    ).get("api_key")
-                    logger.info(f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}")
-
-                    model_config = next(
-                        iter(st.session_state.oai_like_model_config_dict.values())
-                    )
-                    # 只更新model、api_key和base_url参数
-                    st.session_state["chat_config_list"][0]["model"] = next(
-                        iter(st.session_state.oai_like_model_config_dict.keys())
-                    )
-                    st.session_state["chat_config_list"][0]["api_key"] = model_config.get("api_key")
-                    st.session_state["chat_config_list"][0]["base_url"] = model_config.get("base_url")
+                    selected_index = config_options.index(st.session_state.selected_config)
+                    selected_config_id = config_list[selected_index]['id']
                     
-                    logger.info(f"Chat config list updated: {st.session_state.chat_config_list}")
-                    chat_history_storage.upsert(
-                        AssistantRun(
-                            run_id=st.session_state.run_id,
-                            llm=st.session_state["chat_config_list"][0],
-                            assistant_data={
-                                "model_type": st.session_state["model_type"],
-                                "system_prompt": st.session_state["system_prompt"],
-                            },
-                            updated_at=datetime.now(),
+                    logger.info(f"Loading model config: {selected_config_id}")
+                    config = oailike_config_processor.get_model_config(config_id=selected_config_id)
+                    
+                    if config:
+                        config_data = config  # 不再需要 next(iter(config.values()))
+                        st.session_state.oai_like_model_config_dict = {config_data['model']: config_data}
+                        st.session_state.current_run_id_index = run_id_list.index(
+                            st.session_state.run_id
                         )
-                    )
-                    st.toast(i18n("Model config loaded successfully"))
+                        st.session_state.model = config_data['model']
+                        st.session_state.llamafile_endpoint = config_data['base_url']
+                        st.session_state.llamafile_api_key = config_data['api_key']
+                        st.session_state.config_description = config_data.get('description', '')
+                        
+                        logger.info(
+                            f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
+                        )
+
+                        # 更新chat_config_list
+                        st.session_state["chat_config_list"][0]["model"] = config_data['model']
+                        st.session_state["chat_config_list"][0]["api_key"] = config_data['api_key']
+                        st.session_state["chat_config_list"][0]["base_url"] = config_data['base_url']
+
+                        logger.info(
+                            f"Chat config list updated: {st.session_state.chat_config_list}"
+                        )
+                        chat_history_storage.upsert(
+                            AssistantRun(
+                                run_id=st.session_state.run_id,
+                                llm=st.session_state["chat_config_list"][0],
+                                assistant_data={
+                                    "model_type": st.session_state["model_type"],
+                                    "system_prompt": st.session_state["system_prompt"],
+                                },
+                                updated_at=datetime.now(),
+                            )
+                        )
+                        st.toast(i18n("Model config loaded successfully"), icon="✅")
+                    else:
+                        st.toast(i18n("Failed to load model config"), icon="❌")
 
                 load_oai_like_config_button = st.button(
                     label=i18n("Load model config"),
@@ -487,11 +527,17 @@ with st.sidebar:
                     on_click=load_oai_like_config_button_callback,
                 )
 
+                def delete_oai_like_config_button_callback():
+                    selected_index = config_options.index(st.session_state.selected_config)
+                    selected_config_id = config_list[selected_index]['id']
+                    oailike_config_processor.delete_model_config(selected_config_id)
+                    st.toast(i18n("Model config deleted successfully"), icon="🗑️")
+                    # st.rerun()
+
                 delete_oai_like_config_button = st.button(
                     label=i18n("Delete model config"),
                     use_container_width=True,
-                    on_click=oailike_config_processor.delete_model_config,
-                    args=(oai_like_config_list,),
+                    on_click=delete_oai_like_config_button_callback,
                 )
 
         reset_model_button = model_choosing_container.button(
@@ -522,13 +568,19 @@ with st.sidebar:
         def saved_dialog_change_callback():
             origin_config_list = deepcopy(st.session_state.chat_config_list)
             st.session_state.run_id = st.session_state.saved_dialog.run_id
+            st.session_state.current_run_id_index = (
+                chat_history_storage.get_all_run_ids().index(st.session_state.run_id)
+            )
             st.session_state.chat_config_list = [
                 chat_history_storage.get_specific_run(
                     st.session_state.saved_dialog.run_id
                 ).llm
             ]
             logger.info("Dialog changed")
-            log_dict_changes(original_dict=origin_config_list[0], new_dict=st.session_state.chat_config_list[0])
+            log_dict_changes(
+                original_dict=origin_config_list[0],
+                new_dict=st.session_state.chat_config_list[0],
+            )
             try:
                 st.session_state.chat_history = chat_history_storage.get_specific_run(
                     st.session_state.saved_dialog.run_id
@@ -558,11 +610,13 @@ with st.sidebar:
                         name="assistant",
                         run_id=st.session_state.run_id,
                         run_name="New dialog",
-                        llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
+                        llm=aoai_config_generator(
+                            model=model_selector("AOAI")[0], stream=True
+                        )[0],
                         memory={"chat_history": []},
                         assistant_data={
                             "system_prompt": get_system_prompt(st.session_state.run_id),
-                            "model_type": "AOAI"
+                            "model_type": "AOAI",
                         },
                     )
                 )
@@ -588,7 +642,9 @@ with st.sidebar:
                             name="assistant",
                             run_id=st.session_state.run_id,
                             run_name="New dialog",
-                            llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
+                            llm=aoai_config_generator(
+                                model=model_selector("AOAI")[0], stream=True
+                            )[0],
                             memory={"chat_history": []},
                             assistant_data={
                                 "system_prompt": get_system_prompt(
@@ -682,6 +738,9 @@ with st.sidebar:
             min_value=1,
             value=16,
             step=1,
+            help=i18n(
+                "The number of messages to keep in the llm memory."
+            ),
             key="history_length",
         )
 
@@ -691,27 +750,8 @@ with st.sidebar:
         )
 
         export_button_col, clear_button_col = dialog_settings_tab.columns(2)
-        export_button = export_button_col.button(
-            label=i18n("Export chat history"), use_container_width=True
-        )
-        clear_button = clear_button_col.button(
-            label=i18n("Clear chat history"), use_container_width=True
-        )
-        # 本来这里是放clear_button的，但是因为需要更新current_run_id_index，所以放在了下面
-        if export_button:
-            # 将聊天历史导出为Markdown
-            chat_history = "\n".join(
-                [
-                    f"# {message['role']} \n\n{message['content']}\n\n"
-                    for message in st.session_state.chat_history
-                ]
-            )
-            # st.markdown(chat_history)
-            # 将Markdown保存到本地文件夹中
-            with open("chat_history.md", "w") as f:
-                f.write(chat_history)
-            st.toast(body="Chat history exported to chat_history.md", icon="🎉")
-        if clear_button:
+
+        def clear_chat_history_callback():
             st.session_state.chat_history = []
             chat_history_storage.upsert(
                 AssistantRun(
@@ -724,7 +764,24 @@ with st.sidebar:
             st.session_state.current_run_id_index = run_id_list.index(
                 st.session_state.run_id
             )
-            st.rerun()
+            st.toast(body=i18n("Chat history cleared"), icon="🧹")
+
+        export_button = export_button_col.button(
+            label=i18n("Export chat history"),
+            use_container_width=True,
+        )
+        if export_button:
+            export_dialog(
+                chat_history=st.session_state.chat_history,
+                chat_name=st.session_state.run_name,
+                model_name=st.session_state.model
+            )
+        
+        clear_button = clear_button_col.button(
+            label=i18n("Clear chat history"),
+            on_click=clear_chat_history_callback,
+            use_container_width=True,
+        )
 
     with multimodal_settings_tab:
         image_uploader = st.file_uploader(
@@ -757,13 +814,14 @@ prompt = float_chat_input_with_audio_recorder(
 # st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))
 
 # Accept user input
-if prompt and st.session_state.model != None:
-    # if prompt := st.chat_input("What is up?"):
-    # Display user message in chat message container
-    with st.chat_message("user"):
+if prompt and st.session_state.model:
+    # 显示用户消息
+    with st.chat_message("user", avatar=user_avatar):
+        st.html("<span class='chat-user'></span>")
         st.markdown(prompt)
         if image_uploader:
             st.image(image_uploader)
+        st.html(USER_CHAT_STYLE)
 
     # Add user message to chat history
     user_input = user_input_constructor(
@@ -773,27 +831,21 @@ if prompt and st.session_state.model != None:
     st.session_state.chat_history.append(user_input)
 
     # Display assistant response in chat message container
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar=ai_avatar):
         with st.spinner("Thinking..."):
             # 对消息的数量进行限制
             processed_messages = max_msg_transfrom.apply_transform(
                 deepcopy(st.session_state.chat_history)
             )
 
-            # 如果是工具调用，则将用户输入的 system prompt 并入工具调用系统提示，否则直接使用用户输入的 system prompt
-            processed_messages.insert(
-                0,
-                {
-                    "role": "system",
-                    "content": (
-                        ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
-                            user_system_prompt=st.session_state.system_prompt
-                        )
-                        if if_tools_call
-                        else st.session_state.system_prompt
-                    ),
-                },
+            system_prompt = (
+                ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
+                    user_system_prompt=st.session_state.system_prompt
+                )
+                if if_tools_call
+                else st.session_state.system_prompt
             )
+            processed_messages.insert(0, {"role": "system", "content": system_prompt})
 
             chatprocessor = ChatProcessor(
                 requesthandler=requesthandler,
@@ -801,70 +853,51 @@ if prompt and st.session_state.model != None:
                 llm_config=st.session_state.chat_config_list[0],
             )
 
-            # 非流式调用
-            if not if_stream:
-                response = generate_response(
-                    processed_messages=processed_messages,
-                    chatprocessor=chatprocessor,
-                    if_tools_call=if_tools_call,
-                    if_stream=if_stream,
-                )
+            response = generate_response(
+                processed_messages=processed_messages,
+                chatprocessor=chatprocessor,
+                if_tools_call=if_tools_call,
+                if_stream=if_stream,
+            )
 
+            st.html("<span class='chat-assistant'></span>")
+
+            if not if_stream:
                 if "error" not in response:
-                    # st.write(response)
                     response_content = response.choices[0].message.content
                     st.write(response_content)
+                    st.html(ASSISTANT_CHAT_STYLE)
+
                     try:
-                        cost = response.cost
-                        st.write(f"response cost: ${cost}")
+                        st.write(f"response cost: ${response.cost}")
                     except:
                         pass
 
                     st.session_state.chat_history.append(
                         {"role": "assistant", "content": response_content}
                     )
-
-                    # 保存聊天记录
-                    chat_history_storage.upsert(
-                        AssistantRun(
-                            name="assistant",
-                            run_name=st.session_state.run_name,
-                            run_id=st.session_state.run_id,
-                            llm=st.session_state.chat_config_list[0],
-                            memory={"chat_history": st.session_state.chat_history},
-                            assistant_data={
-                                "system_prompt": st.session_state.system_prompt,
-                                "model_type": st.session_state.model_type,
-                            },
-                        )
-                    )
                 else:
                     st.error(response)
-
             else:
-                response = generate_response(
-                    processed_messages=processed_messages,
-                    chatprocessor=chatprocessor,
-                    if_tools_call=if_tools_call,
-                    if_stream=if_stream,
-                )
                 total_response = st.write_stream(response)
-
+                st.html(ASSISTANT_CHAT_STYLE)
                 st.session_state.chat_history.append(
                     {"role": "assistant", "content": total_response}
                 )
-                chat_history_storage.upsert(
-                    AssistantRun(
-                        name="assistant",
-                        run_id=st.session_state.run_id,
-                        run_name=st.session_state.run_name,
-                        llm=st.session_state.chat_config_list[0],
-                        memory={"chat_history": st.session_state.chat_history},
-                        assistant_data={
-                            "system_prompt": st.session_state.system_prompt,
-                            "model_type": st.session_state.model_type,
-                        },
-                    )
+
+            # 保存聊天记录
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_name=st.session_state.run_name,
+                    run_id=st.session_state.run_id,
+                    llm=st.session_state.chat_config_list[0],
+                    memory={"chat_history": st.session_state.chat_history},
+                    assistant_data={
+                        "system_prompt": st.session_state.system_prompt,
+                        "model_type": st.session_state.model_type,
+                    },
                 )
+            )
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

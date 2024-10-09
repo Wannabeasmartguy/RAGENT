@@ -3,22 +3,102 @@ import pyperclip
 from streamlit import cache_resource
 
 import os
-import json
-import uuid
+import re
 import copy
 import base64
+import textwrap
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional, Union, Tuple
 from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from llm.ollama.completion import get_ollama_model_list
 from llm.groq.completion import get_groq_models
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from configs.chat_config import OAILikeConfigProcessor
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.chat_processors import OAILikeConfigProcessor
+from css.export_themes import default_theme, glassmorphism_theme
+
+USER_CHAT_STYLE = """
+<style>
+    .stChatMessage:has(.chat-user) {
+        flex-direction: row-reverse;
+        text-align: right;
+        width: 85%;
+        margin-left: auto;
+        margin-right: 0;
+        background-color: #E7F8FF;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+ASSISTANT_CHAT_STYLE = """
+<style>
+    .stChatMessage:has(.chat-assistant) {
+        flex-direction: row;
+        text-align: left;
+        width: 85%;
+        margin-left: 0;
+        margin-right: auto;
+        background-color: #F3F4F6;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+RAG_CHAT_USER_STYLE = """
+<style>
+    .stChatMessage:has(.rag-chat-user) {
+        flex-direction: row-reverse;
+        text-align: right;
+        width: 90%;
+        margin-left: auto;
+        margin-right: 0;
+        background-color: #E7F8FF;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+RAG_CHAT_ASSISTANT_STYLE = """
+<style>
+    .stChatMessage:has(.rag-chat-assistant) {
+        flex-direction: row;
+        text-align: left;
+        width: 90%;
+        margin-left: 0;
+        margin-right: auto;
+        background-color: #F3F4F6;
+        border-radius: 10px;
+        padding: 20px;
+    }
+</style>
+"""
+
+USER_AVATAR_SVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-square" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M9 10a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+    <path d="M6 21v-1a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v1" />
+    <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
+    </svg>
+"""
+
+AI_AVATAR_SVG = """
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-chatbot" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z" />
+    <path d="M9.5 9h.01" />
+    <path d="M14.5 9h.01" />
+    <path d="M9.5 13a3.5 3.5 0 0 0 5 0" />
+    </svg>
+"""
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
@@ -68,6 +148,12 @@ def oai_model_config_selector(oai_model_config:Dict):
 # Display chat messages from history on app rerun
 @st.cache_data
 def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
+    # 将SVG编码为base64
+    user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
+    # 将SVG编码为base64
+    ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
+
     if chat_history:
         for message in chat_history:
             try:
@@ -75,7 +161,8 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                     continue
             except:
                 pass
-            with st.chat_message(message["role"]):
+            with st.chat_message(message["role"], avatar=user_avatar if message["role"] == "user" else ai_avatar):
+                st.html(f"<span class='chat-{message['role']}'></span>")
                 if isinstance(message["content"], str):
                     st.markdown(message["content"])
                 elif isinstance(message["content"], List):
@@ -89,7 +176,388 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                                 st.image(image_data)
                             else:
                                 st.image(content["image_url"])
+        
+        st.html(
+            """
+            <style>
+                .stChatMessage:has(.chat-user) {
+                    flex-direction: row-reverse;
+                    text-align: right;
+                    width: 85%;
+                    margin-left: auto;
+                    margin-right: 0;
+                    background-color: #E7F8FF;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+                .stChatMessage:has(.chat-assistant) {
+                    flex-direction: row;
+                    text-align: left;
+                    width: 85%;
+                    margin-left: 0;
+                    margin-right: auto;
+                    background-color: #F3F4F6;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+            </style>
+            """
+        )
 
+def wrap_long_text(text: str, max_length: int = 60) -> str:
+    """
+    将长文本按指定长度换行
+    """
+    wrapped_lines = textwrap.wrap(text, max_length)
+    return '<br>'.join(wrapped_lines)
+
+def export_chat_history_callback(
+        chat_history: List[Dict[str, str]], 
+        include_range: Optional[Tuple[int, int]] = None,
+        exclude_indexes: Optional[List[int]] = None,
+        is_rag: bool = False,
+        export_type: Optional[str] = "html",
+        theme: Optional[str] = "default",
+        chat_name: Optional[str] = "Chat history",
+        model_name: Optional[str] = None
+    ):
+    """
+    导出聊天历史记录
+    
+    Args:
+        chat_history (List[Dict[str, str]]): 聊天历史记录
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
+        is_rag (bool, optional): 是否是RAG聊天记录. Defaults to False.
+        export_type (str, optional): 导出类型，支持 "markdown" 和 "html". Defaults to "html".
+        theme (str, optional): 导出主题. Defaults to "default".仅当export_type为html时有效
+        chat_name (str, optional): 聊天记录的名称. Defaults to "Chat history".
+        model_name (str, optional): 模型名称. Defaults to None.仅当export_type为html时有效
+    """
+    # 清理文件名，移除非法字符
+    chat_name = re.sub(r'[\\/*?:"<>|]', "", chat_name).strip()
+    if not chat_name:
+        chat_name = "Chat history"
+
+    export_folder = "chat histories export"
+    os.makedirs(export_folder, exist_ok=True)
+
+    if export_type == "markdown":
+        markdown_content = generate_markdown_chat(
+            chat_history=chat_history,
+            include_range=include_range,
+            exclude_indexes=exclude_indexes,
+            chat_name=chat_name
+        )
+
+        filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name}.md"
+        i = 1
+        while os.path.exists(os.path.join(export_folder, filename)):
+            filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name} ({i}).md"
+            i += 1
+
+        full_path = os.path.join(export_folder, filename)
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(markdown_content)
+        st.toast(body=i18n(f"Chat history exported to: {full_path}"), icon="🎉")
+    
+    elif export_type == "html":
+        html_content = generate_html_chat(
+            chat_history=chat_history,
+            include_range=include_range,
+            exclude_indexes=exclude_indexes,
+            theme=theme,
+            chat_name=chat_name,
+            model_name=model_name
+        )
+
+        filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name}.html"
+        i = 1
+        while os.path.exists(os.path.join(export_folder, filename)):
+            filename = f"{'RAG ' if is_rag else ''}Chat history - {chat_name} ({i}).html"
+            i += 1
+
+        full_path = os.path.join(export_folder, filename)
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        st.toast(body=i18n(f"Chat history exported to: {full_path}"), icon="🎉")
+
+    # elif export_type == "jpg":
+    #     image_stream = html_to_jpg(html_content)
+    #     export_folder = "chat histories export"
+    #     filename = "RAG Chat history.jpg" if is_rag else "Chat history.jpg"
+    #     i = 1
+    #     while os.path.exists(os.path.join(export_folder, filename)):
+    #         filename = f"{'RAG ' if is_rag else ''}Chat history({i}).jpg"
+    #         i += 1
+        
+    #     os.makedirs(export_folder, exist_ok=True)
+    #     with open(os.path.join(export_folder, filename), "wb") as f:
+    #         image_stream.save(f, format="JPEG")
+    #     st.toast(body=i18n(f"Chat history exported to: " + os.path.join(export_folder, filename)), icon="🎉")
+    else:
+        st.error(i18n("Unsupported export type"))
+
+def generate_markdown_chat(
+    chat_history: List[Dict[str, str]], 
+    include_range: Optional[Tuple[int, int]] = None, 
+    exclude_indexes: Optional[List[int]] = None,
+    chat_name: Optional[str] = "Chat history"
+) -> str:
+    """
+    生成Markdown格式的聊天历史
+
+    Args:
+        chat_history (List[Dict[str, str]]): 完整的聊天历史
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
+
+    Returns:
+        str: 生成的Markdown格式聊天历史
+    """
+    formatted_history = []
+    image_references = []
+    image_counter = 0
+
+    # 如果没有指定范围，则处理所有消息
+    if include_range is None:
+        include_range = (0, len(chat_history) - 1)
+    
+    # 如果没有指定排除索引，初始化为空列表
+    if exclude_indexes is None:
+        exclude_indexes = []
+
+    formatted_history.append(f"# {chat_name}\n\n")
+
+    for i in range(include_range[0], include_range[1] + 1):
+        if i in exclude_indexes:
+            continue
+
+        message = chat_history[i]
+        role = message['role'].title()
+        content = message['content']
+        
+        formatted_history.append(f"## {role}\n\n")
+        
+        if isinstance(content, str):
+            formatted_history.append(f"{content}\n\n")
+        elif isinstance(content, list):
+            for item in content:
+                if item['type'] == 'text':
+                    formatted_history.append(f"{item['text']}\n\n")
+                elif item['type'] == 'image_url':
+                    image_url = item['image_url'].get('url', '')
+                    image_counter += 1
+                    reference_id = f"image{image_counter}"
+                    
+                    if image_url.startswith('data:image/jpeg;base64,'):
+                        formatted_history.append(f"![image][{reference_id}]\n\n")
+                        image_references.append(f"[{reference_id}]: {image_url}\n")
+                    else:
+                        formatted_history.append(f"![Image]({image_url})\n\n")
+    
+    # 添加图片引用到文档末尾
+    if image_references:
+        formatted_history.append("\n\n<!-- Image References -->\n")
+        formatted_history.extend(image_references)
+    
+    chat_history_text = "".join(formatted_history)
+
+    return chat_history_text
+
+def generate_html_chat(
+        chat_history: List[Dict[str, str]], 
+        include_range: Optional[Tuple[int, int]] = None, 
+        exclude_indexes: Optional[List[int]] = None,
+        theme: Optional[str] = "default",
+        chat_name: Optional[str] = "Chat history",
+        model_name: Optional[str] = None,
+        code_theme: Optional[str] = "github-dark"
+    ) -> str:
+    """
+    生成HTML格式的聊天历史，支持Markdown渲染，并使用指定的主题
+
+    Args:
+        chat_history (List[Dict[str, str]]): 完整的聊天历史
+        include_range (Optional[Tuple[int, int]]): 要包含的消息索引范围，例如 (0, 10)
+        exclude_indexes (Optional[List[int]]): 要排除的消息索引列表，例如 [2, 5, 8]
+        theme (str, optional): 导出主题. Defaults to "default".
+        chat_name (str, optional): 聊天记录的名称. Defaults to "Chat history".
+        model_name (str, optional): 模型名称. Defaults to None.
+        code_theme (str, optional): 代码主题. Defaults to "github-dark".可选值见 https://highlightjs.org/examples
+
+    Returns:
+        str: 生成的HTML格式聊天历史
+    """
+    if theme == "default":
+        css_theme = default_theme
+    elif theme == "glassmorphism":
+        css_theme = glassmorphism_theme
+    else:
+        css_theme = default_theme  # 默认使用 default 主题
+
+    html_template = """
+    <!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{chat_name}</title>
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/{code_theme}.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+        <style>
+            {css_theme}
+            pre {{
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                background-color: #1A1B26;
+                border-radius: 5px;
+                padding: 1em;
+                margin: 1em 0;
+            }}
+            code {{
+                display: block;
+                overflow-x: auto;
+                padding: 0.5em;
+                background-color: #1A1B26;
+                font-family: 'Courier New', Courier, monospace;
+                color: #CBD2EA;
+            }}
+            code[class*="language-"] {{
+                background-color: #1A1B26;
+                color: #CBD2EA;
+            }}
+            .message.user pre,
+            .message.user code {{
+                text-align: left;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="info-card">
+                <div class="info-left">
+                    <div class="project-name">RAGENT</div>
+                    <div class="project-url">
+                        <a href="https://github.com/Wannabeasmartguy/RAGENT" target="_blank">
+                            github.com/Wannabeasmartguy/RAGENT
+                        </a>
+                    </div>
+                </div>
+                <div class="info-right">
+                    <div class="info-right-content model-name">Model: {model_name}</div>
+                    <div class="info-right-content message-count">Messages: {message_count}</div>
+                    <div class="info-right-content chat-name">Chat: {chat_name}</div>
+                </div>
+            </div>
+            <div class="chat-container">
+                {chat_messages}
+            </div>
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', (event) => {{
+                marked.setOptions({{
+                    breaks: true,
+                    gfm: true,
+                    highlight: function(code, lang) {{
+                        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                        return hljs.highlight(code, {{ language }}).value;
+                    }},
+                    langPrefix: 'hljs language-'
+                }});
+                
+                document.querySelectorAll('.markdown-content').forEach((element) => {{
+                    element.innerHTML = marked.parse(element.textContent);
+                }});
+                
+                hljs.highlightAll();
+
+                // 确保代码块内的换行符被保留
+                document.querySelectorAll('pre code').forEach((block) => {{
+                    block.innerHTML = block.innerHTML.replace(/\\n/g, '<br>');
+                }});
+            }});
+        </script>
+    </body>
+    </html>
+    """
+
+    model_name = model_name if model_name is not None else "Not specified"
+    wrapped_chat_name = wrap_long_text(chat_name)
+
+    if include_range is None:
+        include_range = (0, len(chat_history) - 1)
+    if exclude_indexes is None:
+        exclude_indexes = []
+    
+    # 计算消息数量，方法为：include_range范围长度 - exclude_indexes的元素个数
+    message_count = include_range[1] - include_range[0] + 1 - len(exclude_indexes)
+
+    chat_messages = []
+    for i in range(include_range[0], include_range[1] + 1):
+        if i in exclude_indexes:
+            continue
+
+        message = chat_history[i]
+        role = message['role']
+        content = message['content']
+        
+        message_html = f'<div class="message {role}">'
+        message_html += f'<div class="role">{role.capitalize()}</div>'
+        
+        if isinstance(content, str):
+            message_html += f'<div class="markdown-content">{content}</div>'
+        elif isinstance(content, list):
+            for item in content:
+                if item['type'] == 'text':
+                    message_html += f'<div class="markdown-content">{item["text"]}</div>'
+                elif item['type'] == 'image_url':
+                    image_url = item['image_url'].get('url', '')
+                    message_html += f'<img src="{image_url}" alt="Image">'
+        
+        message_html += '</div>'
+        chat_messages.append(message_html)
+    
+    # 使用 str.replace() 来插入 CSS 主题
+    html_content = html_template.replace("{css_theme}", css_theme)
+    # 然后使用 .format() 插入聊天消息
+    html_content = html_content.format(
+        chat_messages="\n".join(chat_messages),
+        chat_name=wrapped_chat_name,
+        model_name=model_name,
+        message_count=message_count,
+        code_theme=code_theme
+    )
+    
+    return html_content
+
+# def html_to_jpg(html_content: str) -> Image:
+#     """
+#     将HTML内容转换为JPG图片
+#     """
+#     image_bytes = html_to_image_bytes(html_content)
+#     image = bytes_to_jpg(image_bytes)
+#     return image
+
+# def html_to_image_bytes(html_content: str) -> BytesIO:
+#     """
+#     将HTML内容转换为BytesIO对象
+#     """
+#     from weasyprint import HTML
+    
+#     html = HTML(string=html_content)
+#     img_io = BytesIO()
+#     html.write_png(img_io)
+#     img_io.seek(0)
+#     return img_io
+
+# def bytes_to_jpg(bytes_content: BytesIO) -> Image:
+#     """
+#     将BytesIO内容转换为JPG图片
+#     """
+#     image = Image.open(bytes_content)
+#     return image
 
 def split_list_by_key_value(dict_list, key, value):
     result = []
@@ -115,44 +583,6 @@ def split_list_by_key_value(dict_list, key, value):
         result.append(temp_list)
 
     return result
-
-
-def save_basic_chat_history(
-        chat_name: str,
-        chat_history: List[Dict[str, str]], 
-        chat_history_file: str = 'chat_history.json'):
-    """
-    保存一般 LLM Chat 聊天记录
-    
-    Args:
-        user_id (str): 用户id
-        chat_history (List[Tuple[str, str]]): 聊天记录
-        chat_history_file (str, optional): 聊天记录文件. Defaults to 'chat_history.json'.
-    """
-    # TODO: 添加重名检测，如果重名则添加时间戳
-    # 如果聊天历史记录文件不存在，则创建一个空的文件
-    if not os.path.exists(chat_history_file):
-        with open(chat_history_file, 'w', encoding='utf-8') as f:
-            json.dump({}, f)
-    
-    # 打开聊天历史记录文件，读取数据
-    with open(chat_history_file, 'r', encoding='utf-8') as f:
-        data:dict = json.load(f)
-        
-    # 如果聊天室名字不在数据中，则添加聊天的名字和完整聊天历史记录
-    if chat_name not in data:
-        data.update(
-            {
-                chat_name: {
-                    "chat_history":chat_history,
-                    "id": str(uuid.uuid4())
-                }
-            }
-        )
-        
-    # 打开聊天历史记录文件，写入更新后的数据
-    with open(chat_history_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
 
 
 def list_length_transform(n, lst) -> List:
@@ -267,6 +697,12 @@ def current_datetime_utc() -> datetime:
 
 def current_datetime_utc_str() -> str:
     return current_datetime_utc().strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def datetime_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 
 def encode_image(image: BytesIO) -> str:

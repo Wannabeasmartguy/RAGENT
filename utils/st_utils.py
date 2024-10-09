@@ -3,15 +3,19 @@ import streamlit.components.v1 as components
 import os
 import time
 import whisper
+from typing import List, Dict, Optional
 from streamlit_float import *
 from audiorecorder import audiorecorder
 
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from utils.basic_utils import copy_to_clipboard
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from utils.basic_utils import (
+    copy_to_clipboard,
+    export_chat_history_callback
+)
 from tools.toolkits import TO_TOOLS
 
-# TODO:后续使用 st.selectbox 替换,选项为 "English", "简体中文"
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+language = os.getenv("LANGUAGE", "简体中文")
+i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 
 def back_to_top(script_container = st.empty(), buttom_container = st.empty()):
@@ -100,6 +104,18 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
         #     storage.upsert()
 
         # the chat input in the middle
+        st.markdown(
+            """
+            <style> 
+                .stChatInput > div {
+                    background-color: #FFFFFF;
+                    border-radius: 10px;
+                    border: 1px solid #E0E0E0;
+                }
+            </style>
+            """, 
+            unsafe_allow_html=True
+        )
         character_input_placeholder = character_input_column.empty()
         prompt = character_input_placeholder.chat_input("What is up?", disabled=prompt_disabled)
 
@@ -166,3 +182,114 @@ def define_fragment_image_uploader(
         accept_multiple_files=True,
         key=key,
     )
+
+@st.dialog(title=i18n("Export Settings"), width="large")
+def export_dialog(
+    chat_history: List[Dict],
+    is_rag: bool = False,
+    chat_name: str = "Chat history",
+    model_name: Optional[str] = None
+):
+    with st.container(border=True):
+        export_type = st.selectbox(
+            label=i18n("Export File Type"),
+            options=["markdown", "html"],
+            format_func=lambda x: x.title()
+        )
+        if export_type == "html":
+            export_theme = st.selectbox(
+                label=i18n("Please select the theme to use"),
+                options=["default", "glassmorphism"],
+                format_func=lambda x: x.title()
+            )
+
+        if len(chat_history) > 2:
+            with st.expander(i18n("Advanced Options")):
+                include_range = st.select_slider(
+                    label=i18n("Include range"),
+                    options=["All", "Custom"],
+                    value="All"
+                )
+                if include_range == "Custom":
+                    start_position_column, end_position_column = st.columns(2)
+                    with start_position_column:
+                        # 起始位置，从1开始（符合用户习惯）
+                        start_position = st.slider(
+                            label=i18n("Start Position"),
+                            min_value=1,
+                            max_value=len(chat_history)-1,
+                            value=1,
+                        )
+                    with end_position_column:
+                        # 结束位置，从1开始（符合用户习惯）
+                        end_position = st.slider(
+                            label=i18n("End Position"),
+                            min_value=start_position,
+                            max_value=len(chat_history),
+                            value=len(chat_history)
+                        )
+
+                    # 动态生成 exclude_indexes 的选项
+                    exclude_options = list(range(start_position, end_position + 1))
+                    
+                    # 排除的对话消息索引
+                    exclude_indexes = st.multiselect(
+                        label=i18n("Exclude indexes"),
+                        options=exclude_options,
+                        default=[],
+                        format_func=lambda x: f"Message {x}",
+                        placeholder=i18n("Selected messages will not be exported")
+                    )
+        else:
+            include_range = "All"
+
+        export_submit_button = st.button(
+            label=i18n("Export"),
+            use_container_width=True,
+            type="primary"
+        )
+    
+    if export_type == "markdown":
+        from utils.basic_utils import generate_markdown_chat
+        # 传入的值从1开始，但要求传入的值从0开始
+        preview_content = generate_markdown_chat(
+            chat_history=chat_history,
+            chat_name=chat_name,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
+        )
+        with st.expander(i18n("Preview")):
+            content_preview = st.markdown(preview_content)
+    elif export_type == "html":
+        from utils.basic_utils import generate_html_chat
+        # 传入的值从1开始，但要求传入的值从0开始
+        preview_content = generate_html_chat(
+            chat_history=chat_history,
+            chat_name=chat_name,
+            model_name=model_name,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
+            theme=export_theme
+        )
+        with st.expander(i18n("Preview")):
+            st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
+            content_preview = st.html(preview_content)
+    # elif export_type == "jpg":
+    #     from utils.basic_utils import html_to_jpg
+    #     preview_content = html_to_jpg(chat_history)
+    #     with st.expander(i18n("Preview")):
+    #         st.info(i18n("Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."))
+    #         content_preview = st.image(preview_content)
+
+    if export_submit_button:
+        # 传入的值从1开始，但要求传入的值从0开始
+        export_chat_history_callback(
+            chat_history=chat_history,
+            include_range=(start_position-1, end_position-1) if include_range == "Custom" else None,
+            exclude_indexes=[x-1 for x in exclude_indexes] if include_range == "Custom" else None,
+            is_rag=is_rag,
+            export_type=export_type,
+            theme=export_theme if export_type == "html" else None,
+            chat_name=chat_name,
+            model_name=model_name
+        )

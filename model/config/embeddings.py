@@ -1,38 +1,47 @@
 from datetime import datetime
-from typing import Optional, Any, Dict, Literal
-from pydantic import BaseModel, ConfigDict
+from typing import Optional, Any, Dict, Literal, List
+from pydantic import BaseModel, ConfigDict, Field
 
+class EmbeddingModelConfiguration(BaseModel):
+    """嵌入模型配置"""
+    id: str
+    name: str
+    embedding_type: str
+    embedding_model_name_or_path: str
+    device: Optional[str] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    api_type: Optional[Literal['azure', 'openai']] = None
+    api_version: Optional[str] = None
+    max_seq_length: Optional[int] = None
+    additional_model_data: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+class KnowledgeBaseConfiguration(BaseModel):
+    """知识库配置"""
+    id: str
+    name: str
+    embedding_model_id: str
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+class GlobalSettings(BaseModel):
+    """全局设置"""
+    default_model: str
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 class EmbeddingConfiguration(BaseModel):
-    """embedding config that is stored in the database"""
+    """完整的嵌入配置"""
+    global_settings: GlobalSettings
+    models: List[EmbeddingModelConfiguration]
+    knowledge_bases: List[KnowledgeBaseConfiguration]
     user_id: Optional[str] = None
-    '''The user id of the user who created this embedding'''
-    model_id: str
-    '''The model id of the model that this embedding is for'''
-    embedding_type: str
-    '''The type of embedding to use'''
-    embedding_model_name_or_path: str
-    '''The model name or path to use for the embedding'''
-    device: Optional[str] = None
-    '''The device to use for the embedding'''
-    api_key: Optional[str] = None
-    '''The API key to use for the embedding'''
-    base_url: Optional[str] = None
-    '''The API base to use for the embedding'''
-    api_type: Literal['azure', 'openai'] = None
-    '''The API type to use for the embedding, only used in (azure) openai embeddings'''
-    api_version: Optional[str] = None
-    '''The API version to use for the embedding, only used in azure openai embeddings'''
-    max_seq_length: Optional[int] = None
-    '''The maximum sequence length for the embedding'''
-    additional_model_data: Optional[str] = None
-    '''Other model data to use for the embedding'''
-    created_at: Optional[datetime] = None
-    '''The timestamp of when this run was created'''
-    updated_at: Optional[datetime] = None
-    '''The timestamp of when this run was last updated'''
+    created_at: Optional[datetime] = datetime.now()
+    updated_at: Optional[datetime] = datetime.now()
 
-    model_config = ConfigDict(from_attributes=True,protected_namespaces=())
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     def serializable_dict(self) -> Dict[str, Any]:
         _dict = self.model_dump(exclude={"created_at", "updated_at"})
@@ -41,8 +50,9 @@ class EmbeddingConfiguration(BaseModel):
         return _dict
 
 class CollectionEmbeddingConfiguration(EmbeddingConfiguration):
-    """knowledgebase collection embedding config that is stored in the database"""
+    """知识库集合嵌入配置"""
     collection_name: str
     '''The name of the collection to use for the embedding'''
     collection_id: Optional[str] = None
-    '''The id of the collection to use for the embedding'''
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())

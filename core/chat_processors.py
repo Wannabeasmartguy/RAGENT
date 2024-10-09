@@ -3,6 +3,7 @@ from functools import partial
 from uuid import uuid4
 import os
 import json
+import uuid
 import requests
 import copy
 
@@ -11,18 +12,19 @@ from groq import Groq
 
 from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
 from api.routers.chat import LLMConfig, LLMParams
-from configs.strategy import (
+from core.strategy import (
     ChatProcessStrategy,
     AgentChatProcessoStrategy,
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
-from configs.basic_config import (
+from core.basic_config import (
     CONFIGS_BASE_DIR,
     CONFIGS_DB_FILE,
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )
+from core.encryption import Encryptor
 from storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
@@ -352,15 +354,38 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         with open(embedding_config_file_path, "r", encoding="utf-8") as f:
             embedding_config = json.load(f)
         try:
-            collection_config = embedding_config.get(collection_name, {})
-            embedding_model_or_path = collection_config.get("embedding_model_name_or_path")
+            knowledge_bases = embedding_config.get("knowledge_bases", [])
+            collection_config = next((kb for kb in knowledge_bases if kb.get("name") == collection_name), None)
+            # 实际要传入的collection_name是collection_name的值，而不是collection_name的key
+            collection_id = collection_config.get("id")
+
+            if not collection_config:
+                raise ValueError(f"在embedding_config中没有找到collection_name: {collection_name} 的配置")
+            
+            model_id = collection_config.get("embedding_model_id")
+            models = embedding_config.get("models", [])
+            embedding_model = next((model for model in models if model.get("id") == model_id), None)
+            
+            if not embedding_model:
+                raise ValueError(f"在embedding_config中没有找到id为 {model_id} 的embedding模型配置")
+            
+            embedding_model_or_path = embedding_model.get("embedding_model_name_or_path")
+            embedding_type = embedding_model.get("embedding_type")
+            if not embedding_model_or_path:
+                raise ValueError(f"embedding模型 {model_id} 缺少embedding_model_name_or_path配置")
         except Exception as e:
-            raise ValueError(f"embedding_config_file_path: {embedding_config_file_path} 中没有找到collection_name: {collection_name} 的配置") from e
+            raise ValueError(f"处理embedding配置时出错: {str(e)}") from e
+        
+        # 如果id在models中对应的embedding_type是sentence_transformer, 则路径需要加上"embeddings/"
+        if embedding_model.get("embedding_type") == "sentence_transformer":
+            embedding_model_or_path = os.path.join("embeddings", embedding_model_or_path)
+            embedding_type = "sentence_transformer"
         
         retriever = ChromaContextualRetriever(
             llm=llm,
-            collection_name=collection_name,
+            collection_name=collection_id,
             embedding_model=embedding_model_or_path,
+            embedding_type=embedding_type,
         )
         retriever.update_context_messages(context_messages)
         
@@ -456,11 +481,12 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
     def __init__(self):
+        self.encryptor = Encryptor()
         # 如果本地没有custom_model_config.json文件，则创建文件夹及文件
         if not os.path.exists(self.config_path):
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, "w") as f:
-                json.dump({}, f)
+                json.dump({}, f, indent=4)
         
         # 读取custom_model_config.json文件
         with open(self.config_path, "r") as f:
@@ -480,50 +506,95 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     
     def update_config(
             self, 
-            model:str,
+            model: str,
             base_url: str,
             api_key: str,
-        ) -> None:
+            custom_name: str = "",
+            description: str = "",
+        ) -> str:
         """
-        更新模型的配置信息
+        更新或添加模型的配置信息
         
         Args:
-            config (Dict): 模型的配置信息
-                该字典以model为key，以model的配置信息为value:
-                {
-                    "deepseek-chat": {
-                        "base_url": "https://api.deepseek.com/v1/",
-                        "api_key": "your_api_key"
-                    }
-                }
+            model (str): 模型名称
+            base_url (str): API基础URL
+            api_key (str): API密钥
+            description (str): 配置描述，用于区分相同模型的不同配置
+
+        Returns:
+            str: 配置的唯一标识符
         """
+        config_id = str(uuid.uuid4())
         config = {
-            "base_url": base_url,
-            "api_key": api_key
+            "model": model,
+            "base_url": self.encryptor.encrypt(base_url),
+            "api_key": self.encryptor.encrypt(api_key),
+            "custom_name": custom_name,
+            "description": description
         }
-        self.exist_config[model] = config
+        self.exist_config[config_id] = config
         
         # 更新custom_model_config.json文件
         with open(self.config_path, "w") as f:
-            json.dump(self.exist_config, f)
+            json.dump(self.exist_config, f, indent=4)
         
-    def delete_model_config(self, model:str) -> None:
+        return config_id
+        
+    def delete_model_config(self, config_id: str) -> None:
         """
         删除模型的配置信息
         """
-        if model in self.exist_config:
-            del self.exist_config[model]
+        if config_id in self.exist_config:
+            del self.exist_config[config_id]
             
             # 更新custom_model_config.json文件
             with open(self.config_path, "w") as f:
-                json.dump(self.exist_config, f)
+                json.dump(self.exist_config, f, indent=4)
                 
-    def get_model_config(self,model:str) -> Dict:
+    def get_model_config(self, model: str = None, config_id: str = None) -> Dict:
         """
-        获取指定模型的配置信息
+        获取指定模型或配置ID的配置信息
+        
+        Args:
+            model (str, optional): 模型名称
+            config_id (str, optional): 配置ID
+
+        Returns:
+            Dict: 匹配的配置信息字典
         """
-        dict_body = self.exist_config.get(model, {})
-        return {model: dict_body}
+        if config_id:
+            config = self.exist_config.get(config_id, {})
+            if config:
+                config["base_url"] = self.encryptor.decrypt(config["base_url"])
+                config["api_key"] = self.encryptor.decrypt(config["api_key"])
+            return config
+        elif model:
+            return {
+                config_id: {
+                    **config,
+                    "base_url": self.encryptor.decrypt(config["base_url"]),
+                    "api_key": self.encryptor.decrypt(config["api_key"]),
+                }
+                for config_id, config in self.exist_config.items()
+                if config["model"] == model
+            }
+        else:
+            return {}
+
+    def list_model_configs(self) -> List[Dict]:
+        """
+        列出所有模型配置
+        
+        Returns:
+            List[Dict]: 包含所有配置信息的列表
+        """
+        return [
+            {
+                "id": config_id, 
+                **{k: v if k not in ['base_url', 'api_key'] else '******' for k, v in config.items()}
+            }
+            for config_id, config in self.exist_config.items()
+        ]
 
 
 class OAILikeSqliteConfigProcessor(OpenAILikeModelConfigProcessStrategy):

@@ -2,9 +2,9 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from configs.chat_config import CozeChatProcessor
+from core.chat_processors import CozeChatProcessor
 from model.coze.bot import Bot
-from configs.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 import streamlit as st
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
