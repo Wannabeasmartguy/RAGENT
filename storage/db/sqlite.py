@@ -21,7 +21,8 @@ from model.chat.assistant import AssistantRun
 from model.config.llm import *
 from storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
-
+from core.encryption import Encryptor
+import json
 LLM_Subclass_With_BaseUrl = Union[AzureOpenAILLMConfiguration, OpenAILikeLLMConfiguration]
 
 class SqliteMemoryDb:
@@ -174,6 +175,7 @@ class SqlAssistantStorage(Sqlstorage):
         db_url: Optional[str] = None,
         db_file: Optional[str] = None,
         db_engine: Optional[Engine] = None,
+        encryption_key: Optional[str] = None,
     ):
         """
         This class provides assistant storage using a sqlite database.
@@ -212,6 +214,28 @@ class SqlAssistantStorage(Sqlstorage):
         # Database table for storage
         self.table: Table = self.get_table()
 
+        # Initialize encryptor
+        self.encryptor: Encryptor = Encryptor(key=encryption_key)
+
+    def _encrypt_sensitive_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        encrypted_data = data.copy()
+        sensitive_fields = ['llm', 'memory']
+        for field in sensitive_fields:
+            if field in encrypted_data and encrypted_data[field]:
+                encrypted_data[field] = self.encryptor.encrypt(json.dumps(encrypted_data[field]))
+        return encrypted_data
+
+    def _decrypt_sensitive_data(self, row: Row[Any]) -> Dict[str, Any]:
+        decrypted_data = dict(row._mapping)
+        sensitive_fields = ['llm', 'memory']
+        for field in sensitive_fields:
+            if field in decrypted_data and decrypted_data[field]:
+                try:
+                    decrypted_data[field] = json.loads(self.encryptor.decrypt(decrypted_data[field]))
+                except Exception as e:
+                    logger.warning(f"Error decrypting {field}: {e}")
+        return decrypted_data
+    
     def get_table(self) -> Table:
         return Table(
             self.table_name,
@@ -271,7 +295,10 @@ class SqlAssistantStorage(Sqlstorage):
     def read(self, run_id: str) -> Optional[AssistantRun]:
         with self.Session() as sess:
             existing_row: Optional[Row[Any]] = self._read(session=sess, run_id=run_id)
-            return AssistantRun.model_validate(existing_row) if existing_row is not None else None
+            if existing_row is not None:
+                decrypted_row = self._decrypt_sensitive_data(existing_row)
+                return AssistantRun.model_validate(decrypted_row)
+            return None
 
     def get_all_run_ids(
             self, 
@@ -295,7 +322,8 @@ class SqlAssistantStorage(Sqlstorage):
                 rows = sess.execute(stmt).fetchall()
                 for row in rows:
                     if row is not None and row.run_id is not None:
-                        run_ids.append(row.run_id)
+                        decrypted_row = self._decrypt_sensitive_data(row)
+                        run_ids.append(decrypted_row['run_id'])
         except OperationalError:
             logger.debug(f"Table does not exist: {self.table.name}")
             pass
@@ -323,7 +351,8 @@ class SqlAssistantStorage(Sqlstorage):
                 rows = sess.execute(stmt).fetchall()
                 for row in rows:
                     if row.run_id is not None:
-                        conversations.append(AssistantRun.model_validate(row))
+                        decrypted_row = self._decrypt_sensitive_data(row)
+                        conversations.append(AssistantRun.model_validate(decrypted_row))
         except OperationalError:
             logger.debug(f"Table does not exist: {self.table.name}")
             pass
@@ -339,7 +368,9 @@ class SqlAssistantStorage(Sqlstorage):
                     
                 # execute query
                 row = sess.execute(stmt).first()
-                return AssistantRun.model_validate(row)
+                if row is not None:
+                    decrypted_row = self._decrypt_sensitive_data(row)
+                    return AssistantRun.model_validate(decrypted_row)
             
         except OperationalError:
             logger.debug(f"Table does not exist: {self.table.name}")
@@ -351,32 +382,35 @@ class SqlAssistantStorage(Sqlstorage):
         Create a new assistant run if it does not exist, otherwise update the existing conversation.
         """
         with self.Session() as sess:
+            # Before upserting, encrypt sensitive data
+            encrypted_data = self._encrypt_sensitive_data(row.model_dump())
+
             # Create an insert statement
             stmt = sqlite.insert(self.table).values(
-                run_id=row.run_id,
-                name=row.name,
-                run_name=row.run_name,
-                user_id=row.user_id,
-                llm=row.llm,
-                memory=row.memory,
-                assistant_data=row.assistant_data,
-                run_data=row.run_data,
-                user_data=row.user_data,
-                task_data=row.task_data,
+                run_id=encrypted_data['run_id'],
+                name=encrypted_data['name'],
+                run_name=encrypted_data['run_name'],
+                user_id=encrypted_data['user_id'],
+                llm=encrypted_data['llm'],
+                memory=encrypted_data['memory'],
+                assistant_data=encrypted_data['assistant_data'],
+                run_data=encrypted_data['run_data'],
+                user_data=encrypted_data['user_data'],
+                task_data=encrypted_data['task_data'],
                 updated_at=datetime.now(),
             )
 
             # Define the upsert if the run_id already exists
             update_dict = {
-                'name': row.name,
-                'run_name': row.run_name,
-                'user_id': row.user_id,
-                'llm': row.llm,
-                'memory': row.memory,
-                'assistant_data': row.assistant_data,
-                'run_data': row.run_data,
-                'user_data': row.user_data,
-                'task_data': row.task_data,
+                'name': encrypted_data['name'],
+                'run_name': encrypted_data['run_name'],
+                'user_id': encrypted_data['user_id'],
+                'llm': encrypted_data['llm'],
+                'memory': encrypted_data['memory'],
+                'assistant_data': encrypted_data['assistant_data'],
+                'run_data': encrypted_data['run_data'],
+                'user_data': encrypted_data['user_data'],
+                'task_data': encrypted_data['task_data'],
                 'updated_at': datetime.now(),
             }
 
@@ -391,15 +425,15 @@ class SqlAssistantStorage(Sqlstorage):
             try:
                 sess.execute(stmt)
                 sess.commit()  # Make sure to commit the changes to the database
-                logger.info(f"Upserted assistant run: run_id = {row.run_id}, name = {row.run_name}")
-                return self.read(run_id=row.run_id)
+                logger.info(f"Upserted assistant run: run_id = {encrypted_data['run_id']}, name = {encrypted_data['run_name']}")
+                return self.read(run_id=encrypted_data['run_id'])
             except OperationalError as oe:
                 logger.debug(f"OperationalError occurred: {oe}")
                 self.create()  # This will only create the table if it doesn't exist
                 try:
                     sess.execute(stmt)
                     sess.commit()
-                    return self.read(run_id=row.run_id)
+                    return self.read(run_id=encrypted_data['run_id'])
                 except Exception as e:
                     logger.warning(f"Error during upsert: {e}")
                     sess.rollback()  # Rollback the session in case of any error

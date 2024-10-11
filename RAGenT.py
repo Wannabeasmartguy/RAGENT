@@ -421,6 +421,7 @@ with st.sidebar:
                     label=i18n("Llamafile endpoint"),
                     value=get_selected_llamafile_endpoint(),
                     key="llamafile_endpoint",
+                    type="password",
                 )
 
                 def get_selected_llamafile_api_key() -> str:
@@ -435,6 +436,7 @@ with st.sidebar:
                     label=i18n("Llamafile API key"),
                     value=get_selected_llamafile_api_key(),
                     key="llamafile_api_key",
+                    type="password",
                     placeholder=i18n("Fill in your API key. (Optional)"),
                 )
                 def save_oai_like_config_button_callback():
