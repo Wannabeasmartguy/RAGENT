@@ -78,7 +78,8 @@ class ChromaRetriever(BaseRetriever):
         )
         page_content = results["documents"][0]
         metadatas = results["metadatas"][0]
-        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
+        distances = results["distances"][0]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas, distances=distances)
 
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
         return super().ainvoke(query)
@@ -89,9 +90,16 @@ class ChromaRetriever(BaseRetriever):
         result = []
         documents = query_results["documents"][0]
         metadatas = query_results["metadatas"][0]
+        distances = query_results["distances"][0]
 
-        for doc, meta in zip(documents, metadatas):
-            result.append({"page_content": doc, "metadatas": meta})
+        for doc, meta, dist in zip(documents, metadatas, distances):
+            result.append(
+                {
+                    "page_content": doc,
+                    "metadatas": meta,
+                    "distance": dist
+                }
+            )
 
         return result
     
@@ -166,7 +174,8 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         )
         page_content = results["documents"][0]
         metadatas = results["metadatas"][0]
-        return dict(result=results_str, page_content=page_content, metadatas=metadatas)
+        distances = results["distances"][0]
+        return dict(result=results_str, page_content=page_content, metadatas=metadatas, distances=distances)
 
     @classmethod
     def transform_to_documents(cls, query_results: Dict[str, Any]):
@@ -174,8 +183,15 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         result = []
         documents = query_results["documents"][0]
         metadatas = query_results["metadatas"][0]
+        distances = query_results["distances"][0]
 
-        for doc, meta in zip(documents, metadatas):
-            result.append({"page_content": doc, "metadatas": meta})
+        for doc, meta, dist in zip(documents, metadatas, distances):
+            result.append(
+                {
+                    "page_content": doc,
+                    "metadatas": meta,
+                    "distance": dist
+                }
+            )
 
         return result

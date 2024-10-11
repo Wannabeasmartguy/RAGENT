@@ -145,5 +145,6 @@
     "Failed to load model config": "Failed to load model config",
     "Model config deleted successfully": "Model config deleted successfully",
     "Chat history cleared": "Chat history cleared",
-    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result."
+    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.",
+    "Vector Distance": "Vector Distance"
 }

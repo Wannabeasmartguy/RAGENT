@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 import base64
+from typing import Dict, Any
 from streamlit_float import *
 from uuid import uuid4
 from copy import deepcopy
@@ -69,9 +70,10 @@ def refresh_retriever():
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
 
-def save_rag_chat_history(response: BaseRAGResponse):
+def save_rag_chat_history():
     """
-    Save chat history to database
+    Save chat history to database.
+    Always update the chat entirely, including chat history and sources.
     """
     chat_history_storage.upsert(
         AssistantRun(
@@ -88,7 +90,7 @@ def save_rag_chat_history(response: BaseRAGResponse):
     )
 
 
-def display_rag_sources(response_sources):
+def display_rag_sources(response_sources: Dict[str, Any]):
     import itertools
 
     num_sources = len(response_sources["metadatas"])
@@ -108,11 +110,13 @@ def display_rag_sources(response_sources):
             i18n("Cited Source") + f" {index+1}", use_container_width=True
         ):
             st.text(i18n("Cited Source") + ": " + file_name)
+            if response_sources["distances"] is not None:
+                distance = response_sources["distances"][index]
+                st.text(i18n("Vector Distance") + ": " + str(distance))
+            # 如果使用 reranker，则有 relevance_score
             if "relevance_score" in response_sources["metadatas"][index]:
-                relevance_score = response_sources["metadatas"][index][
-                    "relevance_score"
-                ]
-                st.text(i18n("Relevance Score") + ": " + str(relevance_score))
+                relevance_score = response_sources["metadatas"][index]["relevance_score"]
+                st.text(i18n("Relevance Score by reranker") + ": " + str(relevance_score))
             st.code(file_content, language="plaintext")
 
     for index, column in enumerate(itertools.chain(*rows)):
@@ -187,7 +191,7 @@ def handle_response(response: BaseRAGResponse, if_stream: bool):
     )
 
     # 保存聊天记录
-    save_rag_chat_history(response)
+    save_rag_chat_history()
 
     # 展示引用源
     response_sources = st.session_state.custom_rag_sources[response_id]

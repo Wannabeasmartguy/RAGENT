@@ -145,5 +145,6 @@
     "Failed to load model config": "加载模型配置失败",
     "Model config deleted successfully": "模型配置删除成功",
     "Chat history cleared": "聊天记录已清空",
-    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "由于 Streamlit 限制，背景外观无法实时预览，请点击提交按钮以导出并查看结果。"
+    "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "由于 Streamlit 限制，背景外观无法实时预览，请点击提交按钮以导出并查看结果。",
+    "Vector Distance": "向量距离"
 }
