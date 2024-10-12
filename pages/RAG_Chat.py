@@ -1005,8 +1005,17 @@ with st.sidebar:
 
     def delete_previous_round_callback():
         st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-2]
+
         # 删除最后一轮对话对应的源文档
-        st.session_state.custom_rag_sources = {key: value for key, value in st.session_state.custom_rag_sources.items() if key not in st.session_state.custom_rag_chat_history[-1]}
+        if st.session_state.custom_rag_chat_history:
+            last_message = st.session_state.custom_rag_chat_history[-1]
+            if isinstance(last_message, dict) and 'content' in last_message:
+                st.session_state.custom_rag_sources = {key: value for key, value in st.session_state.custom_rag_sources.items() if key not in last_message['content']}
+            else:
+                logger.warning("Final message format error, cannot delete corresponding source documents")
+        else:
+            logger.info("Chat history is empty, no need to delete source documents")
+
         chat_history_storage.upsert(
             AssistantRun(
                 name="assistant",
