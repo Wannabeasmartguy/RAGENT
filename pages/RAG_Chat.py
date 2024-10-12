@@ -984,7 +984,7 @@ with st.sidebar:
                 # Prevent error when the checkbox is unchecked
                 hybrid_retrieve_weight = 0.0
 
-    export_button_col, clear_button_col = rag_dialog_settings_tab.columns(2)
+    delete_previous_round_button_col, clear_button_col = rag_dialog_settings_tab.columns(2)
 
     def clear_chat_history_callback():
         st.session_state.custom_rag_chat_history = []
@@ -1003,7 +1003,32 @@ with st.sidebar:
         )
         st.toast(body=i18n("Chat history cleared"), icon="🧹")
 
-    export_button = export_button_col.button(
+    def delete_previous_round_callback():
+        st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-2]
+        # 删除最后一轮对话对应的源文档
+        st.session_state.custom_rag_sources = {key: value for key, value in st.session_state.custom_rag_sources.items() if key not in st.session_state.custom_rag_chat_history[-1]}
+        chat_history_storage.upsert(
+            AssistantRun(
+                name="assistant",
+                run_id=st.session_state.rag_run_id,
+                run_name=st.session_state.rag_run_name,
+                memory={"chat_history": st.session_state.custom_rag_chat_history},
+            )
+        )
+
+    delete_previous_round_button = delete_previous_round_button_col.button(
+        label=i18n("Delete previous round"),
+        on_click=delete_previous_round_callback,
+        use_container_width=True,
+    )
+
+    clear_button = clear_button_col.button(
+        label=i18n("Clear chat history"),
+        on_click=clear_chat_history_callback,
+        use_container_width=True,
+    )
+
+    export_button = st.button(
         label=i18n("Export chat history"),
         use_container_width=True,
     )
@@ -1014,11 +1039,7 @@ with st.sidebar:
             chat_name=st.session_state.rag_run_name,
             model_name=st.session_state.model
         )
-    clear_button = clear_button_col.button(
-        label=i18n("Clear chat history"),
-        on_click=clear_chat_history_callback,
-        use_container_width=True,
-    )
+
     back_to_top_placeholder0 = st.empty()
     back_to_top_placeholder1 = st.empty()
     back_to_top_bottom_placeholder0 = st.empty()

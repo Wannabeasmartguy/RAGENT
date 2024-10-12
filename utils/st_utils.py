@@ -167,7 +167,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
                     # 删除临时文件
                     os.remove("dynamic_configs/temp.wav")
 
-    chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
+    chat_input_css = float_css_helper(bottom="5rem", display="flex", justify_content="center", margin="0 auto")
     chat_input_container.float(chat_input_css)
     return prompt
 

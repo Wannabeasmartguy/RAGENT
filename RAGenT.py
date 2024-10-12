@@ -751,7 +751,7 @@ with st.sidebar:
             max_messages=history_length
         )
 
-        export_button_col, clear_button_col = dialog_settings_tab.columns(2)
+        delete_previous_round_button_col, clear_button_col = dialog_settings_tab.columns(2)
 
         def clear_chat_history_callback():
             st.session_state.chat_history = []
@@ -767,8 +767,32 @@ with st.sidebar:
                 st.session_state.run_id
             )
             st.toast(body=i18n("Chat history cleared"), icon="🧹")
+        
+        def delete_previous_round_callback():
+            # 删除最后一轮对话，包含用户消息和助手消息
+            st.session_state.chat_history = st.session_state.chat_history[:-2]
+            chat_history_storage.upsert(
+                AssistantRun(
+                    name="assistant",
+                    run_id=st.session_state.run_id,
+                    run_name=st.session_state.run_name,
+                    memory={"chat_history": st.session_state.chat_history},
+                )
+            )
 
-        export_button = export_button_col.button(
+        delete_previous_round_button = delete_previous_round_button_col.button(
+            label=i18n("Delete previous round"),
+            on_click=delete_previous_round_callback,
+            use_container_width=True,
+        )
+
+        clear_button = clear_button_col.button(
+            label=i18n("Clear chat history"),
+            on_click=clear_chat_history_callback,
+            use_container_width=True,
+        )
+
+        export_button = st.button(
             label=i18n("Export chat history"),
             use_container_width=True,
         )
@@ -778,12 +802,6 @@ with st.sidebar:
                 chat_name=st.session_state.run_name,
                 model_name=st.session_state.model
             )
-        
-        clear_button = clear_button_col.button(
-            label=i18n("Clear chat history"),
-            on_click=clear_chat_history_callback,
-            use_container_width=True,
-        )
 
     with multimodal_settings_tab:
         image_uploader = st.file_uploader(
