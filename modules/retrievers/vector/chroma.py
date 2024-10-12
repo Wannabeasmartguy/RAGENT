@@ -21,6 +21,7 @@ class ChromaRetriever(BaseRetriever):
         where: Optional[Dict] = None,
         where_document: Optional[Dict] = None,
         knowledge_base_path: str = "./databases/knowledgebase",
+        distance_threshold: Optional[float] = None,
     ):
         self.client = PersistentClient(path=knowledge_base_path)
 
@@ -45,10 +46,19 @@ class ChromaRetriever(BaseRetriever):
         self.n_results = n_results
         self.where = where
         self.where_document = where_document
+        self.distance_threshold = distance_threshold
 
-    def invoke(self, query: str) -> List[Dict[str, Any]]:
+    def invoke(
+        self, 
+        query: str,
+    ) -> List[Dict[str, Any]]:
         results = self._invoke(query)
-        return self.transform_to_documents(results)
+        results_unfiltered = self.transform_to_documents(results)
+        if self.distance_threshold:
+            results_filtered = [result for result in results_unfiltered if result["distance"] <= self.distance_threshold]
+            logger.info(f"Threshold is set as {self.distance_threshold}, filtered {len(results_unfiltered) - len(results_filtered)} documents")
+            return results_filtered
+        return results_unfiltered
 
     def _invoke(
         self,
@@ -70,15 +80,23 @@ class ChromaRetriever(BaseRetriever):
         """Format the results to a string"""
         results = self._invoke(query_texts=[query])
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
+
+        results_unfiltered = self.transform_to_documents(results)
+        if self.distance_threshold:
+            results_filtered = [result for result in results_unfiltered if result["distance"] <= self.distance_threshold]
+            logger.info(f"Threshold is set as {self.distance_threshold}, filtered {len(results_unfiltered) - len(results_filtered)} documents")
+        else:
+            results_filtered = results_unfiltered
+
         results_str = "\n\n".join(
             [
-                f"Document {index+1}: \n{result}"
-                for index, result in enumerate(results["documents"][0])
+                f"Document {index+1}: \n{result['page_content']}"
+                for index, result in enumerate(results_filtered)
             ]
         )
-        page_content = results["documents"][0]
-        metadatas = results["metadatas"][0]
-        distances = results["distances"][0]
+        page_content = [result["page_content"] for result in results_filtered]
+        metadatas = [result["metadatas"] for result in results_filtered]
+        distances = [result["distance"] for result in results_filtered]
         return dict(result=results_str, page_content=page_content, metadatas=metadatas, distances=distances)
 
     def ainvoke(self, query: str) -> Coroutine[Any, Any, List[Dict[str, Any]]]:
@@ -108,6 +126,7 @@ class ChromaRetriever(BaseRetriever):
         n_results: Optional[int] = None,
         where: Optional[Dict] = None,
         where_document: Optional[Dict] = None,
+        distance_threshold: Optional[float] = None,
     ):
         if n_results is not None:
             self.n_results = n_results
@@ -115,6 +134,8 @@ class ChromaRetriever(BaseRetriever):
             self.where = where
         if where_document is not None:
             self.where_document = where_document
+        if distance_threshold is not None:
+            self.distance_threshold = distance_threshold
 
 
 class ChromaContextualRetriever(BaseContextualRetriever):
@@ -130,6 +151,8 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         n_results: int = 6,
         where: Optional[Dict] = None,
         where_document: Optional[Dict] = None,
+        knowledge_base_path: str = "./databases/knowledgebase",
+        distance_threshold: Optional[float] = None,
     ):
         super().__init__(
             llm,
@@ -141,13 +164,20 @@ class ChromaContextualRetriever(BaseContextualRetriever):
                 n_results=n_results,
                 where=where,
                 where_document=where_document,
+                knowledge_base_path=knowledge_base_path,
+                distance_threshold=distance_threshold,
             ),
         )
         self.rewrite_by_llm = rewrite_by_llm
 
     def invoke(self, query: str) -> List[Dict[str, Any]]:
         results = self._invoke(query)
-        return self.transform_to_documents(results)
+        if self.retriever.distance_threshold:
+            results_filtered = [result for result in results if result["distance"] <= self.retriever.distance_threshold]
+            logger.info(f"Threshold is set as {self.retriever.distance_threshold}, filtered {len(results) - len(results_filtered)} documents")
+        else:
+            results_filtered = results
+        return self.transform_to_documents(results_filtered)
 
     def _invoke(
         self,
@@ -166,15 +196,23 @@ class ChromaContextualRetriever(BaseContextualRetriever):
         """重写query,使用新query进行检索，返回格式化后的字符串"""
         results = self._invoke(query=query)
         logger.info(f"Retrieved {len(results['documents'][0])} documents")
+
+        results_unfiltered = self.retriever.transform_to_documents(results)
+        if self.retriever.distance_threshold:
+            results_filtered = [result for result in results_unfiltered if result["distance"] <= self.retriever.distance_threshold]
+            logger.info(f"Threshold is set as {self.retriever.distance_threshold}, filtered {len(results_unfiltered) - len(results_filtered)} documents")
+        else:
+            results_filtered = results_unfiltered
+
         results_str = "\n\n".join(
             [
-                f"Document {index+1}: \n{result}"
-                for index, result in enumerate(results["documents"][0])
+                f"Document {index+1}: \n{result['page_content']}"
+                for index, result in enumerate(results_filtered)
             ]
         )
-        page_content = results["documents"][0]
-        metadatas = results["metadatas"][0]
-        distances = results["distances"][0]
+        page_content = [result["page_content"] for result in results_filtered]
+        metadatas = [result["metadatas"] for result in results_filtered]
+        distances = [result["distance"] for result in results_filtered]
         return dict(result=results_str, page_content=page_content, metadatas=metadatas, distances=distances)
 
     @classmethod
