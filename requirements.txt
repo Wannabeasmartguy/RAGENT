@@ -20,7 +20,7 @@ loguru==0.7.2
 sentence-transformers==2.3.1
 rank_bm25==0.2.2
 html2text==2024.2.26
-streamlit==1.37.0
+streamlit==1.39.0
 pyautogen==0.2.32
 trafilatura==1.8.1
 groq==0.5.0

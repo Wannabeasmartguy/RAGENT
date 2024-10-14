@@ -28,8 +28,8 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
-    RAG_CHAT_USER_STYLE,
-    RAG_CHAT_ASSISTANT_STYLE,
+    rag_chat_user_style_selector,
+    rag_chat_assistant_style_selector,
     USER_AVATAR_SVG,
     AI_AVATAR_SVG,
 )
@@ -156,9 +156,17 @@ def write_custom_rag_chat_history(chat_history, _sources):
             if message["role"] == "assistant":
                 rag_sources = _sources[message["response_id"]]
                 display_rag_sources(rag_sources)
+
     combined_style = (
-        RAG_CHAT_USER_STYLE.strip() + "\n" + RAG_CHAT_ASSISTANT_STYLE.strip()
+        rag_chat_user_style_selector.get(
+            f"v{st.__version__.split('.')[1]}", rag_chat_user_style_selector["v37"]
+        ).strip()
+        + "\n"
+        + rag_chat_assistant_style_selector.get(
+            f"v{st.__version__.split('.')[1]}", rag_chat_assistant_style_selector["v37"]
+        ).strip()
     )
+
     combined_style = combined_style.replace("</style>\n<style>", "")
     st.html(combined_style)
 
@@ -1042,7 +1050,7 @@ with st.sidebar:
         use_container_width=True,
     )
 
-    export_button = st.button(
+    export_button = rag_dialog_settings_tab.button(
         label=i18n("Export chat history"),
         use_container_width=True,
     )
@@ -1077,11 +1085,11 @@ prompt = float_chat_input_with_audio_recorder(
     if_tools_call=False, prompt_disabled=st.session_state.prompt_disabled
 )
 
-if prompt and st.session_state.model != None:
+if prompt and st.session_state.model:
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='rag-chat-user'></span>")
         st.markdown(prompt)
-        st.html(RAG_CHAT_USER_STYLE)
+        st.html(rag_chat_user_style_selector.get(f"v{st.__version__.split('.')[1]}", rag_chat_user_style_selector["v37"]))
 
     # Add user message to chat history
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
@@ -1109,7 +1117,7 @@ if prompt and st.session_state.model != None:
             )
         st.html("<span class='rag-chat-assistant'></span>")
         handle_response(response=response, if_stream=if_stream)
-        st.html(RAG_CHAT_ASSISTANT_STYLE)
+        st.html(rag_chat_assistant_style_selector.get(f"v{st.__version__.split('.')[1]}", rag_chat_assistant_style_selector["v37"]))
 
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

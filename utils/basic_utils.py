@@ -20,86 +20,17 @@ from llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from core.chat_processors import OAILikeConfigProcessor
 from css.export_themes import default_theme, glassmorphism_theme
-
-USER_CHAT_STYLE = """
-<style>
-    .stChatMessage:has(.chat-user) {
-        flex-direction: row-reverse;
-        width: 85%;
-        margin-left: auto;
-        margin-right: 0;
-        background-color: #E7F8FF;
-        border-radius: 10px;
-        padding: 20px;
-    }
-    .stChatMessage:has(.chat-user) p {
-        text-align: left;
-    }
-    .stChatMessage:has(.chat-user) p:only-child {
-        text-align: right;
-    }
-    .stChatMessage:has(.chat-user) .stCodeBlock {
-        text-align: left;
-    }
-</style>
-"""
-
-ASSISTANT_CHAT_STYLE = """
-<style>
-    .stChatMessage:has(.chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 85%;
-        margin-left: 0;
-        margin-right: auto;
-        background-color: #F3F4F6;
-        border-radius: 10px;
-        padding: 20px;
-    }
-</style>
-"""
-
-RAG_CHAT_USER_STYLE = """
-<style>
-    .stChatMessage:has(.rag-chat-user) {
-        flex-direction: row-reverse;
-        width: 90%;
-        margin-left: auto;
-        margin-right: 0;
-        background-color: #E7F8FF;
-        border-radius: 10px;
-        padding: 20px;
-    }
-    .stChatMessage:has(.rag-chat-user) p {
-        text-align: left;
-    }
-
-    .stChatMessage:has(.rag-chat-user) p:only-child {
-        text-align: right;
-    }
-    .stChatMessage:has(.rag-chat-user) .stCodeBlock {
-        text-align: left;
-    }
-</style>
-"""
-
-RAG_CHAT_ASSISTANT_STYLE = """
-<style>
-    .stChatMessage:has(.rag-chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 90%;
-        margin-left: 0;
-        margin-right: auto;
-        background-color: #F3F4F6;
-        border-radius: 10px;
-        padding: 20px;
-    }
-    .stChatMessage:has(.rag-chat-assistant) .stCodeBlock {
-        text-align: left;
-    }
-</style>
-"""
+from css.classic_chat_css import (
+    USER_CHAT_STYLE_ST_V37,
+    USER_CHAT_STYLE_ST_V39,
+    ASSISTANT_CHAT_STYLE,
+)
+from css.rag_chat_css import (
+    RAG_CHAT_USER_STYLE_ST_V37,
+    RAG_CHAT_USER_STYLE_ST_V39,
+    RAG_CHAT_ASSISTANT_STYLE_ST_V37,
+    RAG_CHAT_ASSISTANT_STYLE_ST_V39,
+)
 
 USER_AVATAR_SVG = """
     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-square" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -119,6 +50,26 @@ AI_AVATAR_SVG = """
     <path d="M9.5 13a3.5 3.5 0 0 0 5 0" />
     </svg>
 """
+
+user_chat_style_selector = {
+    "v37": USER_CHAT_STYLE_ST_V37,
+    "v39": USER_CHAT_STYLE_ST_V39,
+}
+
+assistant_chat_style_selector = {
+    "v37": ASSISTANT_CHAT_STYLE,
+    "v39": ASSISTANT_CHAT_STYLE,
+}
+
+rag_chat_user_style_selector = {
+    "v37": RAG_CHAT_USER_STYLE_ST_V37,
+    "v39": RAG_CHAT_USER_STYLE_ST_V39,
+}
+
+rag_chat_assistant_style_selector = {
+    "v37": RAG_CHAT_ASSISTANT_STYLE_ST_V37,
+    "v39": RAG_CHAT_ASSISTANT_STYLE_ST_V39,
+}
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
@@ -197,7 +148,15 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                             else:
                                 st.image(content["image_url"])
         
-        st.html(USER_CHAT_STYLE + ASSISTANT_CHAT_STYLE)
+        # 根据Streamlit版本选择样式
+        # 低于1.37.0使用v37的样式，高于等于1.37.0使用v39的样式
+        from pkg_resources import parse_version
+        if parse_version(st.__version__) <= parse_version("1.37.0"):
+            st.html(user_chat_style_selector["v37"] + assistant_chat_style_selector["v37"])
+        elif parse_version(st.__version__) >= parse_version("1.39.0"):
+            st.html(user_chat_style_selector["v39"] + assistant_chat_style_selector["v39"])
+        else:
+            st.html(user_chat_style_selector["v37"] + assistant_chat_style_selector["v37"])
 
 def wrap_long_text(text: str, max_length: int = 60) -> str:
     """

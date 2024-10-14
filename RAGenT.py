@@ -34,8 +34,8 @@ from utils.basic_utils import (
     write_chat_history,
     config_list_postprocess,
     user_input_constructor,
-    USER_CHAT_STYLE,
-    ASSISTANT_CHAT_STYLE,
+    user_chat_style_selector,
+    assistant_chat_style_selector,
     USER_AVATAR_SVG,
     AI_AVATAR_SVG
 )
@@ -845,7 +845,9 @@ if prompt and st.session_state.model:
         st.markdown(prompt)
         if image_uploader:
             st.image(image_uploader)
-        st.html(USER_CHAT_STYLE)
+        # 根据Streamlit版本选择样式
+        # 低于1.37.0使用v37的样式，高于等于1.37.0使用v39的样式
+        st.html(user_chat_style_selector.get(f"v{st.__version__.split('.')[1]}", user_chat_style_selector["v37"]))
 
     # Add user message to chat history
     user_input = user_input_constructor(
@@ -890,7 +892,7 @@ if prompt and st.session_state.model:
                 if "error" not in response:
                     response_content = response.choices[0].message.content
                     st.write(response_content)
-                    st.html(ASSISTANT_CHAT_STYLE)
+                    st.html(assistant_chat_style_selector.get(f"v{st.__version__.split('.')[1]}", assistant_chat_style_selector["v37"]))
 
                     try:
                         st.write(f"response cost: ${response.cost}")
@@ -904,7 +906,7 @@ if prompt and st.session_state.model:
                     st.error(response)
             else:
                 total_response = st.write_stream(response)
-                st.html(ASSISTANT_CHAT_STYLE)
+                st.html(assistant_chat_style_selector.get(f"v{st.__version__.split('.')[1]}", assistant_chat_style_selector["v37"]))
                 st.session_state.chat_history.append(
                     {"role": "assistant", "content": total_response}
                 )
