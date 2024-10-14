@@ -25,13 +25,21 @@ USER_CHAT_STYLE = """
 <style>
     .stChatMessage:has(.chat-user) {
         flex-direction: row-reverse;
-        text-align: right;
         width: 85%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
+    }
+    .stChatMessage:has(.chat-user) p {
+        text-align: left;
+    }
+    .stChatMessage:has(.chat-user) p:only-child {
+        text-align: right;
+    }
+    .stChatMessage:has(.chat-user) .stCodeBlock {
+        text-align: left;
     }
 </style>
 """
@@ -55,13 +63,22 @@ RAG_CHAT_USER_STYLE = """
 <style>
     .stChatMessage:has(.rag-chat-user) {
         flex-direction: row-reverse;
-        text-align: right;
         width: 90%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
+    }
+    .stChatMessage:has(.rag-chat-user) p {
+        text-align: left;
+    }
+
+    .stChatMessage:has(.rag-chat-user) p:only-child {
+        text-align: right;
+    }
+    .stChatMessage:has(.rag-chat-user) .stCodeBlock {
+        text-align: left;
     }
 </style>
 """
@@ -77,6 +94,9 @@ RAG_CHAT_ASSISTANT_STYLE = """
         background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
+    }
+    .stChatMessage:has(.rag-chat-assistant) .stCodeBlock {
+        text-align: left;
     }
 </style>
 """
@@ -177,32 +197,7 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                             else:
                                 st.image(content["image_url"])
         
-        st.html(
-            """
-            <style>
-                .stChatMessage:has(.chat-user) {
-                    flex-direction: row-reverse;
-                    text-align: right;
-                    width: 85%;
-                    margin-left: auto;
-                    margin-right: 0;
-                    background-color: #E7F8FF;
-                    border-radius: 10px;
-                    padding: 20px;
-                }
-                .stChatMessage:has(.chat-assistant) {
-                    flex-direction: row;
-                    text-align: left;
-                    width: 85%;
-                    margin-left: 0;
-                    margin-right: auto;
-                    background-color: #F3F4F6;
-                    border-radius: 10px;
-                    padding: 20px;
-                }
-            </style>
-            """
-        )
+        st.html(USER_CHAT_STYLE + ASSISTANT_CHAT_STYLE)
 
 def wrap_long_text(text: str, max_length: int = 60) -> str:
     """

@@ -302,7 +302,7 @@ with st.sidebar:
             temperature = st.slider(
                 label=i18n("Temperature"),
                 min_value=0.0,
-                max_value=2.0,
+                max_value=1.0,
                 value=config_list_postprocess(st.session_state.chat_config_list)[0].get(
                     "temperature", 0.5
                 ),
@@ -578,7 +578,7 @@ with st.sidebar:
                     st.session_state.saved_dialog.run_id
                 ).llm
             ]
-            logger.info("Dialog changed")
+            logger.info(f"Chat dialog changed, selected dialog name: {st.session_state.saved_dialog.run_name}, selected dialog id: {st.session_state.run_id}")
             log_dict_changes(
                 original_dict=origin_config_list[0],
                 new_dict=st.session_state.chat_config_list[0],
@@ -627,6 +627,7 @@ with st.sidebar:
                 st.session_state.chat_config_list = [
                     chat_history_storage.get_specific_run(st.session_state.run_id).llm
                 ]
+                logger.info(f"Add a new chat dialog, added dialog name: {st.session_state.run_name}, added dialog id: {st.session_state.run_id}")
 
             add_dialog_button = st.button(
                 label=i18n("Add a new dialog"),
@@ -673,6 +674,7 @@ with st.sidebar:
                             st.session_state.run_id
                         ).llm
                     ]
+                logger.info(f"Delete a chat dialog, deleted dialog name: {st.session_state.saved_dialog.run_name}, deleted dialog id: {st.session_state.run_id}")
 
             delete_dialog_button = st.button(
                 label=i18n("Delete selected dialog"),
@@ -703,6 +705,7 @@ with st.sidebar:
         )
 
         def dialog_name_change_callback():
+            origin_run_name = saved_dialog.run_name
             chat_history_storage.upsert(
                 AssistantRun(
                     run_name=st.session_state.run_name,
@@ -712,6 +715,7 @@ with st.sidebar:
             st.session_state.current_run_id_index = run_id_list.index(
                 st.session_state.run_id
             )
+            logger.info(f"Chat dialog name changed from {origin_run_name} to {st.session_state.run_name}.(run_id: {st.session_state.run_id})")
 
         dialog_name = dialog_details_settings_popover.text_input(
             label=i18n("Dialog name"),
