@@ -28,8 +28,8 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
-    rag_chat_user_style_selector,
-    rag_chat_assistant_style_selector,
+    get_style,
+    get_combined_style,
     USER_AVATAR_SVG,
     AI_AVATAR_SVG,
 )
@@ -157,16 +157,7 @@ def write_custom_rag_chat_history(chat_history, _sources):
                 rag_sources = _sources[message["response_id"]]
                 display_rag_sources(rag_sources)
 
-    combined_style = (
-        rag_chat_user_style_selector.get(
-            f"v{st.__version__.split('.')[1]}", rag_chat_user_style_selector["v37"]
-        ).strip()
-        + "\n"
-        + rag_chat_assistant_style_selector.get(
-            f"v{st.__version__.split('.')[1]}", rag_chat_assistant_style_selector["v37"]
-        ).strip()
-    )
-
+    combined_style = get_combined_style(st.__version__, "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT")
     combined_style = combined_style.replace("</style>\n<style>", "")
     st.html(combined_style)
 
@@ -1089,7 +1080,7 @@ if prompt and st.session_state.model:
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='rag-chat-user'></span>")
         st.markdown(prompt)
-        st.html(rag_chat_user_style_selector.get(f"v{st.__version__.split('.')[1]}", rag_chat_user_style_selector["v37"]))
+        st.html(get_style(style_type="RAG_USER_CHAT", st_version=st.__version__))
 
     # Add user message to chat history
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
@@ -1117,7 +1108,7 @@ if prompt and st.session_state.model:
             )
         st.html("<span class='rag-chat-assistant'></span>")
         handle_response(response=response, if_stream=if_stream)
-        st.html(rag_chat_assistant_style_selector.get(f"v{st.__version__.split('.')[1]}", rag_chat_assistant_style_selector["v37"]))
+        st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
 
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

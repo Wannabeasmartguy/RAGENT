@@ -1,6 +1,7 @@
 import streamlit as st
 import pyperclip
 from streamlit import cache_resource
+from pkg_resources import parse_version
 
 import os
 import re
@@ -10,7 +11,7 @@ import textwrap
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
-from typing import List, Dict, Optional, Union, Tuple
+from typing import List, Dict, Optional, Union, Tuple, Literal
 from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -51,25 +52,60 @@ AI_AVATAR_SVG = """
     </svg>
 """
 
-user_chat_style_selector = {
-    "v37": USER_CHAT_STYLE_ST_V37,
-    "v39": USER_CHAT_STYLE_ST_V39,
+# 定义样式常量
+STYLE_CONSTANTS = {
+    "USER_CHAT": {
+        "v37": USER_CHAT_STYLE_ST_V37,
+        "v39": USER_CHAT_STYLE_ST_V39,
+    },
+    "ASSISTANT_CHAT": {
+        "v37": ASSISTANT_CHAT_STYLE,
+        "v39": ASSISTANT_CHAT_STYLE,
+    },
+    "RAG_USER_CHAT": {
+        "v37": RAG_CHAT_USER_STYLE_ST_V37,
+        "v39": RAG_CHAT_USER_STYLE_ST_V39,
+    },
+    "RAG_ASSISTANT_CHAT": {
+        "v37": RAG_CHAT_ASSISTANT_STYLE_ST_V37,
+        "v39": RAG_CHAT_ASSISTANT_STYLE_ST_V39,
+    }
 }
 
-assistant_chat_style_selector = {
-    "v37": ASSISTANT_CHAT_STYLE,
-    "v39": ASSISTANT_CHAT_STYLE,
-}
 
-rag_chat_user_style_selector = {
-    "v37": RAG_CHAT_USER_STYLE_ST_V37,
-    "v39": RAG_CHAT_USER_STYLE_ST_V39,
-}
+def get_style(
+        style_type:Literal["USER_CHAT", "ASSISTANT_CHAT", "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT"],
+        st_version:str
+    ) -> str:
+    """
+    根据样式类型和Streamlit版本获取相应的样式。
+    
+    :param style_type: 样式类型，如 "USER_CHAT", "ASSISTANT_CHAT" 等
+    :param st_version: Streamlit版本号, 形如 "1.37.0"
+    :return: 对应的样式字符串
+    """
+    version = parse_version(st_version)
+    style_dict = STYLE_CONSTANTS.get(style_type, {})
+    
+    if version < parse_version("1.38.0"):
+        return style_dict.get("v37", "")
+    else:
+        return style_dict.get("v39", "")
 
-rag_chat_assistant_style_selector = {
-    "v37": RAG_CHAT_ASSISTANT_STYLE_ST_V37,
-    "v39": RAG_CHAT_ASSISTANT_STYLE_ST_V39,
-}
+
+def get_combined_style(
+        st_version:str, 
+        *style_types:Literal["USER_CHAT", "ASSISTANT_CHAT", "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT"]
+    ) -> str:
+    """
+    获取多个样式类型的组合样式。
+    
+    :param st_version: Streamlit版本号, 形如 "1.37.0"
+    :param style_types: 要组合的样式类型列表
+    :return: 组合后的样式字符串
+    """
+    return "".join(get_style(style_type, st_version) for style_type in style_types)
+
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
@@ -149,14 +185,8 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                                 st.image(content["image_url"])
         
         # 根据Streamlit版本选择样式
-        # 低于1.37.0使用v37的样式，高于等于1.37.0使用v39的样式
-        from pkg_resources import parse_version
-        if parse_version(st.__version__) <= parse_version("1.37.0"):
-            st.html(user_chat_style_selector["v37"] + assistant_chat_style_selector["v37"])
-        elif parse_version(st.__version__) >= parse_version("1.39.0"):
-            st.html(user_chat_style_selector["v39"] + assistant_chat_style_selector["v39"])
-        else:
-            st.html(user_chat_style_selector["v37"] + assistant_chat_style_selector["v37"])
+        chat_style = get_combined_style(st.__version__, "USER_CHAT", "ASSISTANT_CHAT")
+        st.html(chat_style)
 
 def wrap_long_text(text: str, max_length: int = 60) -> str:
     """
