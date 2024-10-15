@@ -570,18 +570,19 @@ with col1:
         label_visibility="collapsed",
     )
 with col2:
-    if st.button(label=i18n("Get Knowledge Base info")):
-        with st.spinner(i18n("Getting file info...")):
-            chroma_info_html = get_chroma_file_info(
-                persist_path=KNOWLEDGE_BASE_DIR,
-                collection_name=chroma_collection_processor.collection_name,
-                file_name=selected_file,
-                limit=len(
-                    chroma_collection_processor.list_collection_all_filechunks_content()
-                ),
-                advance_info=False,
-            )
-        components.html(chroma_info_html, height=800)
+    get_knowledge_base_info_button = st.button(label=i18n("Get Knowledge Base info"))
+if get_knowledge_base_info_button:
+    with st.spinner(i18n("Getting file info...")):
+        chroma_info_html = get_chroma_file_info(
+            persist_path=KNOWLEDGE_BASE_DIR,
+            collection_name=chroma_collection_processor.collection_id,
+            file_name=selected_file,
+            limit=len(
+                chroma_collection_processor.list_collection_all_filechunks_content()
+            ),
+            advance_info=False,
+        )
+    components.html(chroma_info_html, height=800)
 
 if st.button(label=i18n("Delete the File"), use_container_width=True):
     chroma_collection_processor.delete_documents_from_same_metadata(
