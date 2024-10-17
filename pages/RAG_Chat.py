@@ -229,6 +229,12 @@ i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
 # ********** Initialize session state **********
 
+# 回调函数防抖
+if 'last_dialog_change_time' not in st.session_state:
+    st.session_state.last_dialog_change_time = 0
+if 'debounce_delay' not in st.session_state:
+    st.session_state.debounce_delay = 0.5  # 500毫秒的防抖延迟
+
 if "prompt_disabled" not in st.session_state:
     st.session_state.prompt_disabled = False
 
@@ -286,6 +292,18 @@ if "custom_rag_sources" not in st.session_state:
 if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
 
+
+def debounced_dialog_change():
+    """
+    防抖函数，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
+    经测试必须要在当前文件定义，否则无法正常工作。
+    """
+    import time
+    current_time = time.time()
+    if current_time - st.session_state.last_dialog_change_time > st.session_state.debounce_delay:
+        st.session_state.last_dialog_change_time = current_time
+        return True
+    return False
 
 def update_rag_config_in_db_callback():
     """
@@ -396,37 +414,48 @@ with st.sidebar:
         dialogs_container = st.container(height=250, border=True)
 
         def rag_saved_dialog_change_callback():
-            origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
-            st.session_state.rag_run_id = st.session_state.rag_saved_dialog.run_id
-            st.session_state.rag_current_run_id_index = (
-                chat_history_storage.get_all_run_ids().index(
-                    st.session_state.rag_run_id
+            if debounced_dialog_change():
+                # 获取当前选中的对话
+                selected_run = st.session_state.rag_saved_dialog
+
+                # 更新session state
+                st.session_state.rag_run_id = selected_run.run_id
+                st.session_state.rag_current_run_id_index = (
+                    chat_history_storage.get_all_run_ids().index(
+                        st.session_state.rag_run_id
+                    )
                 )
-            )
-            st.session_state.rag_chat_config_list = [
-                chat_history_storage.get_specific_run(
-                    st.session_state.rag_saved_dialog.run_id
-                ).llm
-            ]
-            logger.info(f"RAG dialog change, selected dialog name: {st.session_state.rag_saved_dialog.run_name}, selected dialog id: {st.session_state.rag_run_id}")
-            log_dict_changes(
-                original_dict=origin_config_list[0],
-                new_dict=st.session_state.rag_chat_config_list[0],
-            )
-            try:
-                st.session_state.custom_rag_chat_history = (
-                    chat_history_storage.get_specific_run(
-                        st.session_state.rag_saved_dialog.run_id
-                    ).memory["chat_history"]
+
+                # 获取并更新chat_config_list
+                new_chat_config = selected_run.llm
+                st.session_state.rag_chat_config_list = [new_chat_config] if new_chat_config else []
+
+                logger.info(f"RAG dialog change, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.rag_run_id}")
+                
+                if 'rag_chat_config_list' in st.session_state and st.session_state.rag_chat_config_list and new_chat_config:
+                    log_dict_changes(
+                        original_dict=st.session_state.rag_chat_config_list[0],
+                        new_dict=new_chat_config,
                 )
-                st.session_state.custom_rag_sources = (
-                    chat_history_storage.get_specific_run(
-                        st.session_state.rag_saved_dialog.run_id
-                    ).task_data["source_documents"]
-                )
-            except (TypeError, ValidationError):
-                st.session_state.custom_rag_chat_history = []
-                st.session_state.custom_rag_sources = {}
+                    
+                # 更新聊天历史
+                try:
+                    st.session_state.custom_rag_chat_history = (
+                        chat_history_storage.get_specific_run(
+                            st.session_state.rag_saved_dialog.run_id
+                        ).memory["chat_history"]
+                    )
+                    st.session_state.custom_rag_sources = (
+                        chat_history_storage.get_specific_run(
+                            st.session_state.rag_saved_dialog.run_id
+                        ).task_data["source_documents"]
+                    )
+                except (TypeError, ValidationError):
+                    st.session_state.custom_rag_chat_history = []
+                    st.session_state.custom_rag_sources = {}
+
+            else:
+                st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
 
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
@@ -528,21 +557,6 @@ with st.sidebar:
                 on_click=delete_rag_dialog_callback,
             )
 
-        # 保存对话
-        def get_run_name():
-            try:
-                run_name = saved_dialog.run_name
-            except:
-                run_name = "RAGenT"
-            return run_name
-
-        def get_all_runnames():
-            runnames = []
-            runs = chat_history_storage.get_all_runs()
-            for run in runs:
-                runnames.append(run.run_name)
-            return runnames
-
         st.write(i18n("Dialogues details"))
 
         dialog_details_settings_popover = st.expander(
@@ -565,7 +579,7 @@ with st.sidebar:
 
         dialog_name = dialog_details_settings_popover.text_input(
             label=i18n("Dialog name"),
-            value=get_run_name(),
+            value=chat_history_storage.get_specific_run(st.session_state.rag_run_id).run_name,
             key="rag_run_name",
             on_change=rag_dialog_name_change_callback,
         )

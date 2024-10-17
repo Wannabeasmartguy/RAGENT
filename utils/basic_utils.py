@@ -154,7 +154,10 @@ def oai_model_config_selector(oai_model_config:Dict):
 
 # Display chat messages from history on app rerun
 @st.cache_data
-def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
+def write_chat_history(
+    chat_history: Optional[List[Dict[str, str]]] = None,
+    if_custom_css: bool = True
+) -> None:
     # 将SVG编码为base64
     user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
@@ -185,8 +188,9 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                                 st.image(content["image_url"])
         
         # 根据Streamlit版本选择样式
-        chat_style = get_combined_style(st.__version__, "USER_CHAT", "ASSISTANT_CHAT")
-        st.html(chat_style)
+        if if_custom_css:
+            chat_style = get_combined_style(st.__version__, "USER_CHAT", "ASSISTANT_CHAT")
+            st.html(chat_style)
 
 def wrap_long_text(text: str, max_length: int = 60) -> str:
     """

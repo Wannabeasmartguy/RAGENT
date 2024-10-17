@@ -2,18 +2,14 @@ USER_CHAT_STYLE_ST_V37 = """
 <style>
     .stChatMessage:has(.chat-user) {
         flex-direction: row-reverse;
+        // width: fit-content;
+        // max-width: 85%;
         width: 85%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
-    }
-    .stChatMessage:has(.chat-user) p {
-        text-align: left;
-    }
-    .stChatMessage:has(.chat-user) p:only-child {
-        text-align: right;
     }
     .stChatMessage:has(.chat-user) .stCodeBlock {
         text-align: left;
@@ -25,18 +21,14 @@ USER_CHAT_STYLE_ST_V39 = """
 <style>
     .stChatMessage:has(.chat-user) {
         flex-direction: row-reverse;
+        // width: fit-content;
+        // max-width: 85%;
         width: 85%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
-    }
-    .stChatMessage:has(.chat-user) p {
-        text-align: left;
-    }
-    .stChatMessage:has(.chat-user) p:only-child {
-        text-align: right;
     }
     .stChatMessage:has(.chat-user) .stCode {
         text-align: left;

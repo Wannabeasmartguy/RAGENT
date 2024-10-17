@@ -2,19 +2,14 @@ RAG_CHAT_USER_STYLE_ST_V37 = """
 <style>
     .stChatMessage:has(.rag-chat-user) {
         flex-direction: row-reverse;
+        // width: fit-content;
+        // max-width: 85%;
         width: 90%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
-    }
-    .stChatMessage:has(.rag-chat-user) p {
-        text-align: left;
-    }
-
-    .stChatMessage:has(.rag-chat-user) p:only-child {
-        text-align: right;
     }
     .stChatMessage:has(.rag-chat-user) .stCodeBlock {
         text-align: left;
@@ -26,19 +21,14 @@ RAG_CHAT_USER_STYLE_ST_V39 = """
 <style>
     .stChatMessage:has(.rag-chat-user) {
         flex-direction: row-reverse;
+        // width: fit-content;
+        // max-width: 85%;
         width: 90%;
         margin-left: auto;
         margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
-    }
-    .stChatMessage:has(.rag-chat-user) p {
-        text-align: left;
-    }
-
-    .stChatMessage:has(.rag-chat-user) p:only-child {
-        text-align: right;
     }
     .stChatMessage:has(.rag-chat-user) .stCode {
         text-align: left;
