@@ -110,7 +110,7 @@ def display_rag_sources(response_sources: Dict[str, Any]):
             i18n("Cited Source") + f" {index+1}", use_container_width=True
         ):
             st.text(i18n("Cited Source") + ": " + file_name)
-            if response_sources["distances"] is not None:
+            if "distances" in response_sources and response_sources["distances"] is not None:
                 distance = response_sources["distances"][index]
                 st.text(i18n("Vector Distance") + ": " + str(distance))
             # 如果使用 reranker，则有 relevance_score

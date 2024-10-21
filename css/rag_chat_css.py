@@ -1,12 +1,12 @@
 RAG_CHAT_USER_STYLE_ST_V37 = """
 <style>
     .stChatMessage:has(.rag-chat-user) {
-        flex-direction: row-reverse;
+        // flex-direction: row-reverse;
         // width: fit-content;
         // max-width: 85%;
-        width: 90%;
-        margin-left: auto;
-        margin-right: 0;
+        // width: 90%;
+        // margin-left: auto;
+        // margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
@@ -20,12 +20,12 @@ RAG_CHAT_USER_STYLE_ST_V37 = """
 RAG_CHAT_USER_STYLE_ST_V39 = """
 <style>
     .stChatMessage:has(.rag-chat-user) {
-        flex-direction: row-reverse;
+        // flex-direction: row-reverse;
         // width: fit-content;
         // max-width: 85%;
-        width: 90%;
-        margin-left: auto;
-        margin-right: 0;
+        // width: 90%;
+        // margin-left: auto;
+        // margin-right: 0;
         background-color: #E7F8FF;
         border-radius: 10px;
         padding: 20px;
@@ -39,11 +39,11 @@ RAG_CHAT_USER_STYLE_ST_V39 = """
 RAG_CHAT_ASSISTANT_STYLE_ST_V37 = """
 <style>
     .stChatMessage:has(.rag-chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 90%;
-        margin-left: 0;
-        margin-right: auto;
+        // flex-direction: row;
+        // text-align: left;
+        // width: 90%;
+        // margin-left: 0;
+        // margin-right: auto;
         background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
@@ -57,11 +57,11 @@ RAG_CHAT_ASSISTANT_STYLE_ST_V37 = """
 RAG_CHAT_ASSISTANT_STYLE_ST_V39 = """
 <style>
     .stChatMessage:has(.rag-chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 90%;
-        margin-left: 0;
-        margin-right: auto;
+        // flex-direction: row;
+        // text-align: left;
+        // width: 90%;
+        // margin-left: 0;
+        // margin-right: auto;
         background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
