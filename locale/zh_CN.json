@@ -148,5 +148,14 @@
     "Background appearance cannot be previewed in real time due to streamlit limitations, please click the submit button to export and check the result.": "由于 Streamlit 限制，背景外观无法实时预览，请点击提交按钮以导出并查看结果。",
     "Vector Distance": "向量距离",
     "Delete previous round": "删除上轮对话",
-    "Please wait, processing the last dialog switch...": "请稍候，正在处理上一次的对话切换..."
+    "Please wait, processing the last dialog switch...": "请稍候，正在处理上一次的对话切换...",
+    "Upload URL": "从网页上传文件",
+    "Upload Local File": "上传本地文件",
+    "URL": "网页",
+    "Paste blog or article URL here.": "在这里粘贴博客或文章的网址",
+    "Only paste one URL at a time.": "一次仅粘贴一个网址",
+    "Parse URL": "解析网页",
+    "Failed to parse the URL": "解析网页失败",
+    "Please enter a URL.": "请输入一个网址",
+    "Please upload files or parse a URL first": "请先上传文件或解析网页"
 }
