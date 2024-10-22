@@ -552,8 +552,29 @@ with col2:
         st.session_state.pages = []
         st.rerun()
 
+def embed_files_callback():
+    if not st.session_state.pages:
+        st.warning(i18n("Please upload and split files first"))
+    else:
+        with st.spinner():
+            try:
+                # 始终使用当前知识库的处理器
+                chroma_collection_processor.add_documents(documents=st.session_state.pages)
+                st.session_state.document_counter += 1
+                st.toast(i18n("Embed completed!"), icon="✅")
+                # 清空st.session_state.pages
+                st.session_state.pages = []
+                # 清空url_scrape_result和url_input
+                st.session_state.url_scrape_result = None
+                st.session_state.url_input = ""
+            except Exception as e:
+                st.error(f"Error embedding files: {str(e)}")
+
 embed_button = st.button(
-    label=i18n("② Embed Files"), use_container_width=True, type="primary"
+    label=i18n("② Embed Files"), 
+    use_container_width=True, 
+    type="primary",
+    on_click=embed_files_callback
 )
 
 if file_upload and upload_and_split:
@@ -600,23 +621,6 @@ if st.session_state.pages:
             if selected_page:
                 st.write(pages_preview[selected_page])
 
-if embed_button:
-    if not st.session_state.pages:
-        st.warning(i18n("Please upload and split files first"))
-    else:
-        with st.spinner():
-            try:
-                # 始终使用当前知识库的处理器
-                chroma_collection_processor.add_documents(documents=st.session_state.pages)
-                st.session_state.document_counter += 1
-                st.toast(i18n("嵌入完成！"), icon="✅")
-                # 清空st.session_state.pages
-                st.session_state.pages = []
-                # 清空url_scrape_result和url_input
-                st.session_state.url_scrape_result = None
-                st.session_state.url_input = ""
-            except Exception as e:
-                st.error(f"Error embedding files: {str(e)}")
 
 # 知识库内容管理
 st.write(i18n("### Knowledge Base Content Management"))
