@@ -689,7 +689,7 @@ with st.sidebar:
                     ]
                     st.session_state.chat_history = []
                 else:
-                    st.session_state.run_id = chat_history_storage.get_all_run_ids()[0]
+                    st.session_state.run_id = chat_history_storage.get_all_run_ids()[st.session_state.current_run_id_index]
                     st.session_state.chat_history = (
                         chat_history_storage.get_specific_run(
                             st.session_state.run_id

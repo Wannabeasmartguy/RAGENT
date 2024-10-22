@@ -532,7 +532,7 @@ with st.sidebar:
                     st.session_state.custom_rag_sources = {}
                 else:
                     st.session_state.rag_run_id = (
-                        chat_history_storage.get_all_run_ids()[0]
+                        chat_history_storage.get_all_run_ids()[st.session_state.rag_current_run_id_index]
                     )
                     st.session_state.rag_chat_config_list = [
                         chat_history_storage.get_specific_run(
