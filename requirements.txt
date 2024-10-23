@@ -32,3 +32,4 @@ pyperclip==1.8.2
 streamlit-float==0.3.5
 openai-whisper==20231117
 streamlit-audiorecorder==0.0.5
+extra_streamlit_components==0.1.71

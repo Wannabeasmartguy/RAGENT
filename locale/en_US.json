@@ -22,8 +22,8 @@
     "File Handling Configuration": "File Preprocessing Configuration",
     "Chunk Size": "Chunk Size",
     "Overlap": "Chunk Overlap",
-    "① Upload and Split Files": "① Upload and Split Files",
-    "② Embed Files": "② Embed files and add to knowledge base",
+    "Upload and Split Files": "Upload and Split Files",
+    "Embed Files and Add to Knowledge Base": "Embed files and add to knowledge base",
     "Choose the file you want to preview": "Choose the file you want to preview",
     "Please upload and split files first": "Please upload and split files first",
     "Files in Knowledge Base": "Files in Knowledge Base",
@@ -157,5 +157,8 @@
     "Parse URL": "Parse URL",
     "Failed to parse the URL": "Failed to parse the URL",
     "Please enter a URL.": "Please enter a URL.",
-    "Please upload files or parse a URL first": "Please upload files or parse a URL first"
+    "Please upload files or parse a URL first": "Please upload files or parse a URL first",
+    "Upload Files": "Upload Files",
+    "Chunk Files": "Chunk Files",
+    "Embed Files": "Embed Files"
 }

@@ -1,5 +1,5 @@
 import streamlit as st
-import streamlit.components.v1 as components
+import extra_streamlit_components as stx
 import os
 import json
 import uuid
@@ -17,8 +17,8 @@ from core.kb_processors import (
 )
 from utils.chroma_utils import get_chroma_file_info
 from utils.text_splitter.text_splitter_utils import (
-    text_split_execute, 
-    url_text_split_execute
+    text_split_execute,
+    url_text_split_execute,
 )
 from utils.basic_utils import datetime_serializer
 from model.config.embeddings import (
@@ -287,8 +287,7 @@ with st.sidebar:
     if st.session_state.embed_model_type == "sentence_transformer":
         with st.expander(label=i18n("Local embedding model download"), expanded=False):
             if st.button(
-                label=i18n("Download embedding model"), 
-                use_container_width=True
+                label=i18n("Download embedding model"), use_container_width=True
             ):
                 # huggingface repo id就是organization+model_name
                 ChromaVectorStoreProcessorWithNoApi.download_model(
@@ -396,7 +395,7 @@ with st.expander(
     )
     with add_collection_tab:
 
-        def collection_name_change():
+        def collection_name_check():
             """
             检查collection name是否合法
 
@@ -460,7 +459,7 @@ with st.expander(
             label=i18n("To be added Collection Name"),
             placeholder=i18n("Collection Name"),
             key="create_collection_name_input",
-            on_change=collection_name_change,
+            on_change=collection_name_check,
         )
         st.button(
             label=i18n("Add Collection"),
@@ -486,140 +485,161 @@ with st.expander(
 st.write(i18n("### Choose files you want to embed"))
 
 with st.container(border=True):
-    upload_local_file_tab, upload_url_tab = st.tabs(
-        [i18n("Upload Local File"), i18n("Upload URL")]
-    )
-
-with upload_local_file_tab:
-    file_upload = st.file_uploader(
-        label=i18n("Upload File"),
-        accept_multiple_files=True,
-        label_visibility="collapsed",
-        key=st.session_state["file_uploader_key"],
-    )
-
-with upload_url_tab:
-    url_input = st.text_input(
-        label=i18n("URL"),
-        placeholder=i18n("Paste blog or article URL here."),
-        help=i18n("Only paste one URL at a time."),
-        key="url_input",
-    )
-
-    parse_url_button = st.button(
-        label=i18n("Parse URL"),
-        use_container_width=True,
-        type="primary",
-    )
-
-    if parse_url_button:
-        if url_input:
-            from modules.scraper.url import JinaScraper
-            scraper = JinaScraper()
-            url_scrape_result = scraper.scrape(url_input)
-
-            if url_scrape_result["status_code"] == 200:
-                st.session_state.url_scrape_result = url_scrape_result
-            else:
-                st.error(i18n("Failed to parse URL."))
-        else:
-            st.toast(i18n("Please enter a URL."), icon="🚨")
-    
-    if st.session_state.url_scrape_result:
-        with st.expander(label=i18n("Content Preview"), expanded=False):
-            st.write(st.session_state.url_scrape_result["content"])
-
-with st.expander(label=i18n("File Handling Configuration"), expanded=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        split_chunk_size = st.number_input(
-            label=i18n("Chunk Size"),
-            value=chroma_collection_processor.get_embedding_model_max_seq_len(),
-            step=1,
+    stepper_bar_column, empty_column, detail_column = st.columns([1.5, 0.1, 5])
+    with stepper_bar_column:
+        # 创建stepper bar, 返回值为当前step的index
+        st.session_state.embed_stepper_bar = stx.stepper_bar(
+            steps=[i18n("Upload Files"), i18n("Chunk Files"), i18n("Embed Files")],
+            is_vertical=True,
+            lock_sequence=True,
         )
-    with col2:
-        split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
-
-col1, col2 = st.columns([0.7, 0.3])
-with col1:
-    upload_and_split = st.button(
-        label=i18n("① Upload and Split Files"), use_container_width=True
-    )
-with col2:
-    if st.button(label=i18n("Clear File"), use_container_width=True):
-        st.session_state["file_uploader_key"] += 1
-        st.session_state.url_scrape_result = None
-        st.session_state.pages = []
-        st.rerun()
-
-def embed_files_callback():
-    if not st.session_state.pages:
-        st.warning(i18n("Please upload and split files first"))
-    else:
-        with st.spinner():
-            try:
-                # 始终使用当前知识库的处理器
-                chroma_collection_processor.add_documents(documents=st.session_state.pages)
-                st.session_state.document_counter += 1
-                st.toast(i18n("Embed completed!"), icon="✅")
-                # 清空st.session_state.pages
-                st.session_state.pages = []
-                # 清空url_scrape_result和url_input
-                st.session_state.url_scrape_result = None
-                st.session_state.url_input = ""
-            except Exception as e:
-                st.error(f"Error embedding files: {str(e)}")
-
-embed_button = st.button(
-    label=i18n("② Embed Files"), 
-    use_container_width=True, 
-    type="primary",
-    on_click=embed_files_callback
-)
-
-if file_upload and upload_and_split:
-    st.session_state.pages = []
-    for file in file_upload:
-        try:
-            splitted_docs = text_split_execute(
-                file=file,
-                split_chunk_size=split_chunk_size,
-                split_overlap=split_overlap,
+    with detail_column:
+        if st.session_state.embed_stepper_bar == 0:
+            upload_local_file_tab, upload_url_tab = st.tabs(
+                [i18n("Upload Local File"), i18n("Upload URL")]
             )
-            st.session_state.pages.extend(splitted_docs)
-        except Exception as e:
-            st.error(f"Error processing file {file.name}: {str(e)}")
-elif st.session_state.url_scrape_result and upload_and_split:
-    st.session_state.pages = []
-    try:
-        splitted_docs = url_text_split_execute(
-            url_content=st.session_state.url_scrape_result,
-            split_chunk_size=split_chunk_size,
-            split_overlap=split_overlap,
-        )
-        st.session_state.pages.extend(splitted_docs)
-    except Exception as e:
-        st.error(f"Error processing URL content: {str(e)}")
-elif not st.session_state.pages and not st.session_state.url_scrape_result and upload_and_split:
-    st.toast(i18n("Please upload files or parse a URL first"), icon="🚨")
 
-if st.session_state.pages:
-    st.write(i18n("Choose the file you want to preview"))
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        pages_preview = {
-            f"{page.page_content[:50]}...": page.page_content
-            for page in st.session_state.pages
-        }
-        selected_page = st.selectbox(
-            label=i18n("Choose the file you want to preview"),
-            options=pages_preview.keys(),
-            label_visibility="collapsed",
-        )
-    with col2:
-        with st.popover(label=i18n("Content Preview"), use_container_width=True):
-            if selected_page:
-                st.write(pages_preview[selected_page])
+            with upload_local_file_tab:
+                st.session_state.file_uploaded = st.file_uploader(
+                    label=i18n("Upload File"),
+                    accept_multiple_files=True,
+                    label_visibility="collapsed",
+                    key=st.session_state["file_uploader_key"],
+                )
+
+            with upload_url_tab:
+                url_input = st.text_input(
+                    label=i18n("URL"),
+                    placeholder=i18n("Paste blog or article URL here."),
+                    help=i18n("Only paste one URL at a time."),
+                    key="url_input",
+                )
+
+                parse_url_button = st.button(
+                    label=i18n("Parse URL"),
+                    use_container_width=True,
+                    type="primary",
+                )
+
+                if parse_url_button:
+                    if url_input:
+                        from modules.scraper.url import JinaScraper
+
+                        scraper = JinaScraper()
+                        url_scrape_result = scraper.scrape(url_input)
+
+                        if url_scrape_result["status_code"] == 200:
+                            st.session_state.url_scrape_result = url_scrape_result
+                        else:
+                            st.error(i18n("Failed to parse URL."))
+                    else:
+                        st.toast(i18n("Please enter a URL."), icon="🚨")
+
+                if st.session_state.url_scrape_result:
+                    with st.expander(label=i18n("Content Preview"), expanded=False):
+                        st.write(st.session_state.url_scrape_result["content"])
+
+            def clear_file_callback():
+                st.session_state["file_uploader_key"] += 1
+                st.session_state.url_input = ""
+                st.session_state.url_scrape_result = None
+                st.session_state.pages = []
+
+            clear_file_button = st.button(
+                label=i18n("Clear File"),
+                use_container_width=True,
+                on_click=clear_file_callback,
+            )
+
+        elif st.session_state.embed_stepper_bar == 1:
+            with st.expander(label=i18n("File Handling Configuration"), expanded=True):
+                split_chunk_size = st.number_input(
+                    label=i18n("Chunk Size"),
+                    value=chroma_collection_processor.get_embedding_model_max_seq_len(),
+                    step=1,
+                )
+                split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
+
+            upload_and_split = st.button(
+                label=i18n("Upload and Split Files"), 
+                use_container_width=True,
+                type="primary",
+            )
+
+            # 上传并分割文件按键
+            if st.session_state.file_uploaded and upload_and_split:
+                st.session_state.pages = []
+                for file in st.session_state.file_uploaded:
+                    try:
+                        splitted_docs = text_split_execute(
+                            file=file,
+                            split_chunk_size=split_chunk_size,
+                            split_overlap=split_overlap,
+                        )
+                        st.session_state.pages.extend(splitted_docs)
+                    except Exception as e:
+                        st.error(f"Error processing file {file.name}: {str(e)}")
+            elif st.session_state.url_scrape_result and upload_and_split:
+                st.session_state.pages = []
+                try:
+                    splitted_docs = url_text_split_execute(
+                        url_content=st.session_state.url_scrape_result,
+                        split_chunk_size=split_chunk_size,
+                        split_overlap=split_overlap,
+                    )
+                    st.session_state.pages.extend(splitted_docs)
+                except Exception as e:
+                    st.error(f"Error processing URL content: {str(e)}")
+            elif (
+                not st.session_state.pages
+                and not st.session_state.url_scrape_result
+                and upload_and_split
+            ):
+                st.toast(i18n("Please upload files or parse a URL first"), icon="🚨")
+
+        elif st.session_state.embed_stepper_bar == 2:
+
+            def embed_files_callback():
+                if not st.session_state.pages:
+                    st.toast(i18n("Please upload and split files first"), icon="🚨")
+                else:
+                    with st.spinner():
+                        try:
+                            # 始终使用当前知识库的处理器
+                            chroma_collection_processor.add_documents(
+                                documents=st.session_state.pages
+                            )
+                            st.session_state.document_counter += 1
+                            st.toast(i18n("Embed completed!"), icon="✅")
+                            # 清空st.session_state.pages
+                            st.session_state.pages = []
+                            # 清空url_scrape_result和url_input
+                            st.session_state.url_scrape_result = None
+                            st.session_state.url_input = ""
+                        except Exception as e:
+                            st.error(f"Error embedding files: {str(e)}")
+
+            if st.session_state.pages:
+                st.write(i18n("Choose the file you want to preview"))
+                pages_preview = {
+                    f"{page.page_content[:50]}...": page.page_content
+                    for page in st.session_state.pages
+                }
+                selected_page = st.selectbox(
+                    label=i18n("Choose the file you want to preview"),
+                    options=pages_preview.keys(),
+                    label_visibility="collapsed",
+                )
+                with st.expander(label=i18n("Content Preview"), expanded=True):
+                    if selected_page:
+                        st.write(pages_preview[selected_page])
+
+            embed_button = st.button(
+                label=i18n("Embed Files and Add to Knowledge Base"),
+                use_container_width=True,
+                type="primary",
+                on_click=embed_files_callback,
+            )
 
 
 # 知识库内容管理

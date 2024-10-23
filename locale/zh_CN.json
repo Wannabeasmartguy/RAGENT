@@ -22,8 +22,8 @@
     "File Handling Configuration": "文件预处理配置",
     "Chunk Size": "分块大小",
     "Overlap": "分块文本重合长度",
-    "① Upload and Split Files": "① 上传并分割文件",
-    "② Embed Files": "② 嵌入文件并添加入知识库",
+    "Upload and Split Files": "上传并分割文件",
+    "Embed Files and Add to Knowledge Base": "嵌入文件并添加入知识库",
     "Choose the file you want to preview": "选择你想要预览的文件",
     "Please upload and split files first": "请先上传并分割文件",
     "Files in Knowledge Base": "知识库中的文件",
@@ -157,5 +157,8 @@
     "Parse URL": "解析网页",
     "Failed to parse the URL": "解析网页失败",
     "Please enter a URL.": "请输入一个网址",
-    "Please upload files or parse a URL first": "请先上传文件或解析网页"
+    "Please upload files or parse a URL first": "请先上传文件或解析网页",
+    "Upload Files": "上传文件",
+    "Chunk Files": "文件分块",
+    "Embed Files": "文件嵌入"
 }
