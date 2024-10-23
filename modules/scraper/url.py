@@ -88,14 +88,30 @@ class JinaScraper:
     url_prefix = "https://r.jina.ai/"
 
     def __init__(self):
-        pass
+        self.timeout = 10
+        self.ua = UserAgent()
+
+    def get_headers(self):
+        return {"User-Agent": self.ua.random}
 
     def scrape(self, url: str) -> dict:
-        response = requests.get(url=self.url_prefix + url)
-        return dict(
-            status_code=response.status_code,
-            headers=response.headers,
-            encoding=response.encoding,
-            content=response.text,
-            url=response.url,
-        )
+        try:
+            response = requests.get(
+                url=self.url_prefix + url,
+                headers=self.get_headers(),
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            return dict(
+                status_code=response.status_code,
+                headers=response.headers,
+                encoding=response.encoding,
+                content=response.text,
+                url=response.url,
+            )
+        except requests.exceptions.Timeout:
+            return {"status_code": 408, "status": "error", "message": "Request timed out", "url": url}
+        except requests.exceptions.RequestException as e:
+            return {"status_code": 400, "status": "error", "message": f"Request error: {str(e)}", "url": url}
+        except Exception as e:
+            return {"status_code": 500, "status": "error", "message": f"Unknown error: {str(e)}", "url": url}

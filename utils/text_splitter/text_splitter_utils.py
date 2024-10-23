@@ -143,7 +143,7 @@ def url_text_split_execute(
     import time
     # 默认文件类型为Markdown
     file_suffix = ".md"
-    file_name_without_suffix = url_content["content"][:40]
+    file_name_without_suffix = url_content["content"].split("\n\n")[0]
 
     with tempfile.NamedTemporaryFile(prefix=file_name_without_suffix + "__",suffix=file_suffix,delete=False) as temp_file:
         temp_file.write(url_content["content"].encode("utf-8"))

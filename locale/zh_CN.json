@@ -160,5 +160,6 @@
     "Please upload files or parse a URL first": "请先上传文件或解析网页",
     "Upload Files": "上传文件",
     "Chunk Files": "文件分块",
-    "Embed Files": "文件嵌入"
+    "Embed Files": "文件嵌入",
+    "File deleted successfully.": "文件删除成功"
 }

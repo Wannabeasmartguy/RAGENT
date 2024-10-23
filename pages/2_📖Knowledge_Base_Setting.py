@@ -1,5 +1,5 @@
 import streamlit as st
-import extra_streamlit_components as stx
+import streamlit_antd_components as sac
 import os
 import json
 import uuid
@@ -69,6 +69,9 @@ def init_session_state():
         st.session_state.create_collection_expander_state = False
     if "url_scrape_result" not in st.session_state:
         st.session_state.url_scrape_result = None
+    # 用于控制stepper bar的index
+    if "embed_stepper_bar_index" not in st.session_state:
+        st.session_state.embed_stepper_bar_index = 0
 
 
 def load_embedding_config():
@@ -488,10 +491,15 @@ with st.container(border=True):
     stepper_bar_column, empty_column, detail_column = st.columns([1.5, 0.1, 5])
     with stepper_bar_column:
         # 创建stepper bar, 返回值为当前step的index
-        st.session_state.embed_stepper_bar = stx.stepper_bar(
-            steps=[i18n("Upload Files"), i18n("Chunk Files"), i18n("Embed Files")],
-            is_vertical=True,
-            lock_sequence=True,
+        st.session_state.embed_stepper_bar = sac.steps(
+            items=[
+                sac.StepsItem(title=i18n("Upload Files")), 
+                sac.StepsItem(title=i18n("Chunk Files")), 
+                sac.StepsItem(title=i18n("Embed Files"), disabled=not st.session_state.pages)
+            ],
+            index=st.session_state.embed_stepper_bar_index,
+            direction='vertical',
+            return_index=True,
         )
     with detail_column:
         if st.session_state.embed_stepper_bar == 0:
@@ -531,7 +539,7 @@ with st.container(border=True):
                         if url_scrape_result["status_code"] == 200:
                             st.session_state.url_scrape_result = url_scrape_result
                         else:
-                            st.error(i18n("Failed to parse URL."))
+                            st.error(i18n(f"Failed to parse URL: {url_scrape_result['message']}"))
                     else:
                         st.toast(i18n("Please enter a URL."), icon="🚨")
 
@@ -616,6 +624,7 @@ with st.container(border=True):
                             # 清空url_scrape_result和url_input
                             st.session_state.url_scrape_result = None
                             st.session_state.url_input = ""
+                            st.session_state.embed_stepper_bar = 0
                         except Exception as e:
                             st.error(f"Error embedding files: {str(e)}")
 
@@ -682,15 +691,21 @@ if get_knowledge_base_info_button:
         except Exception as e:
             st.error(f"Error getting knowledge base info: {str(e)}")
 
-if st.button(label=i18n("Delete File"), use_container_width=True):
+def delete_file_callback():
     if selected_file:
         try:
             chroma_collection_processor.delete_documents_from_same_metadata(
                 files_name=selected_file
             )
             st.session_state.document_counter += 1
-            st.rerun()
+            st.toast(i18n("File deleted successfully."), icon="✅")
         except Exception as e:
             st.error(f"Error deleting file: {str(e)}")
     else:
         st.warning(i18n("Please select the file you want to delete"))
+
+delete_file_button = st.button(
+    label=i18n("Delete File"),
+    use_container_width=True,
+    on_click=delete_file_callback,
+)
