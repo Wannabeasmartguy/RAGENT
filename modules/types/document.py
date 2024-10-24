@@ -7,11 +7,11 @@ class Document(BaseModel):
 
     page_content: str
     """String text."""
-    metadatas: dict = Field(default_factory=dict)
+    metadatas: Optional[dict] = Field(default_factory=dict)
     """Arbitrary metadata about the page content (e.g., source, relationships to other
         documents, etc.).
     """
-    relevant_score: Optional[float]
+    relevant_score: Optional[float] = None
     """Relevance score of the document to a given query."""
     type: Literal["Document"] = "Document"
 
