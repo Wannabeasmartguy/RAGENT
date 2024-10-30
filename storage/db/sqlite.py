@@ -13,7 +13,7 @@ from sqlite3 import OperationalError
 from typing import Optional, List, Literal, Union, Any
 from loguru import logger
 from sqlalchemy.schema import Table
-
+from tenacity import retry, stop_after_attempt, wait_exponential
 from model.config.llm import LLMConfiguration
 from model.config.embeddings import CollectionEmbeddingConfiguration
 from model.memory.base import MemoryRow
@@ -23,6 +23,8 @@ from storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
 from core.encryption import Encryptor
 import json
+import time
+
 LLM_Subclass_With_BaseUrl = Union[AzureOpenAILLMConfiguration, OpenAILikeLLMConfiguration]
 
 class SqliteMemoryDb:
@@ -166,8 +168,6 @@ class SqliteMemoryDb:
                 return True
 
 
-
-
 class SqlAssistantStorage(Sqlstorage):
     def __init__(
         self,
@@ -216,6 +216,16 @@ class SqlAssistantStorage(Sqlstorage):
 
         # Initialize encryptor
         self.encryptor: Encryptor = Encryptor(key=encryption_key)
+
+    def _sanitize_input(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        sanitized = {}
+        for key, value in data.items():
+            if isinstance(value, str):
+                # 移除危险字符
+                sanitized[key] = value.replace(';', '').replace('--', '')
+            else:
+                sanitized[key] = value
+        return sanitized
 
     def _encrypt_sensitive_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         encrypted_data = data.copy()
@@ -377,13 +387,17 @@ class SqlAssistantStorage(Sqlstorage):
             pass
         return None
 
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))
     def upsert(self, row: AssistantRun) -> Optional[AssistantRun]:
         """
         Create a new assistant run if it does not exist, otherwise update the existing conversation.
         """
+        start_time = time.time()
         with self.Session() as sess:
             # Before upserting, encrypt sensitive data
-            encrypted_data = self._encrypt_sensitive_data(row.model_dump())
+            encrypted_data = self._encrypt_sensitive_data(
+                self._sanitize_input(row.model_dump())
+            )
 
             # Create an insert statement
             stmt = sqlite.insert(self.table).values(
@@ -425,7 +439,7 @@ class SqlAssistantStorage(Sqlstorage):
             try:
                 sess.execute(stmt)
                 sess.commit()  # Make sure to commit the changes to the database
-                logger.info(f"Upserted assistant run: run_id = {encrypted_data['run_id']}, name = {encrypted_data['run_name']}")
+                logger.info(f"Upserted assistant run: run_id = {encrypted_data['run_id']}, name = {encrypted_data['run_name']} in {time.time() - start_time:.2f} seconds")
                 return self.read(run_id=encrypted_data['run_id'])
             except OperationalError as oe:
                 logger.debug(f"OperationalError occurred: {oe}")
