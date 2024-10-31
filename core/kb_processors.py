@@ -1043,7 +1043,7 @@ class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         )
         return unique_sources
 
-    @st.cache_data
+    # @st.cache_data
     def list_all_filechunks_metadata_name(_self, counter: int) -> List[str]:
         """
         List all files content in a collection by file name.

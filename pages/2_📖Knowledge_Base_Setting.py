@@ -495,7 +495,7 @@ with st.container(border=True):
             items=[
                 sac.StepsItem(title=i18n("Upload Files")), 
                 sac.StepsItem(title=i18n("Chunk Files")), 
-                sac.StepsItem(title=i18n("Embed Files"), disabled=not st.session_state.pages)
+                sac.StepsItem(title=i18n("Embed Files"))
             ],
             index=st.session_state.embed_stepper_bar_index,
             direction='vertical',
