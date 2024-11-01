@@ -73,6 +73,9 @@ def text_to_html(x, api=False):
                     transition: box-shadow 0.3s;
                     box-sizing: border-box; /* 确保宽度包括边框和内边距 */
                 }
+                .card:hover {
+                    box-shadow: 0 0 15px 0 rgba(0, 0, 0, 0.2);
+                }
                 </style>
                 <div class="card">
                 %s
@@ -107,7 +110,12 @@ def dict_to_html(x:list[dict],file_name:str,advance_info:bool, small=True, api=F
         return f"""
             <style>
                 .small-container {{
-                    height: 650px;
+                    height: fit-content;
+                    max-height: 650px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin: 10px;
                     overflow-x: auto;
                     overflow-y: auto;
                 }}

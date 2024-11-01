@@ -69,9 +69,6 @@ def init_session_state():
         st.session_state.create_collection_expander_state = False
     if "url_scrape_result" not in st.session_state:
         st.session_state.url_scrape_result = None
-    # 用于控制stepper bar的index
-    if "embed_stepper_bar_index" not in st.session_state:
-        st.session_state.embed_stepper_bar_index = 0
 
 
 def load_embedding_config():
@@ -497,9 +494,10 @@ with st.container(border=True):
                 sac.StepsItem(title=i18n("Chunk Files")), 
                 sac.StepsItem(title=i18n("Embed Files"))
             ],
-            index=st.session_state.embed_stepper_bar_index,
+            index=0,
             direction='vertical',
             return_index=True,
+            key="embed_stepper_bar_counter",
         )
     with detail_column:
         if st.session_state.embed_stepper_bar == 0:
@@ -514,6 +512,11 @@ with st.container(border=True):
                     label_visibility="collapsed",
                     key=st.session_state["file_uploader_key"],
                 )
+                if st.session_state.file_uploaded:
+                    if len(st.session_state.file_uploaded) > 1:
+                        st.toast(i18n("Multiple files uploaded successfully! Please continue to chunk at the next step."), icon="✅")
+                    else:
+                        st.toast(i18n("File") + i18n(f" {st.session_state.file_uploaded[0].name} ") + i18n("uploaded successfully! Please continue to chunk at the next step."), icon="✅")
 
             with upload_url_tab:
                 url_input = st.text_input(
@@ -585,6 +588,7 @@ with st.container(border=True):
                             split_overlap=split_overlap,
                         )
                         st.session_state.pages.extend(splitted_docs)
+                        st.toast(i18n("Files chunked successfully! Please continue to embed at the next step."), icon="✅")
                     except Exception as e:
                         st.error(f"Error processing file {file.name}: {str(e)}")
             elif st.session_state.url_scrape_result and upload_and_split:
@@ -596,6 +600,7 @@ with st.container(border=True):
                         split_overlap=split_overlap,
                     )
                     st.session_state.pages.extend(splitted_docs)
+                    st.toast(i18n("URL content parsed successfully! Please continue to embed at the next step."), icon="✅")
                 except Exception as e:
                     st.error(f"Error processing URL content: {str(e)}")
             elif (
@@ -624,7 +629,7 @@ with st.container(border=True):
                             # 清空url_scrape_result和url_input
                             st.session_state.url_scrape_result = None
                             st.session_state.url_input = ""
-                            st.session_state.embed_stepper_bar = 0
+                            st.session_state.embed_stepper_bar_counter = None
                         except Exception as e:
                             st.error(f"Error embedding files: {str(e)}")
 

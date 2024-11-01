@@ -161,5 +161,10 @@
     "Upload Files": "Upload Files",
     "Chunk Files": "Chunk Files",
     "Embed Files": "Embed Files",
-    "File deleted successfully.": "File deleted successfully."
+    "File deleted successfully.": "File deleted successfully.",
+    "Multiple files uploaded successfully! Please continue to chunk at the next step.": "Multiple files uploaded successfully! Please continue to chunk at the next step.",
+    "File": "File",
+    "uploaded successfully! Please continue to chunk at the next step.": "uploaded successfully! Please continue to chunk at the next step.",
+    "URL content parsed successfully! Please continue to chunk at the next step.": "URL content parsed successfully! Please continue to chunk at the next step.",
+    "Files chunked successfully! Please continue to embed at the next step.": "Files chunked successfully! Please continue to embed at the next step."
 }
