@@ -1,5 +1,6 @@
 import streamlit as st
 import streamlit_antd_components as sac
+import streamlit.components.v1 as components
 import os
 import json
 import uuid
@@ -680,21 +681,6 @@ with col1:
         selected_file = None
 with col2:
     get_knowledge_base_info_button = st.button(label=i18n("Get Knowledge Base info"))
-if get_knowledge_base_info_button:
-    with st.spinner(i18n("Getting file info...")):
-        try:
-            chroma_info_html = get_chroma_file_info(
-                persist_path=KNOWLEDGE_BASE_DIR,
-                collection_name=chroma_collection_processor.collection_id,
-                file_name=selected_file,
-                limit=len(
-                    chroma_collection_processor.list_collection_all_filechunks_content()
-                ),
-                advance_info=False,
-            )
-            st.html(chroma_info_html)
-        except Exception as e:
-            st.error(f"Error getting knowledge base info: {str(e)}")
 
 def delete_file_callback():
     if selected_file:
@@ -714,3 +700,19 @@ delete_file_button = st.button(
     use_container_width=True,
     on_click=delete_file_callback,
 )
+
+if get_knowledge_base_info_button:
+    with st.spinner(i18n("Getting file info...")):
+        try:
+            chroma_info_html, document_count = get_chroma_file_info(
+                persist_path=KNOWLEDGE_BASE_DIR,
+                collection_name=chroma_collection_processor.collection_id,
+                file_name=selected_file,
+                limit=len(
+                    chroma_collection_processor.list_collection_all_filechunks_content()
+                ),
+                advance_info=False,
+            )
+            components.html(chroma_info_html, height=650 if document_count > 2 else 400)
+        except Exception as e:
+            st.error(f"Error getting knowledge base info: {str(e)}")
