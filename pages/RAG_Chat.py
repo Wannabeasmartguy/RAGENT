@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import json
 import base64
@@ -109,15 +110,19 @@ def display_rag_sources(response_sources: Dict[str, Any]):
         with column.popover(
             i18n("Cited Source") + f" {index+1}", use_container_width=True
         ):
+            from utils.chroma_utils import text_to_html
+            components.html(text_to_html(file_content, modal_content_type="source"), height=230)
+
             st.text(i18n("Cited Source") + ": " + file_name)
             if "distances" in response_sources and response_sources["distances"] is not None:
                 distance = response_sources["distances"][index]
-                st.text(i18n("Vector Distance") + ": " + str(distance))
+                # st.text(i18n("Vector Distance") + ": " + str(distance))
+                st.text(i18n("Vector Cosine Similarity") + ": " + str(round((1-distance)*100, 2)) + "%")
             # 如果使用 reranker，则有 relevance_score
             if "relevance_score" in response_sources["metadatas"][index]:
                 relevance_score = response_sources["metadatas"][index]["relevance_score"]
                 st.text(i18n("Relevance Score by reranker") + ": " + str(relevance_score))
-            st.code(file_content, language="plaintext")
+
 
     for index, column in enumerate(itertools.chain(*rows)):
         if index < visible_sources:
@@ -292,17 +297,33 @@ if "custom_rag_sources" not in st.session_state:
 if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
 
+# 对话锁，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
+if 'dialog_lock' not in st.session_state:
+    st.session_state.dialog_lock = False
 
 def debounced_dialog_change():
     """
-    防抖函数，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
-    经测试必须要在当前文件定义，否则无法正常工作。
+    改进的防抖函数，增加锁机制
     """
     import time
     current_time = time.time()
+    
+    # 如果当前有锁，直接返回 False
+    if st.session_state.dialog_lock:
+        st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
+        return False
+        
+    # 检查是否满足防抖延迟
     if current_time - st.session_state.last_dialog_change_time > st.session_state.debounce_delay:
-        st.session_state.last_dialog_change_time = current_time
-        return True
+        try:
+            # 设置锁定状态
+            st.session_state.dialog_lock = True
+            st.session_state.last_dialog_change_time = current_time
+            return True
+        finally:
+            # 确保锁一定会被释放
+            st.session_state.dialog_lock = False
+            
     return False
 
 def update_rag_config_in_db_callback():

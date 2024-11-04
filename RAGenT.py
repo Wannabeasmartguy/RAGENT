@@ -179,17 +179,33 @@ if "chat_history" not in st.session_state:
         st.session_state.run_id
     ).memory["chat_history"]
 
+# 对话锁，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
+if 'dialog_lock' not in st.session_state:
+    st.session_state.dialog_lock = False
 
 def debounced_dialog_change():
     """
-    防抖函数，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
-    经测试必须要在当前文件定义，否则无法正常工作。
+    改进的防抖函数，增加锁机制
     """
     import time
     current_time = time.time()
+    
+    # 如果当前有锁，直接返回 False
+    if st.session_state.dialog_lock:
+        st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
+        return False
+        
+    # 检查是否满足防抖延迟
     if current_time - st.session_state.last_dialog_change_time > st.session_state.debounce_delay:
-        st.session_state.last_dialog_change_time = current_time
-        return True
+        try:
+            # 设置锁定状态
+            st.session_state.dialog_lock = True
+            st.session_state.last_dialog_change_time = current_time
+            return True
+        finally:
+            # 确保锁一定会被释放
+            st.session_state.dialog_lock = False
+            
     return False
 
 def update_config_in_db_callback():

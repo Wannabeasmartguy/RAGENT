@@ -1,7 +1,7 @@
 import chromadb
 import tabulate
 import pandas as pd
-
+from typing import Literal
 from core.basic_config import I18nAuto
 
 i18n = I18nAuto()
@@ -33,7 +33,7 @@ def combine_lists_to_dicts(docs, ids, metas):
     return dict_lists
 
 
-def text_to_html(x, api=False):
+def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
     '''
     Encodes metadata in Chroma into HTML text for display in Gradio.
     
@@ -59,7 +59,7 @@ def text_to_html(x, api=False):
                     font-family: "微软雅黑", sans-serif;
                     font-size: 16px;
                     height: 200px;
-                    width: 650px;
+                    width: 96%%;
                     white-space: pre-wrap;
                     white-space: -moz-pre-wrap;
                     white-space: -pre-wrap;
@@ -100,6 +100,19 @@ def text_to_html(x, api=False):
                     font-family: "微软雅黑", sans-serif;
                     font-size: 16px;
                 }
+                .modal-content-source {
+                    background-color: #fefefe;
+                    margin: 7%% auto;
+                    padding: 20px;
+                    border: 1px solid #888;
+                    width: 80%%;
+                    max-height: 50vh;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    position: relative;
+                    font-family: "微软雅黑", sans-serif;
+                    font-size: 16px;
+                }
                 .close {
                     color: #aaa;
                     float: right;
@@ -115,7 +128,7 @@ def text_to_html(x, api=False):
                 %s
                 </div>
                 <div id="myModal" class="modal">
-                    <div class="modal-content">
+                    <div class="%s">
                         <span class="close" onclick="hideModal(this.parentElement.parentElement)">&times;</span>
                         <div>%s</div>
                     </div>
@@ -150,7 +163,7 @@ def text_to_html(x, api=False):
                     }
                 });
                 </script>
-""" % (x, x)
+""" % (x, "modal-content-source" if modal_content_type == "source" else "modal-content", x)
 
 
 def dict_to_html(x:list[dict],file_name:str,advance_info:bool, small=True, api=False):

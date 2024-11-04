@@ -713,6 +713,6 @@ if get_knowledge_base_info_button:
                 ),
                 advance_info=False,
             )
-            components.html(chroma_info_html, height=650 if document_count > 2 else 400)
+            components.html(chroma_info_html, height=700 if document_count > 2 else 400)
         except Exception as e:
             st.error(f"Error getting knowledge base info: {str(e)}")
