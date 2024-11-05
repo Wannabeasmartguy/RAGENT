@@ -664,6 +664,8 @@ with st.sidebar:
                         },
                     )
                 )
+                st.session_state.run_name = "New dialog"
+                st.session_state.system_prompt = get_system_prompt(st.session_state.run_id)
                 st.session_state.chat_history = []
                 st.session_state.current_run_id_index = 0
                 st.session_state.chat_config_list = [
@@ -751,20 +753,38 @@ with st.sidebar:
             on_change=dialog_name_change_callback,
         )
 
-        dialog_details_settings_popover.text_area(
-            label=i18n("System Prompt"),
-            value=get_system_prompt(st.session_state.run_id),
-            height=300,
-            key="system_prompt",
-            on_change=lambda: chat_history_storage.upsert(
+        def system_prompt_change_callback():
+            """
+            处理 system prompt 更改的回调函数
+            """
+            # 获取原始值用于日志记录
+            original_prompt = chat_history_storage.get_specific_run(
+                st.session_state.run_id
+            ).assistant_data.get("system_prompt", "")
+            
+            # 更新数据库
+            chat_history_storage.upsert(
                 AssistantRun(
                     run_id=st.session_state.run_id,
+                    run_name=st.session_state.run_name,
                     assistant_data={
                         "model_type": st.session_state.model_type,
                         "system_prompt": st.session_state.system_prompt,
                     },
                 )
-            ),
+            )
+            
+            logger.info(
+                f"System prompt changed for dialog {st.session_state.run_id}. "
+                f"Original: {original_prompt} -> New: {st.session_state.system_prompt}"
+            )
+
+        dialog_details_settings_popover.text_area(
+            label=i18n("System Prompt"),
+            value=chat_history_storage.get_specific_run(st.session_state.run_id).assistant_data.get("system_prompt", ""),
+            height=300,
+            key="system_prompt",
+            on_change=system_prompt_change_callback,
         )
         history_length = dialog_details_settings_popover.number_input(
             label=i18n("History length"),
