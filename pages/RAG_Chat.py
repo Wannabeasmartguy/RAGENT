@@ -439,6 +439,11 @@ with st.sidebar:
                 # 获取当前选中的对话
                 selected_run = st.session_state.rag_saved_dialog
 
+                # 如果是同一个对话，不进行更新
+                if selected_run.run_id == st.session_state.rag_run_id:
+                    logger.debug(f"Same dialog selected, skipping update")
+                    return
+
                 # 更新session state
                 st.session_state.rag_run_id = selected_run.run_id
                 st.session_state.rag_current_run_id_index = (

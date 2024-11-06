@@ -601,36 +601,38 @@ with st.sidebar:
         dialogs_container = st.container(height=250, border=True)
 
         def saved_dialog_change_callback():
+            """对话切换回调函数"""
             if debounced_dialog_change():
-                # 获取当前选中的对话
-                selected_run = st.session_state.saved_dialog
-
-                # 更新session state
-                st.session_state.run_id = selected_run.run_id
-                st.session_state.current_run_id_index = chat_history_storage.get_all_run_ids().index(selected_run.run_id)
-                
-                # 获取并更新chat_config_list
-                new_chat_config = selected_run.llm
-                st.session_state.chat_config_list = [new_chat_config] if new_chat_config else []
-
-                logger.info(f"Chat dialog changed, selected dialog name: {selected_run.run_name}, selected dialog id: {selected_run.run_id}")
-                
-                # 如果需要记录变化，可以保留这部分
-                if 'chat_config_list' in st.session_state and st.session_state.chat_config_list and new_chat_config:
-                    log_dict_changes(
-                        original_dict=st.session_state.chat_config_list[0],
-                        new_dict=new_chat_config,
+                try:
+                    # 获取当前选中的对话
+                    selected_run = st.session_state.saved_dialog
+                    
+                    # 如果是同一个对话，不进行更新
+                    if selected_run.run_id == st.session_state.run_id:
+                        logger.debug(f"Same dialog selected, skipping update")
+                        return
+                    
+                    # 更新session state
+                    st.session_state.run_id = selected_run.run_id
+                    st.session_state.current_run_id_index = run_id_list.index(
+                        st.session_state.run_id
                     )
-
-                # 更新聊天历史
-                st.session_state.chat_history = selected_run.memory.get("chat_history", []) if selected_run.memory else []
-
-                # 更新其他相关的session state
-                st.session_state.model_type = selected_run.assistant_data.get("model_type") if selected_run.assistant_data else None
-                st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt") if selected_run.assistant_data else None
-
-            else:
-                st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
+                    
+                    # 更新chat_config_list
+                    new_chat_config = selected_run.llm
+                    st.session_state.chat_config_list = [new_chat_config] if new_chat_config else []
+                    
+                    # 更新聊天历史
+                    st.session_state.chat_history = selected_run.memory["chat_history"]
+                    
+                    # 更新system prompt，但不触发回调
+                    st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt", "")
+                    
+                    logger.info(f"Chat dialog changed, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.run_id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error during dialog change: {e}")
+                    st.error(i18n("Failed to change dialog"))
 
         saved_dialog = dialogs_container.radio(
             label=i18n("Saved dialog"),
