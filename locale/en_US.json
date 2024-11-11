@@ -167,5 +167,12 @@
     "File": "File",
     "uploaded successfully! Please continue to chunk at the next step.": "uploaded successfully! Please continue to chunk at the next step.",
     "URL content parsed successfully! Please continue to chunk at the next step.": "URL content parsed successfully! Please continue to chunk at the next step.",
-    "Files chunked successfully! Please continue to embed at the next step.": "Files chunked successfully! Please continue to embed at the next step."
+    "Files chunked successfully! Please continue to embed at the next step.": "Files chunked successfully! Please continue to embed at the next step.",
+    "Record your input": "Record your input",
+    "Transcribe model": "Transcribe model",
+    "Transcribe": "Transcribe",
+    "Loading model": "Loading model",
+    "Model loaded": "Model loaded",
+    "Transcribing": "Transcribing",
+    "Transcribed": "Transcribed"
 }

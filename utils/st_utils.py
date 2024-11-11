@@ -5,7 +5,6 @@ import time
 import whisper
 from typing import List, Dict, Optional, Literal
 from streamlit_float import *
-from audiorecorder import audiorecorder
 from pkg_resources import parse_version
 
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
@@ -179,43 +178,36 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
         voice_input_popover = voice_input_column.popover(
             label="🎤"
         )
-        voice_input_model_name = voice_input_popover.selectbox(
-            label=i18n("Voice input model"),
+        transcribe_model_name = voice_input_popover.selectbox(
+            label=i18n("Transcribe model"),
             options=whisper.available_models(),
             index=3,
-            key="voice_input_model"   
+            key="transcribe_model"   
         )
         audio_recorder_container =  voice_input_popover.container(border=True)
         with audio_recorder_container:
-            # TODO:没有麦克风可能无法录音
-            # audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
-            audio_recorded = audiorecorder(pause_prompt='pause')
-            audio_placeholder = st.empty()
+            audio_recorded = st.audio_input(label=i18n("Record your input"))
             transcribe_button_placeholder = st.empty()
-            if len(audio_recorded) > 0:
-                # To play audio in frontend:
-                audio = audio_recorded.export().read()
-                audio_placeholder.audio(audio)
+            if audio_recorded:
                 transcribe_button = transcribe_button_placeholder.button(
                     label=i18n("Transcribe"),
                     use_container_width=True
                 )
-                # 临时存储音频文件
+                # 临时存储音频文件,将BytesIO对象转换为文件对象
                 with open("dynamic_configs/temp.wav", "wb") as f:
-                    f.write(audio)
-                # TODO：按下识别按钮后，才能识别语音
+                    f.write(audio_recorded.getvalue())
                 # 加载语音识别模型
                 if transcribe_button:
                     with st.status(i18n("Transcribing...")):
                         st.write(i18n("Loading model"))
-                        voice_input_model = whisper.load_model(
-                            name=voice_input_model_name,
+                        transcribe_model = whisper.load_model(
+                            name=transcribe_model_name,
                             download_root="./tts_models"
                         )
                         st.write(i18n("Model loaded"))
                         # 识别语音
                         st.write(i18n("Transcribing"))
-                        transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
+                        transcribe_result = transcribe_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
                         st.write(i18n("Transcribed"))
                     content = transcribe_result.get("text","No result.")
                     copy_to_clipboard(content)

@@ -167,5 +167,12 @@
     "File": "文件",
     "uploaded successfully! Please continue to chunk at the next step.": "上传成功！请继续进行分块处理。",
     "URL content parsed successfully! Please continue to chunk at the next step.": "网页内容解析成功！请继续进行分块处理。",
-    "Files chunked successfully! Please continue to embed at the next step.": "文件分块成功！请继续进行嵌入处理。"
+    "Files chunked successfully! Please continue to embed at the next step.": "文件分块成功！请继续进行嵌入处理。",
+    "Record your input": "录制你的输入内容",
+    "Transcribe model": "语音识别模型",
+    "Transcribe": "开始识别",
+    "Loading model": "加载模型",
+    "Model loaded": "模型加载完成",
+    "Transcribing": "正在识别",
+    "Transcribed": "识别完成"
 }
