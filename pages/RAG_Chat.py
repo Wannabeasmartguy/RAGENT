@@ -17,6 +17,7 @@ from core.basic_config import (
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
+from core.dialog_processors import DialogProcessor
 from llm.oai.completion import oai_config_generator
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_openai_config_generator
@@ -77,18 +78,13 @@ def save_rag_chat_history():
     Save chat history to database.
     Always update the chat entirely, including chat history and sources.
     """
-    chat_history_storage.upsert(
-        AssistantRun(
-            name="assistant",
-            run_name=st.session_state.rag_run_name,
-            run_id=st.session_state.rag_run_id,
-            llm=st.session_state.rag_chat_config_list[0],
-            memory={"chat_history": st.session_state.custom_rag_chat_history},
-            task_data={"source_documents": st.session_state.custom_rag_sources},
-            assistant_data={
+    dialog_processor.update_chat_history(
+        run_id=st.session_state.rag_run_id,
+        chat_history=st.session_state.custom_rag_chat_history,
+        additional_task_data={"source_documents": st.session_state.custom_rag_sources},
+        assistant_data={
                 "model_type": st.session_state.model_type,
-            },
-        )
+        },
     )
 
 
@@ -225,6 +221,7 @@ chat_history_storage = SqlAssistantStorage(
     table_name="custom_rag_chat_history",
     db_file=chat_history_db_file,
 )
+dialog_processor = DialogProcessor(storage=chat_history_storage)
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
@@ -250,22 +247,19 @@ if "oai_like_model_config_dict" not in st.session_state:
         "noneed": {"base_url": "http://127.0.0.1:8080/v1", "api_key": "noneed"}
     }
 
-rag_run_id_list = chat_history_storage.get_all_run_ids()
+rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 if len(rag_run_id_list) == 0:
-    chat_history_storage.upsert(
-        AssistantRun(
-            name="assistant",
-            run_id=str(uuid4()),
-            llm=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
-            run_name="New dialog",
-            memory={"chat_history": []},
-            task_data={"source_documents": {}},
-            assistant_data={
-                "model_type": "AOAI",
-            },
-        )
+    dialog_processor.create_dialog(
+        name="assistant",
+        run_id=str(uuid4()),
+        llm_config=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
+        run_name="New dialog",
+        task_data={"source_documents": {}},
+        assistant_data={
+            "model_type": "AOAI",
+        },
     )
-    rag_run_id_list = chat_history_storage.get_all_run_ids()
+    rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 if "rag_current_run_id_index" not in st.session_state:
     st.session_state.rag_current_run_id_index = 0
 while st.session_state.rag_current_run_id_index > len(rag_run_id_list):
@@ -278,19 +272,15 @@ if "rag_run_id" not in st.session_state:
 # initialize config
 if "rag_chat_config_list" not in st.session_state:
     st.session_state.rag_chat_config_list = [
-        chat_history_storage.get_specific_run(st.session_state.rag_run_id).llm
+        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
     ]
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
-    st.session_state.custom_rag_chat_history = chat_history_storage.get_specific_run(
-        st.session_state.rag_run_id
-    ).memory["chat_history"]
+    st.session_state.custom_rag_chat_history = dialog_processor.get_dialog(st.session_state.rag_run_id).memory["chat_history"]
 if "custom_rag_sources" not in st.session_state:
     try:
-        st.session_state.custom_rag_sources = chat_history_storage.get_specific_run(
-            st.session_state.rag_run_id
-        ).task_data["source_documents"]
+        st.session_state.custom_rag_sources = dialog_processor.get_dialog(st.session_state.rag_run_id).task_data["source_documents"]
     except TypeError:
         # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
         st.session_state.custom_rag_sources = {}
@@ -392,16 +382,14 @@ def update_rag_config_in_db_callback():
         config_list = litellm_config_generator(model=st.session_state["model"])
     st.session_state["rag_chat_config_list"] = config_list
     log_dict_changes(origin_config_list[0], config_list[0])
-    chat_history_storage.upsert(
-        AssistantRun(
-            run_id=st.session_state.rag_run_id,
-            llm=config_list[0],
-            assistant_data={
-                "model_type": st.session_state["model_type"],
-                # "system_prompt": st.session_state["system_prompt"],
-            },
-            updated_at=datetime.now(),
-        )
+    dialog_processor.update_dialog_config(
+        run_id=st.session_state.rag_run_id,
+        llm_config=config_list[0],
+        assistant_data={
+            "model_type": st.session_state["model_type"],
+            # "system_prompt": st.session_state["system_prompt"],
+        },
+        updated_at=datetime.now(),
     )
 
 try:
@@ -451,7 +439,7 @@ with st.sidebar:
                     # 更新session state
                     st.session_state.rag_run_id = selected_run.run_id
                     st.session_state.rag_current_run_id_index = (
-                        chat_history_storage.get_all_run_ids().index(
+                        [run.run_id for run in dialog_processor.get_all_dialogs()].index(
                             st.session_state.rag_run_id
                         )
                     )
@@ -471,14 +459,10 @@ with st.sidebar:
                     # 更新聊天历史
                     try:
                         st.session_state.custom_rag_chat_history = (
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_saved_dialog.run_id
-                            ).memory["chat_history"]
+                            dialog_processor.get_dialog(st.session_state.rag_saved_dialog.run_id).memory["chat_history"]
                         )
                         st.session_state.custom_rag_sources = (
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_saved_dialog.run_id
-                            ).task_data["source_documents"]
+                            dialog_processor.get_dialog(st.session_state.rag_saved_dialog.run_id).task_data["source_documents"]
                         )
                     except (TypeError, ValidationError):
                         st.session_state.custom_rag_chat_history = []
@@ -489,7 +473,7 @@ with st.sidebar:
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
-                options=chat_history_storage.get_all_runs(),
+                options=dialog_processor.get_all_dialogs(),
                 format_func=lambda x: (
                     x.run_name[:15] + "..." if len(x.run_name) > 15 else x.run_name
                 ),
@@ -505,25 +489,19 @@ with st.sidebar:
 
                 def add_rag_dialog_callback():
                     st.session_state.rag_run_id = str(uuid4())
-                    chat_history_storage.upsert(
-                        AssistantRun(
-                            name="assistant",
-                            run_id=st.session_state.rag_run_id,
-                            run_name="New dialog",
-                            llm=aoai_config_generator(
-                                model=model_selector("AOAI")[0], stream=True
-                            )[0],
-                            memory={"chat_history": []},
-                            task_data={
-                                "source_documents": {},
-                            },
-                        )
+                    dialog_processor.create_dialog(
+                        run_id=st.session_state.rag_run_id,
+                        run_name="New dialog",
+                        llm_config=aoai_config_generator(
+                            model=model_selector("AOAI")[0], stream=True
+                        )[0],
+                        task_data={
+                            "source_documents": {},
+                        },
                     )
                     st.session_state.rag_current_run_id_index = 0
                     st.session_state.rag_chat_config_list = [
-                        chat_history_storage.get_specific_run(
-                            st.session_state.rag_run_id
-                        ).llm
+                        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
                     ]
                     st.session_state.custom_rag_chat_history = []
                     st.session_state.custom_rag_sources = {}
@@ -537,48 +515,36 @@ with st.sidebar:
             with delete_dialog_column:
 
                 def delete_rag_dialog_callback():
-                    chat_history_storage.delete_run(st.session_state.rag_run_id)
-                    if len(chat_history_storage.get_all_run_ids()) == 0:
+                    dialog_processor.delete_dialog(st.session_state.rag_run_id)
+                    if len(dialog_processor.get_all_dialogs()) == 0:
                         st.session_state.rag_run_id = str(uuid4())
-                        chat_history_storage.upsert(
-                            AssistantRun(
-                                name="assistant",
-                                run_id=st.session_state.rag_run_id,
-                                llm=aoai_config_generator(model=model_selector("AOAI")[0])[
-                                    0
-                                ],
-                                run_name="New dialog",
-                                memory={"chat_history": []},
-                                task_data={
-                                    "source_documents": {},
-                                },
-                            )
+                        dialog_processor.create_dialog(
+                            run_id=st.session_state.rag_run_id,
+                            run_name="New dialog",
+                            llm_config=aoai_config_generator(
+                                model=model_selector("AOAI")[0], stream=True
+                            )[0],
+                            task_data={
+                                "source_documents": {},
+                            },
                         )
                         st.session_state.rag_chat_config_list = [
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_run_id
-                            ).llm
+                            dialog_processor.get_dialog(st.session_state.rag_run_id).llm
                         ]
                         st.session_state.custom_rag_chat_history = []
                         st.session_state.custom_rag_sources = {}
                     else:
                         st.session_state.rag_run_id = (
-                            chat_history_storage.get_all_run_ids()[st.session_state.rag_current_run_id_index]
+                            [run.run_id for run in dialog_processor.get_all_dialogs()][st.session_state.rag_current_run_id_index]
                         )
                         st.session_state.rag_chat_config_list = [
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_run_id
-                            ).llm
+                            dialog_processor.get_dialog(st.session_state.rag_run_id).llm
                         ]
                         st.session_state.custom_rag_chat_history = (
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_run_id
-                            ).memory["chat_history"]
+                            dialog_processor.get_dialog(st.session_state.rag_run_id).memory["chat_history"]
                         )
                         st.session_state.custom_rag_sources = (
-                            chat_history_storage.get_specific_run(
-                                st.session_state.rag_run_id
-                            ).task_data["source_documents"]
+                            dialog_processor.get_dialog(st.session_state.rag_run_id).task_data["source_documents"]
                         )
                     logger.info(f"Delete a RAG dialog, deleted dialog name: {st.session_state.rag_run_name}, deleted dialog id: {st.session_state.rag_run_id}")
 
@@ -596,20 +562,18 @@ with st.sidebar:
 
                 def rag_dialog_name_change_callback():
                     origin_run_name = saved_dialog.run_name
-                    chat_history_storage.upsert(
-                        AssistantRun(
-                            run_name=st.session_state.rag_run_name,
-                            run_id=st.session_state.rag_run_id,
-                        )
+                    dialog_processor.update_dialog_name(
+                        run_id=st.session_state.rag_run_id,
+                        new_name=st.session_state.rag_run_name,
                     )
                     logger.info(f"RAG dialog name changed from {origin_run_name} to {st.session_state.rag_run_name}.(run_id: {st.session_state.rag_run_id})")
-                    st.session_state.rag_current_run_id_index = rag_run_id_list.index(
+                    st.session_state.rag_current_run_id_index = [run.run_id for run in dialog_processor.get_all_dialogs()].index(
                         st.session_state.rag_run_id
                     )
 
                 dialog_name = dialog_details_settings_popover.text_input(
                     label=i18n("Dialog name"),
-                    value=chat_history_storage.get_specific_run(st.session_state.rag_run_id).run_name,
+                    value=dialog_processor.get_dialog(st.session_state.rag_run_id).run_name,
                     key="rag_run_name",
                     on_change=rag_dialog_name_change_callback,
                 )
@@ -641,9 +605,7 @@ with st.sidebar:
             options = ["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"]
             try:
                 return options.index(
-                    chat_history_storage.get_specific_run(
-                        st.session_state.rag_run_id
-                    ).assistant_data["model_type"]
+                    dialog_processor.get_dialog(st.session_state.rag_run_id).assistant_data["model_type"]
                 )
             except:
                 return 0
@@ -881,16 +843,14 @@ with st.sidebar:
                         logger.info(
                             f"Chat config list updated: {st.session_state.rag_chat_config_list}"
                         )
-                        chat_history_storage.upsert(
-                            AssistantRun(
-                                run_id=st.session_state.rag_run_id,
-                                llm=st.session_state["rag_chat_config_list"][0],
-                                assistant_data={
-                                    "model_type": st.session_state["model_type"],
-                                    # "system_prompt": st.session_state["system_prompt"],
-                                },
-                                updated_at=datetime.now(),
-                            )
+                        dialog_processor.update_dialog_config(
+                            run_id=st.session_state.rag_run_id,
+                            llm_config=st.session_state["rag_chat_config_list"][0],
+                            assistant_data={
+                                "model_type": st.session_state["model_type"],
+                                # "system_prompt": st.session_state["system_prompt"],
+                            },
+                            updated_at=datetime.now(),
                         )
                         st.toast(i18n("Model config loaded successfully"), icon="✅")
                     else:
@@ -1037,14 +997,10 @@ with st.sidebar:
     def clear_chat_history_callback():
         st.session_state.custom_rag_chat_history = []
         st.session_state.custom_rag_sources = {}
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.rag_run_id,
-                run_name=st.session_state.rag_run_name,
-                memory={"chat_history": st.session_state.custom_rag_chat_history},
-                task_data={"source_documents": st.session_state.custom_rag_sources},
-            )
+        dialog_processor.update_chat_history(
+            run_id=st.session_state.rag_run_id,
+            chat_history=st.session_state.custom_rag_chat_history,
+            additional_task_data={"source_documents": st.session_state.custom_rag_sources},
         )
         st.session_state.rag_current_run_id_index = rag_run_id_list.index(
             st.session_state.rag_run_id
@@ -1064,13 +1020,10 @@ with st.sidebar:
         else:
             logger.info("Chat history is empty, no need to delete source documents")
 
-        chat_history_storage.upsert(
-            AssistantRun(
-                name="assistant",
-                run_id=st.session_state.rag_run_id,
-                run_name=st.session_state.rag_run_name,
-                memory={"chat_history": st.session_state.custom_rag_chat_history},
-            )
+        dialog_processor.update_chat_history(
+            run_id=st.session_state.rag_run_id,
+            chat_history=st.session_state.custom_rag_chat_history,
+            additional_task_data={"source_documents": st.session_state.custom_rag_sources},
         )
 
     delete_previous_round_button = delete_previous_round_button_col.button(
