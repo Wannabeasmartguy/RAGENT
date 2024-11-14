@@ -6,11 +6,12 @@ import time
 from loguru import logger
 from loguru._logger import Logger
 
+from core.strategy import DialogProcessStrategy
 from storage.db.base import Sqlstorage
 from model.chat.assistant import AssistantRun
 
 
-class DialogProcessor:
+class DialogProcessor(DialogProcessStrategy):
     """
     对话处理器，用于管理对话相关的数据库操作
     """
