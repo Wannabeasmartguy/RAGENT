@@ -24,7 +24,8 @@ from core.basic_config import (
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )
-from core.encryption import Encryptor
+from core.strategy import EncryptorStrategy
+from core.encryption import FernetEncryptor
 from storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
@@ -480,8 +481,12 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     """
     config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
-    def __init__(self):
-        self.encryptor = Encryptor()
+    def __init__(self, encryptor: EncryptorStrategy = None):
+        """
+        Args:
+            encryptor (EncryptorStrategy, optional): Defaults to None. If not provided, a new FernetEncryptor will be created.
+        """
+        self.encryptor = encryptor or FernetEncryptor()
         # 如果本地没有custom_model_config.json文件，则创建文件夹及文件
         if not os.path.exists(self.config_path):
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)

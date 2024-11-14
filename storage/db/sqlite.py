@@ -21,7 +21,8 @@ from model.chat.assistant import AssistantRun
 from model.config.llm import *
 from storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
-from core.encryption import Encryptor
+from core.encryption import FernetEncryptor
+from core.strategy import EncryptorStrategy
 import json
 import time
 
@@ -175,7 +176,7 @@ class SqlAssistantStorage(Sqlstorage):
         db_url: Optional[str] = None,
         db_file: Optional[str] = None,
         db_engine: Optional[Engine] = None,
-        encryption_key: Optional[str] = None,
+        encryptor: Optional[EncryptorStrategy] = None,
     ):
         """
         This class provides assistant storage using a sqlite database.
@@ -190,6 +191,7 @@ class SqlAssistantStorage(Sqlstorage):
         :param db_url: The database URL to connect to.
         :param db_file: The database file to connect to.
         :param db_engine: The database engine to use.
+        :param encryptor: The encryptor to use. If not provided, a new FernetEncryptor will be created.
         """
         _engine: Optional[Engine] = db_engine
         if _engine is None and db_url is not None:
@@ -215,7 +217,7 @@ class SqlAssistantStorage(Sqlstorage):
         self.table: Table = self.get_table()
 
         # Initialize encryptor
-        self.encryptor: Encryptor = Encryptor(key=encryption_key)
+        self.encryptor: EncryptorStrategy = encryptor or FernetEncryptor()
 
     def _sanitize_input(self, data: Dict[str, Any]) -> Dict[str, Any]:
         sanitized = {}
