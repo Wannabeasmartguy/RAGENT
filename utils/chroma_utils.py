@@ -47,6 +47,33 @@ def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
     x += "\n\n"
     if api:
         return x
+        
+    if modal_content_type == "source":
+        return """
+            <style>
+                .card {
+                    overflow-x: auto;
+                    overflow-y: auto;
+                    font-family: "微软雅黑", sans-serif;
+                    font-size: 16px;
+                    height: 300px;
+                    width: 96%%;
+                    white-space: pre-wrap;
+                    white-space: -moz-pre-wrap;
+                    white-space: -pre-wrap;
+                    white-space: -o-pre-wrap;
+                    word-wrap: break-word;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin: 10px;
+                    background-color: #f9f9f9;
+                    box-sizing: border-box;
+                }
+            </style>
+            <div class="card">%s</div>
+        """ % x
+        
     return """
             <style>
                 .card-container {
@@ -100,19 +127,6 @@ def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
                     font-family: "微软雅黑", sans-serif;
                     font-size: 16px;
                 }
-                .modal-content-source {
-                    background-color: #fefefe;
-                    margin: 7%% auto;
-                    padding: 20px;
-                    border: 1px solid #888;
-                    width: 80%%;
-                    max-height: 50vh;
-                    overflow-y: auto;
-                    border-radius: 5px;
-                    position: relative;
-                    font-family: "微软雅黑", sans-serif;
-                    font-size: 16px;
-                }
                 .close {
                     color: #aaa;
                     float: right;
@@ -128,7 +142,7 @@ def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
                 %s
                 </div>
                 <div id="myModal" class="modal">
-                    <div class="%s">
+                    <div class="modal-content">
                         <span class="close" onclick="hideModal(this.parentElement.parentElement)">&times;</span>
                         <div>%s</div>
                     </div>
@@ -163,7 +177,7 @@ def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
                     }
                 });
                 </script>
-""" % (x, "modal-content-source" if modal_content_type == "source" else "modal-content", x)
+""" % (x, x)
 
 
 def dict_to_html(x:list[dict],file_name:str,advance_info:bool, small=True, api=False):

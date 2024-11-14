@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import os
 import json
 import base64
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from streamlit_float import *
 from uuid import uuid4
 from copy import deepcopy
@@ -101,30 +101,42 @@ def display_rag_sources(response_sources: Dict[str, Any]):
 
     rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
 
-    def create_source_popover(column, index):
+    @st.dialog(title=i18n("Cited Source"), width="large")
+    def show_source_content(file_name: str, file_content: str, distance: Optional[float] = None, relevance_score: Optional[float] = None):
+        """显示源文件内容的对话框"""
+        from utils.chroma_utils import text_to_html
+        components.html(text_to_html(file_content, modal_content_type="source"), height=330)
+
+        st.markdown(f"**{i18n('Cited Source')}**: {file_name}")
+        if distance is not None:
+            st.markdown(f"**{i18n('Vector Cosine Similarity')}**: {str(round((1-distance)*100, 2))}%")
+        if relevance_score is not None:
+            st.markdown(f"**{i18n('Relevance Score by reranker')}**: {relevance_score}")
+
+    def create_source_button(column, index):
         file_name = response_sources["metadatas"][index]["source"]
         file_content = response_sources["page_content"][index]
-        with column.popover(
-            i18n("Cited Source") + f" {index+1}", use_container_width=True
+        distance = response_sources["distances"][index] if "distances" in response_sources and response_sources["distances"] is not None else None
+        relevance_score = response_sources["metadatas"][index].get("relevance_score")
+
+        if column.button(
+            i18n("Cited Source") + f" {index+1}",
+            key=f"source_button_{index}",
+            use_container_width=True
         ):
-            from utils.chroma_utils import text_to_html
-            components.html(text_to_html(file_content, modal_content_type="source"), height=230)
+            show_source_content(
+                file_name=file_name,
+                file_content=file_content,
+                distance=distance,
+                relevance_score=relevance_score
+            )
 
-            st.text(i18n("Cited Source") + ": " + file_name)
-            if "distances" in response_sources and response_sources["distances"] is not None:
-                distance = response_sources["distances"][index]
-                # st.text(i18n("Vector Distance") + ": " + str(distance))
-                st.text(i18n("Vector Cosine Similarity") + ": " + str(round((1-distance)*100, 2)) + "%")
-            # 如果使用 reranker，则有 relevance_score
-            if "relevance_score" in response_sources["metadatas"][index]:
-                relevance_score = response_sources["metadatas"][index]["relevance_score"]
-                st.text(i18n("Relevance Score by reranker") + ": " + str(relevance_score))
-
-
+    # 显示前 visible_sources 个源
     for index, column in enumerate(itertools.chain(*rows)):
         if index < visible_sources:
-            create_source_popover(column, index)
+            create_source_button(column, index)
 
+    # 如果有更多源，在展开器中显示
     if num_sources > 6:
         with st.expander(i18n("Show more sources"), expanded=False):
             remaining_sources = num_sources - visible_sources
@@ -138,10 +150,10 @@ def display_rag_sources(response_sources: Dict[str, Any]):
                 itertools.chain(*remaining_rows), start=visible_sources
             ):
                 if index < num_sources:
-                    create_source_popover(column, index)
+                    create_source_button(column, index)
 
 
-@st.cache_data
+# @st.cache_data
 def write_custom_rag_chat_history(chat_history, _sources):
     # 将SVG编码为base64
     user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"

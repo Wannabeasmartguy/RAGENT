@@ -153,7 +153,7 @@ def oai_model_config_selector(oai_model_config:Dict):
 
 
 # Display chat messages from history on app rerun
-@st.cache_data
+# @st.cache_data
 def write_chat_history(
     chat_history: Optional[List[Dict[str, str]]] = None,
     if_custom_css: bool = True
