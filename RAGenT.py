@@ -796,8 +796,13 @@ with st.sidebar:
                 st.toast(body=i18n("Chat history cleared"), icon="🧹")
             
             def delete_previous_round_callback():
-                # 删除最后一轮对话，包含用户消息和助手消息
-                st.session_state.chat_history = st.session_state.chat_history[:-2]
+                # 删除最后一轮对话
+                # 如果前一条是用户消息，后一条是助手消息，则两条都删除
+                # 如果后一条是用户消息，则只删除用户消息
+                if len(st.session_state.chat_history) >= 2 and st.session_state.chat_history[-1]["role"] == "assistant" and st.session_state.chat_history[-2]["role"] == "user":
+                    st.session_state.chat_history = st.session_state.chat_history[:-2]
+                elif len(st.session_state.chat_history) > 0:  # 确保至少有一条消息
+                    st.session_state.chat_history = st.session_state.chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
                     chat_history=st.session_state.chat_history,
@@ -897,17 +902,22 @@ if prompt and st.session_state.model:
                 llm_config=st.session_state.chat_config_list[0],
             )
 
-            response = generate_response(
-                processed_messages=processed_messages,
-                chatprocessor=chatprocessor,
-                if_tools_call=if_tools_call,
-                if_stream=if_stream,
-            )
+            try:
+                response = generate_response(
+                    processed_messages=processed_messages,
+                    chatprocessor=chatprocessor,
+                    if_tools_call=if_tools_call,
+                    if_stream=if_stream,
+                )
+            except Exception as e:
+                response = dict(error=str(e))
 
             st.html("<span class='chat-assistant'></span>")
 
-            if not if_stream:
-                if "error" not in response:
+            if isinstance(response, dict) and "error" in response:
+                st.error(response["error"])
+            else:
+                if not if_stream:
                     response_content = response.choices[0].message.content
                     st.write(response_content)
                     st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
@@ -921,13 +931,11 @@ if prompt and st.session_state.model:
                         {"role": "assistant", "content": response_content}
                     )
                 else:
-                    st.error(response)
-            else:
-                total_response = st.write_stream(response)
-                st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
-                st.session_state.chat_history.append(
-                    {"role": "assistant", "content": total_response}
-                )
+                    total_response = st.write_stream(response)
+                    st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
+                    st.session_state.chat_history.append(
+                        {"role": "assistant", "content": total_response}
+                    )
 
             # 保存聊天记录
             # chat_history_storage.upsert(
