@@ -174,5 +174,6 @@
     "Loading model": "加载模型",
     "Model loaded": "模型加载完成",
     "Transcribing": "正在识别",
-    "Transcribed": "识别完成"
+    "Transcribed": "识别完成",
+    "System prompt updated": "系统提示已更新"
 }

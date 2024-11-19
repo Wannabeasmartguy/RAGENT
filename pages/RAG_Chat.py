@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 import os
 import json
 import base64
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from streamlit_float import *
 from uuid import uuid4
 from copy import deepcopy
@@ -176,7 +176,12 @@ def write_custom_rag_chat_history(chat_history, _sources):
     st.html(combined_style)
 
 
-def handle_response(response: BaseRAGResponse, if_stream: bool):
+def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool):
+    
+    if isinstance(response, dict) and "error" in response:
+        st.error(response["error"])
+        return
+    
     # 先将引用sources添加到 st.session
     st.session_state.custom_rag_sources.update(
         {response.response_id: response.source_documents}
@@ -1020,7 +1025,11 @@ with st.sidebar:
         st.toast(body=i18n("Chat history cleared"), icon="🧹")
 
     def delete_previous_round_callback():
-        st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-2]
+        # 删除最后一轮对话
+        if len(st.session_state.custom_rag_chat_history) >= 2 and st.session_state.custom_rag_chat_history[-1]["role"] == "assistant" and st.session_state.custom_rag_chat_history[-2]["role"] == "user":
+            st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-2]
+        elif len(st.session_state.custom_rag_chat_history) > 0:
+            st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-1]
 
         # 删除最后一轮对话对应的源文档
         if st.session_state.custom_rag_chat_history:
@@ -1106,15 +1115,18 @@ if prompt and st.session_state.model:
         with st.spinner("Thinking..."):
             refresh_retriever()
             agentchat_processor = get_agentchat_processor()
-            response = agentchat_processor.create_custom_rag_response(
-                collection_name=collection_selectbox,
-                messages=processed_messages,
-                is_rerank=is_rerank,
-                is_hybrid_retrieve=is_hybrid_retrieve,
-                hybrid_retriever_weight=hybrid_retrieve_weight,
-                stream=if_stream,
-                selected_file=selected_collection_file,
-            )
+            try:
+                response = agentchat_processor.create_custom_rag_response(
+                    collection_name=collection_selectbox,
+                    messages=processed_messages,
+                    is_rerank=is_rerank,
+                    is_hybrid_retrieve=is_hybrid_retrieve,
+                    hybrid_retriever_weight=hybrid_retrieve_weight,
+                    stream=if_stream,
+                    selected_file=selected_collection_file,
+                )
+            except Exception as e:
+                response = dict(error=str(e))
         st.html("<span class='rag-chat-assistant'></span>")
         handle_response(response=response, if_stream=if_stream)
         st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))

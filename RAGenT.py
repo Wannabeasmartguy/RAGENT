@@ -750,6 +750,7 @@ with st.sidebar:
                         "system_prompt": st.session_state.system_prompt,
                     }
                 )
+                st.toast(i18n("System prompt updated"), icon="✅")
 
             dialog_name = dialog_details_settings_popover.text_input(
                 label=i18n("Dialog name"),

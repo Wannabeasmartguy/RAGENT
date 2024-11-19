@@ -174,5 +174,6 @@
     "Loading model": "Loading model",
     "Model loaded": "Model loaded",
     "Transcribing": "Transcribing",
-    "Transcribed": "Transcribed"
+    "Transcribed": "Transcribed",
+    "System prompt updated": "System prompt updated"
 }
