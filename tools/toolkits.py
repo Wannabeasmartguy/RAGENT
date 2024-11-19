@@ -90,6 +90,58 @@ def tool_calculator(expression:str) -> str:
 #     return extract(fetch_url(url),url=url,include_links=True)
 
 
+def tool_duckduckgo_search(
+    query: str,
+    region: str = "wt-wt",
+    safesearch: str = "moderate",
+    timelimit: str = "d",
+) -> str:
+    '''
+    使用 DuckDuckGo 搜索并返回结果。
+    
+    :param query: 搜索查询词
+    :param region: 搜索区域，可选wt-wt, us-en, uk-en, ru-ru, etc. 默认为"wt-wt"
+    :param safesearch: 安全搜索级别：on, moderate, off. 默认为"moderate"
+    :param timelimit: 时间限制：d(一天), w(一周), m(一个月), y(一年). 默认为"d"
+    '''
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        return "Error: Please install duckduckgo-search first: pip install duckduckgo-search"
+    
+    logger.info(f"DuckDuckGo search is called with query: {query}")
+    
+    results_list = []
+    try:
+        with DDGS() as ddgs:
+            search_results = ddgs.text(
+                keywords=query,
+                region=region,
+                safesearch=safesearch,
+                timelimit=timelimit,
+                max_results=5
+            )
+            
+            # 将生成器转换为列表并检查结果
+            results_list = list(search_results)
+            if not results_list:
+                return "没有找到相关结果。"
+            
+            # 格式化为markdown
+            markdown_results = ""
+            for i, r in enumerate(results_list, 1):
+                markdown_results += f"### {i}. {r.get('title', '无标题')}\n"
+                markdown_results += f"- URL: {r.get('href', '无链接')}\n"
+                markdown_results += f"- 摘要: {r.get('body', r.get('snippet', '无摘要'))}\n\n"
+            
+            logger.info(f"DuckDuckGo search returned {len(results_list)} results")
+            return markdown_results
+        
+    except Exception as e:
+        logger.error(f"DuckDuckGo search error: {str(e)}")
+        return f"Error: DuckDuckGo search failed with error: {str(e)}"
+
+
 def tool_jina_web_reader(
     url: str, 
     api_key: str = "",
