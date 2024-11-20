@@ -173,35 +173,35 @@ def tool_jina_web_reader(
         return response.text
 
 
-def tool_jina_web_searcher(
-    query: str,
-    api_key: str = "",
-    content_format: str = "markdown",
-    browser_locale: str = "en-US",
-) -> str:
-    '''
-    A web search tool, provided by JinaAI, is useful when a web search is needed for more relevant information.
+# def tool_jina_web_searcher(
+#     query: str,
+#     api_key: str = "",
+#     content_format: str = "markdown",
+#     browser_locale: str = "en-US",
+# ) -> str:
+#     '''
+#     A web search tool, provided by JinaAI, is useful when a web search is needed for more relevant information.
     
-    :param query: The query to search for
-    :param api_key: The API key to use for the search, just use "" is ok
-    :param content_format: The format of the content to return, can be one of the following: "text", "markdown", "html". Just use markdown by default is ok.
-    :param browser_locale: Control the browser locale to render the page. Lots of websites serve different content based on the locale. If the query is in Chinese, you can set it to "zh-CN". If the query is in English or other languages, you can set it to "en-US".
-    '''
-    logger.info(f"JinaAI web searcher is called with query: {query}")
-    url_prefix = "https://s.jina.ai/"
-    header = {
-        "X-Return-Format": content_format,
-        'X-Locale': browser_locale,
-    }
-    if api_key and api_key != "":
-        header.update({"Authorization": f"Bearer {api_key}"})
-    response = requests.get(url_prefix + query, headers=header)
+#     :param query: The query to search for
+#     :param api_key: The API key to use for the search, just use "" is ok
+#     :param content_format: The format of the content to return, can be one of the following: "text", "markdown", "html". Just use markdown by default is ok.
+#     :param browser_locale: Control the browser locale to render the page. Lots of websites serve different content based on the locale. If the query is in Chinese, you can set it to "zh-CN". If the query is in English or other languages, you can set it to "en-US".
+#     '''
+#     logger.info(f"JinaAI web searcher is called with query: {query}")
+#     url_prefix = "https://s.jina.ai/"
+#     header = {
+#         "X-Return-Format": content_format,
+#         'X-Locale': browser_locale,
+#     }
+#     if api_key and api_key != "":
+#         header.update({"Authorization": f"Bearer {api_key}"})
+#     response = requests.get(url_prefix + query, headers=header)
 
-    if response.status_code != 200:
-        return f"Error: JinaAI web searcher returned status code {response.status_code}"
-    else:
-        logger.info(f"JinaAI web searcher response length: {len(response.text)}")
-        return response.text
+#     if response.status_code != 200:
+#         return f"Error: JinaAI web searcher returned status code {response.status_code}"
+#     else:
+#         logger.info(f"JinaAI web searcher response length: {len(response.text)}")
+#         return response.text
 
 
 # ************************************
