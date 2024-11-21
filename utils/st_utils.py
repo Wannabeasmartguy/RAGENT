@@ -3,9 +3,9 @@ import streamlit.components.v1 as components
 import os
 import time
 import whisper
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Literal
 from streamlit_float import *
-from audiorecorder import audiorecorder
+from pkg_resources import parse_version
 
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from utils.basic_utils import (
@@ -17,6 +17,76 @@ from tools.toolkits import TO_TOOLS
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
 
+SCROLL_BUTTON_CONSTANTS = {
+    "BACK_TO_TOP": {
+        "v37": '''
+        <script>
+            var body = window.parent.document.querySelector(".main");
+            console.log(body);
+            body.scrollTop = 0;
+        </script>
+        ''',
+        "v39": '''
+        <script>
+            var body = window.parent.document.querySelector(".stMain");
+            console.log(body);
+            body.scrollTop = 0;
+        </script>
+        '''
+    },
+    "BACK_TO_BOTTOM": {
+        "v37": '''
+        <script>
+            var body = window.parent.document.querySelector(".main");
+            console.log(body);
+            body.scrollTop = body.scrollHeight;
+        </script>
+        ''',
+        "v39": '''
+        <script>
+            var body = window.parent.document.querySelector(".stMain");
+            console.log(body);
+            body.scrollTop = body.scrollHeight;
+        </script>
+        '''
+    }
+}
+
+def get_scroll_button_js(
+    scroll_type: Literal["BACK_TO_TOP", "BACK_TO_BOTTOM"],
+    st_version: str
+):
+    """
+    Get the scroll button js code.
+    
+    Args:
+        version (str): The version of the streamlit.Like "1.37" or "1.39".
+    
+    Returns:
+        str: The scroll button js code.
+    """
+    version = parse_version(st_version)
+    if version < parse_version("1.38.0"):
+        return SCROLL_BUTTON_CONSTANTS[scroll_type]["v37"]
+    else:
+        return SCROLL_BUTTON_CONSTANTS[scroll_type]["v39"]
+
+def get_scroll_button_collection(
+    st_version: str
+):
+    """
+    Get the both scroll buttons js code.
+    
+    Args:
+        version (str): The version of the streamlit.Like "1.37" or "1.39".
+    
+    Returns:
+        dict: A dict containing the scroll button js code.
+    """
+    return dict(
+        back_to_top=get_scroll_button_js(scroll_type="BACK_TO_TOP", st_version=st_version),
+        back_to_bottom=get_scroll_button_js(scroll_type="BACK_TO_BOTTOM", st_version=st_version)
+    )
 
 def back_to_top(script_container = st.empty(), buttom_container = st.empty()):
     """
@@ -26,20 +96,13 @@ def back_to_top(script_container = st.empty(), buttom_container = st.empty()):
         script_container (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
         buttom_container (streamlit.empty, optional): The container to hold the button. Defaults to st.empty().
     """
-    js = '''
-    <script>
-        var body = window.parent.document.querySelector(".main");
-        console.log(body);
-        body.scrollTop = 0;
-    </script>
-    '''
     top_container = buttom_container.container()
     top_css = float_css_helper(width="2.2rem", right="10rem", bottom="13rem")
     with top_container:
         up_button = st.button("⭱", key="up_button")
         if up_button:
             with script_container:
-                components.html(js)
+                components.html(get_scroll_button_collection(st_version=st.__version__)["back_to_top"])
                 time.sleep(.5) # To make sure the script can execute before being deleted
             script_container.empty()
     top_container.float(top_css)
@@ -53,21 +116,13 @@ def back_to_bottom(script_container = st.empty(), buttom_container = st.empty())
         script_container (streamlit.empty, optional): The temporary container to hold the script. Defaults to st.empty().
         buttom_container (streamlit.empty, optional): The container to hold the button. Defaults to st.empty().
     """
-    js = '''
-    <script>
-        var body = window.parent.document.querySelector(".main");
-        console.log(body);
-        body.scrollTop = body.scrollHeight;
-    </script>
-    '''
-
     bottom_container = buttom_container.container()
     bottom_css = float_css_helper(width="2.2rem", right="10rem", bottom="10rem")
     with bottom_container:
         bottom_button = st.button("⭳", key="bottom_button")
         if bottom_button:
             with script_container:
-                components.html(js)
+                components.html(get_scroll_button_collection(st_version=st.__version__)["back_to_bottom"])
                 time.sleep(.5) # To make sure the script can execute before being deleted
             script_container.empty()
     bottom_container.float(bottom_css)
@@ -123,43 +178,36 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
         voice_input_popover = voice_input_column.popover(
             label="🎤"
         )
-        voice_input_model_name = voice_input_popover.selectbox(
-            label=i18n("Voice input model"),
+        transcribe_model_name = voice_input_popover.selectbox(
+            label=i18n("Transcribe model"),
             options=whisper.available_models(),
             index=3,
-            key="voice_input_model"   
+            key="transcribe_model"   
         )
         audio_recorder_container =  voice_input_popover.container(border=True)
         with audio_recorder_container:
-            # TODO:没有麦克风可能无法录音
-            # audio_recorded = audiorecorder(start_prompt='',stop_prompt='',pause_prompt='')
-            audio_recorded = audiorecorder(pause_prompt='pause')
-            audio_placeholder = st.empty()
+            audio_recorded = st.audio_input(label=i18n("Record your input"))
             transcribe_button_placeholder = st.empty()
-            if len(audio_recorded) > 0:
-                # To play audio in frontend:
-                audio = audio_recorded.export().read()
-                audio_placeholder.audio(audio)
+            if audio_recorded:
                 transcribe_button = transcribe_button_placeholder.button(
                     label=i18n("Transcribe"),
                     use_container_width=True
                 )
-                # 临时存储音频文件
+                # 临时存储音频文件,将BytesIO对象转换为文件对象
                 with open("dynamic_configs/temp.wav", "wb") as f:
-                    f.write(audio)
-                # TODO：按下识别按钮后，才能识别语音
+                    f.write(audio_recorded.getvalue())
                 # 加载语音识别模型
                 if transcribe_button:
                     with st.status(i18n("Transcribing...")):
                         st.write(i18n("Loading model"))
-                        voice_input_model = whisper.load_model(
-                            name=voice_input_model_name,
+                        transcribe_model = whisper.load_model(
+                            name=transcribe_model_name,
                             download_root="./tts_models"
                         )
                         st.write(i18n("Model loaded"))
                         # 识别语音
                         st.write(i18n("Transcribing"))
-                        transcribe_result = voice_input_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
+                        transcribe_result = transcribe_model.transcribe(audio="dynamic_configs/temp.wav",word_timestamps=True,verbose=True)
                         st.write(i18n("Transcribed"))
                     content = transcribe_result.get("text","No result.")
                     copy_to_clipboard(content)
@@ -167,7 +215,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
                     # 删除临时文件
                     os.remove("dynamic_configs/temp.wav")
 
-    chat_input_css = float_css_helper(bottom="6rem", display="flex", justify_content="center", margin="0 auto")
+    chat_input_css = float_css_helper(bottom="5rem", display="flex", justify_content="center", margin="0 auto")
     chat_input_container.float(chat_input_css)
     return prompt
 

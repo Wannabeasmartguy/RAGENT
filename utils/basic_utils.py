@@ -1,6 +1,7 @@
 import streamlit as st
 import pyperclip
 from streamlit import cache_resource
+from pkg_resources import parse_version
 
 import os
 import re
@@ -10,7 +11,7 @@ import textwrap
 from datetime import datetime, timezone
 from loguru import logger
 from functools import lru_cache
-from typing import List, Dict, Optional, Union, Tuple
+from typing import List, Dict, Optional, Union, Tuple, Literal
 from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -20,66 +21,17 @@ from llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 from core.chat_processors import OAILikeConfigProcessor
 from css.export_themes import default_theme, glassmorphism_theme
-
-USER_CHAT_STYLE = """
-<style>
-    .stChatMessage:has(.chat-user) {
-        flex-direction: row-reverse;
-        text-align: right;
-        width: 85%;
-        margin-left: auto;
-        margin-right: 0;
-        background-color: #E7F8FF;
-        border-radius: 10px;
-        padding: 20px;
-    }
-</style>
-"""
-
-ASSISTANT_CHAT_STYLE = """
-<style>
-    .stChatMessage:has(.chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 85%;
-        margin-left: 0;
-        margin-right: auto;
-        background-color: #F3F4F6;
-        border-radius: 10px;
-        padding: 20px;
-    }
-</style>
-"""
-
-RAG_CHAT_USER_STYLE = """
-<style>
-    .stChatMessage:has(.rag-chat-user) {
-        flex-direction: row-reverse;
-        text-align: right;
-        width: 90%;
-        margin-left: auto;
-        margin-right: 0;
-        background-color: #E7F8FF;
-        border-radius: 10px;
-        padding: 20px;
-    }
-</style>
-"""
-
-RAG_CHAT_ASSISTANT_STYLE = """
-<style>
-    .stChatMessage:has(.rag-chat-assistant) {
-        flex-direction: row;
-        text-align: left;
-        width: 90%;
-        margin-left: 0;
-        margin-right: auto;
-        background-color: #F3F4F6;
-        border-radius: 10px;
-        padding: 20px;
-    }
-</style>
-"""
+from css.classic_chat_css import (
+    USER_CHAT_STYLE_ST_V37,
+    USER_CHAT_STYLE_ST_V39,
+    ASSISTANT_CHAT_STYLE,
+)
+from css.rag_chat_css import (
+    RAG_CHAT_USER_STYLE_ST_V37,
+    RAG_CHAT_USER_STYLE_ST_V39,
+    RAG_CHAT_ASSISTANT_STYLE_ST_V37,
+    RAG_CHAT_ASSISTANT_STYLE_ST_V39,
+)
 
 USER_AVATAR_SVG = """
     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-square" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -99,6 +51,61 @@ AI_AVATAR_SVG = """
     <path d="M9.5 13a3.5 3.5 0 0 0 5 0" />
     </svg>
 """
+
+# 定义样式常量
+STYLE_CONSTANTS = {
+    "USER_CHAT": {
+        "v37": USER_CHAT_STYLE_ST_V37,
+        "v39": USER_CHAT_STYLE_ST_V39,
+    },
+    "ASSISTANT_CHAT": {
+        "v37": ASSISTANT_CHAT_STYLE,
+        "v39": ASSISTANT_CHAT_STYLE,
+    },
+    "RAG_USER_CHAT": {
+        "v37": RAG_CHAT_USER_STYLE_ST_V37,
+        "v39": RAG_CHAT_USER_STYLE_ST_V39,
+    },
+    "RAG_ASSISTANT_CHAT": {
+        "v37": RAG_CHAT_ASSISTANT_STYLE_ST_V37,
+        "v39": RAG_CHAT_ASSISTANT_STYLE_ST_V39,
+    }
+}
+
+
+def get_style(
+        style_type:Literal["USER_CHAT", "ASSISTANT_CHAT", "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT"],
+        st_version:str
+    ) -> str:
+    """
+    根据样式类型和Streamlit版本获取相应的样式。
+    
+    :param style_type: 样式类型，如 "USER_CHAT", "ASSISTANT_CHAT" 等
+    :param st_version: Streamlit版本号, 形如 "1.37.0"
+    :return: 对应的样式字符串
+    """
+    version = parse_version(st_version)
+    style_dict = STYLE_CONSTANTS.get(style_type, {})
+    
+    if version < parse_version("1.38.0"):
+        return style_dict.get("v37", "")
+    else:
+        return style_dict.get("v39", "")
+
+
+def get_combined_style(
+        st_version:str, 
+        *style_types:Literal["USER_CHAT", "ASSISTANT_CHAT", "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT"]
+    ) -> str:
+    """
+    获取多个样式类型的组合样式。
+    
+    :param st_version: Streamlit版本号, 形如 "1.37.0"
+    :param style_types: 要组合的样式类型列表
+    :return: 组合后的样式字符串
+    """
+    return "".join(get_style(style_type, st_version) for style_type in style_types)
+
 
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
 
@@ -146,8 +153,11 @@ def oai_model_config_selector(oai_model_config:Dict):
 
 
 # Display chat messages from history on app rerun
-@st.cache_data
-def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
+# @st.cache_data
+def write_chat_history(
+    chat_history: Optional[List[Dict[str, str]]] = None,
+    if_custom_css: bool = True
+) -> None:
     # 将SVG编码为base64
     user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
@@ -177,32 +187,10 @@ def write_chat_history(chat_history: Optional[List[Dict[str, str]]]) -> None:
                             else:
                                 st.image(content["image_url"])
         
-        st.html(
-            """
-            <style>
-                .stChatMessage:has(.chat-user) {
-                    flex-direction: row-reverse;
-                    text-align: right;
-                    width: 85%;
-                    margin-left: auto;
-                    margin-right: 0;
-                    background-color: #E7F8FF;
-                    border-radius: 10px;
-                    padding: 20px;
-                }
-                .stChatMessage:has(.chat-assistant) {
-                    flex-direction: row;
-                    text-align: left;
-                    width: 85%;
-                    margin-left: 0;
-                    margin-right: auto;
-                    background-color: #F3F4F6;
-                    border-radius: 10px;
-                    padding: 20px;
-                }
-            </style>
-            """
-        )
+        # 根据Streamlit版本选择样式
+        if if_custom_css:
+            chat_style = get_combined_style(st.__version__, "USER_CHAT", "ASSISTANT_CHAT")
+            st.html(chat_style)
 
 def wrap_long_text(text: str, max_length: int = 60) -> str:
     """

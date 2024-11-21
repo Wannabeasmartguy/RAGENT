@@ -17,7 +17,9 @@ class ConversationRAG(BaseRAG):
             "Use the following pieces of retrieved context to answer "
             "the question. If you don't know the answer, say that you "
             "don't know. Use three sentences maximum and keep the "
-            "answer concise."
+            "answer concise. If context is not related to the question, ignore it."
+            "If there is no context, say 'No relevant information found', answer "
+            "it directly and as concisely as possible."
         )
 
     def _build_system_prompt_with_documents_and_messages(

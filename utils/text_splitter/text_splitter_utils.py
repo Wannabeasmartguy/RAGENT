@@ -134,3 +134,23 @@ def text_split_execute(
     # st.write(splitted_docs)
 
     return splitted_docs
+
+def url_text_split_execute(
+    url_content: dict,
+    split_chunk_size: int = 1000,
+    split_overlap: int = 0,
+):
+    import time
+    # 默认文件类型为Markdown
+    file_suffix = ".md"
+    file_name_without_suffix = url_content["content"].split("\n\n")[0]
+
+    with tempfile.NamedTemporaryFile(prefix=file_name_without_suffix + "__",suffix=file_suffix,delete=False) as temp_file:
+        temp_file.write(url_content["content"].encode("utf-8"))
+        temp_file.seek(0)
+
+        splitted_docs = choose_text_splitter(file_path=temp_file,chunk_size=split_chunk_size,chunk_overlap=split_overlap)
+    # 手动删除临时文件
+    os.remove(temp_file.name)
+
+    return splitted_docs

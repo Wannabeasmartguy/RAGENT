@@ -1,8 +1,11 @@
 import os
-from cryptography.fernet import Fernet
 import base64
+from cryptography.fernet import Fernet
+from loguru import logger
 
-class Encryptor:
+from core.strategy import EncryptorStrategy
+
+class FernetEncryptor(EncryptorStrategy):
     def __init__(self, key=None):
         if key is None:
             key = os.getenv("ENCRYPTION_KEY")
@@ -15,7 +18,7 @@ class Encryptor:
                 else:
                     # 如果不存在，则生成新的密钥
                     key = Fernet.generate_key()
-                    print("警告: 未设置 `ENCRYPTION_KEY` 环境变量，已生成新的密钥。")
+                    logger.warning("Don't set `ENCRYPTION_KEY` environment variable, a new key has been generated.")
                     # 将密钥保存到文件中
                     with open("encryption_key.txt", "w") as f:
                         f.write(key.decode())

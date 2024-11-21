@@ -24,7 +24,8 @@ from core.basic_config import (
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )
-from core.encryption import Encryptor
+from core.strategy import EncryptorStrategy
+from core.encryption import FernetEncryptor
 from storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
@@ -126,50 +127,32 @@ class ChatProcessor(ChatProcessStrategy):
         # 如果 Source 在 sources 中为 "sdk"，则使用 OpenAI SDK 进行处理
         # 如果 Source 在 sources 中为 "request"，则使用 Request 进行处理
 
-        if SUPPORTED_SOURCES["sources"][source] == "sdk":
-            client = OpenAIWrapper(
-                **llm_config.dict(exclude_unset=True),
-                # 禁用缓存
-                cache = None,
-                cache_seed = None
-            )
+        try:
+            if SUPPORTED_SOURCES["sources"][source] == "sdk":
+                client = OpenAIWrapper(
+                    **llm_config.dict(exclude_unset=True),
+                    # 禁用缓存
+                    cache = None,
+                    cache_seed = None
+                )
 
-            if llm_params:
-                response = client.create(
-                    messages = messages,
-                    model = llm_config.model,
-                    temperature = llm_params.temperature,
-                    top_p = llm_params.top_p,
-                    max_tokens = llm_params.max_tokens
-                )
-            else:
-                response = client.create(
-                    messages = messages,
-                    model = llm_config.model,
-                )
+                if llm_params:
+                    response = client.create(
+                        messages = messages,
+                        model = llm_config.model,
+                        temperature = llm_params.temperature,
+                        top_p = llm_params.top_p,
+                        max_tokens = llm_params.max_tokens
+                    )
+                else:
+                    response = client.create(
+                        messages = messages,
+                        model = llm_config.model,
+                    )
 
             return response
-        
-        # elif SUPPORTED_SOURCES["sources"][source] == "groq":
-        #     client = Groq(
-        #         api_key=llm_config.api_key,
-        #     )
-
-        #     if llm_params:
-        #         response = client.chat.completions.create(
-        #             messages = messages,
-        #             model = llm_config.model,
-        #             temperature = llm_params.temperature,
-        #             top_p = llm_params.top_p,
-        #             max_tokens = llm_params.max_tokens
-        #         )
-        #     else:
-        #         response = client.chat.completions.create(
-        #             messages = messages,
-        #             model = llm_config.model,
-        #         )
-            
-        #     return response
+        except Exception as e:
+            raise ValueError(f"Error creating completion: {str(e)}") from e
 
     def create_completion_stream_api(
             self, 
@@ -216,43 +199,45 @@ class ChatProcessor(ChatProcessStrategy):
         """
         if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
             # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
-            if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
-                if self.llm_config.get("api_type") != "azure":
-                    from openai import OpenAI
-                    client = OpenAI(
-                        api_key=self.llm_config.get("api_key"),
-                        base_url=self.llm_config.get("base_url"),
-                    )
+            try:
+                if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
+                    if self.llm_config.get("api_type") != "azure":
+                        from openai import OpenAI
+                        client = OpenAI(
+                            api_key=self.llm_config.get("api_key"),
+                            base_url=self.llm_config.get("base_url"),
+                        )
+                        
+                        response = client.chat.completions.create(
+                            model=self.llm_config.get("model"),
+                            messages=messages,
+                            temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                            top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                            max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                            stream=True
+                        )
                     
-                    response = client.chat.completions.create(
-                        model=self.llm_config.get("model"),
-                        messages=messages,
-                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
-                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
-                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
-                        stream=True
-                    )
-                
-                else:
-                    from openai import AzureOpenAI
-                    client = AzureOpenAI(
-                        api_key=self.llm_config.get("api_key"),
-                        azure_endpoint=self.llm_config.get("base_url"),
-                        api_version=self.llm_config.get("api_version"),
-                    )
+                    else:
+                        from openai import AzureOpenAI
+                        client = AzureOpenAI(
+                            api_key=self.llm_config.get("api_key"),
+                            azure_endpoint=self.llm_config.get("base_url"),
+                            api_version=self.llm_config.get("api_version"),
+                        )
 
-                    response = client.chat.completions.create(
-                        # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
-                        model=self.llm_config.get("model").replace(".", ""),
-                        messages=messages,
-                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
-                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
-                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
-                        stream=True
-                    )
+                        response = client.chat.completions.create(
+                            # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
+                            model=self.llm_config.get("model").replace(".", ""),
+                            messages=messages,
+                            temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                            top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                            max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                            stream=True
+                        )
 
-                return response
-        
+                    return response
+            except Exception as e:
+                raise ValueError(f"Error creating completion stream: {str(e)}") from e
 
 
 class AgentChatProcessor(AgentChatProcessoStrategy):
@@ -480,8 +465,12 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     """
     config_path = os.path.join("dynamic_configs", "custom_model_config.json")
 
-    def __init__(self):
-        self.encryptor = Encryptor()
+    def __init__(self, encryptor: EncryptorStrategy = None):
+        """
+        Args:
+            encryptor (EncryptorStrategy, optional): Defaults to None. If not provided, a new FernetEncryptor will be created.
+        """
+        self.encryptor = encryptor or FernetEncryptor()
         # 如果本地没有custom_model_config.json文件，则创建文件夹及文件
         if not os.path.exists(self.config_path):
             os.makedirs(os.path.dirname(self.config_path), exist_ok=True)

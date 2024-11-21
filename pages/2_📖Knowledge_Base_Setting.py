@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit_antd_components as sac
 import streamlit.components.v1 as components
 import os
 import json
@@ -16,7 +17,10 @@ from core.kb_processors import (
     ChromaCollectionProcessorWithNoApi,
 )
 from utils.chroma_utils import get_chroma_file_info
-from utils.text_splitter.text_splitter_utils import text_split_execute
+from utils.text_splitter.text_splitter_utils import (
+    text_split_execute,
+    url_text_split_execute,
+)
 from utils.basic_utils import datetime_serializer
 from model.config.embeddings import (
     EmbeddingConfiguration,
@@ -64,6 +68,8 @@ def init_session_state():
     if "create_collection_expander_state" not in st.session_state:
         # 用于控制collection add/delete expander的展开状态，初始不展开
         st.session_state.create_collection_expander_state = False
+    if "url_scrape_result" not in st.session_state:
+        st.session_state.url_scrape_result = None
 
 
 def load_embedding_config():
@@ -282,8 +288,7 @@ with st.sidebar:
     if st.session_state.embed_model_type == "sentence_transformer":
         with st.expander(label=i18n("Local embedding model download"), expanded=False):
             if st.button(
-                label=i18n("Download embedding model"), 
-                use_container_width=True
+                label=i18n("Download embedding model"), use_container_width=True
             ):
                 # huggingface repo id就是organization+model_name
                 ChromaVectorStoreProcessorWithNoApi.download_model(
@@ -391,7 +396,7 @@ with st.expander(
     )
     with add_collection_tab:
 
-        def collection_name_change():
+        def collection_name_check():
             """
             检查collection name是否合法
 
@@ -455,7 +460,7 @@ with st.expander(
             label=i18n("To be added Collection Name"),
             placeholder=i18n("Collection Name"),
             key="create_collection_name_input",
-            on_change=collection_name_change,
+            on_change=collection_name_check,
         )
         st.button(
             label=i18n("Add Collection"),
@@ -480,76 +485,177 @@ with st.expander(
 # 文件上传和处理
 st.write(i18n("### Choose files you want to embed"))
 
-file_upload = st.file_uploader(
-    label=i18n("Upload File"),
-    accept_multiple_files=True,
-    label_visibility="collapsed",
-    key=st.session_state["file_uploader_key"],
-)
-
-with st.expander(label=i18n("File Handling Configuration"), expanded=False):
-    col1, col2 = st.columns(2)
-    with col1:
-        split_chunk_size = st.number_input(
-            label=i18n("Chunk Size"),
-            value=chroma_collection_processor.get_embedding_model_max_seq_len(),
-            step=1,
+with st.container(border=True):
+    stepper_bar_column, empty_column, detail_column = st.columns([1.5, 0.1, 5])
+    with stepper_bar_column:
+        # 创建stepper bar, 返回值为当前step的index
+        st.session_state.embed_stepper_bar = sac.steps(
+            items=[
+                sac.StepsItem(title=i18n("Upload Files")), 
+                sac.StepsItem(title=i18n("Chunk Files")), 
+                sac.StepsItem(title=i18n("Embed Files"))
+            ],
+            index=0,
+            direction='vertical',
+            return_index=True,
+            key="embed_stepper_bar_counter",
         )
-    with col2:
-        split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
+    with detail_column:
+        if st.session_state.embed_stepper_bar == 0:
+            upload_local_file_tab, upload_url_tab = st.tabs(
+                [i18n("Upload Local File"), i18n("Upload URL")]
+            )
 
-col1, col2 = st.columns([0.7, 0.3])
-with col1:
-    upload_and_split = st.button(
-        label=i18n("① Upload and Split Files"), use_container_width=True
-    )
-with col2:
-    if st.button(label=i18n("Clear File"), use_container_width=True):
-        st.session_state["file_uploader_key"] += 1
-        st.session_state.pages = []
-        st.rerun()
+            with upload_local_file_tab:
+                st.session_state.file_uploaded = st.file_uploader(
+                    label=i18n("Upload File"),
+                    accept_multiple_files=True,
+                    label_visibility="collapsed",
+                    key=st.session_state["file_uploader_key"],
+                )
+                if st.session_state.file_uploaded:
+                    if len(st.session_state.file_uploaded) > 1:
+                        st.toast(i18n("Multiple files uploaded successfully! Please continue to chunk at the next step."), icon="✅")
+                    else:
+                        st.toast(i18n("File") + i18n(f" {st.session_state.file_uploaded[0].name} ") + i18n("uploaded successfully! Please continue to chunk at the next step."), icon="✅")
 
-embed_button = st.button(
-    label=i18n("② Embed Files"), use_container_width=True, type="primary"
-)
+            with upload_url_tab:
+                url_input = st.text_input(
+                    label=i18n("URL"),
+                    placeholder=i18n("Paste blog or article URL here."),
+                    help=i18n("Only paste one URL at a time."),
+                    key="url_input",
+                )
 
-if file_upload and upload_and_split:
-    st.session_state.pages = []
-    for file in file_upload:
-        splitted_docs = text_split_execute(
-            file=file,
-            split_chunk_size=split_chunk_size,
-            split_overlap=split_overlap,
-        )
-        st.session_state.pages.extend(splitted_docs)
+                parse_url_button = st.button(
+                    label=i18n("Parse URL"),
+                    use_container_width=True,
+                    type="primary",
+                )
 
-if st.session_state.pages:
-    st.write(i18n("Choose the file you want to preview"))
-    col1, col2 = st.columns([0.7, 0.3])
-    with col1:
-        pages_preview = {
-            f"{page.page_content[:50]}...": page.page_content
-            for page in st.session_state.pages
-        }
-        selected_page = st.selectbox(
-            label=i18n("Choose the file you want to preview"),
-            options=pages_preview.keys(),
-            label_visibility="collapsed",
-        )
-    with col2:
-        with st.popover(label=i18n("Content Preview"), use_container_width=True):
-            if selected_page:
-                st.write(pages_preview[selected_page])
+                if parse_url_button:
+                    if url_input:
+                        from modules.scraper.url import JinaScraper
 
-if embed_button:
-    if not st.session_state.pages:
-        st.warning(i18n("Please upload and split files first"))
-    else:
-        with st.spinner():
-            # 始终使用当前知识库的处理器
-            chroma_collection_processor.add_documents(documents=st.session_state.pages)
-            st.session_state.document_counter += 1
-        st.toast(i18n("Embedding completed!"), icon="✅")
+                        scraper = JinaScraper()
+                        url_scrape_result = scraper.scrape(url_input)
+
+                        if url_scrape_result["status_code"] == 200:
+                            st.session_state.url_scrape_result = url_scrape_result
+                        else:
+                            st.error(i18n(f"Failed to parse URL: {url_scrape_result['message']}"))
+                    else:
+                        st.toast(i18n("Please enter a URL."), icon="🚨")
+
+                if st.session_state.url_scrape_result:
+                    with st.expander(label=i18n("Content Preview"), expanded=False):
+                        st.write(st.session_state.url_scrape_result["content"])
+
+            def clear_file_callback():
+                st.session_state["file_uploader_key"] += 1
+                st.session_state.url_input = ""
+                st.session_state.url_scrape_result = None
+                st.session_state.pages = []
+
+            clear_file_button = st.button(
+                label=i18n("Clear File"),
+                use_container_width=True,
+                on_click=clear_file_callback,
+            )
+
+        elif st.session_state.embed_stepper_bar == 1:
+            with st.expander(label=i18n("File Handling Configuration"), expanded=True):
+                split_chunk_size = st.number_input(
+                    label=i18n("Chunk Size"),
+                    value=chroma_collection_processor.get_embedding_model_max_seq_len(),
+                    step=1,
+                )
+                split_overlap = st.number_input(label=i18n("Overlap"), value=0, step=1)
+
+            upload_and_split = st.button(
+                label=i18n("Upload and Split Files"), 
+                use_container_width=True,
+                type="primary",
+            )
+
+            # 上传并分割文件按键
+            if st.session_state.file_uploaded and upload_and_split:
+                st.session_state.pages = []
+                for file in st.session_state.file_uploaded:
+                    try:
+                        splitted_docs = text_split_execute(
+                            file=file,
+                            split_chunk_size=split_chunk_size,
+                            split_overlap=split_overlap,
+                        )
+                        st.session_state.pages.extend(splitted_docs)
+                        st.toast(i18n("Files chunked successfully! Please continue to embed at the next step."), icon="✅")
+                    except Exception as e:
+                        st.error(f"Error processing file {file.name}: {str(e)}")
+            elif st.session_state.url_scrape_result and upload_and_split:
+                st.session_state.pages = []
+                try:
+                    splitted_docs = url_text_split_execute(
+                        url_content=st.session_state.url_scrape_result,
+                        split_chunk_size=split_chunk_size,
+                        split_overlap=split_overlap,
+                    )
+                    st.session_state.pages.extend(splitted_docs)
+                    st.toast(i18n("URL content parsed successfully! Please continue to embed at the next step."), icon="✅")
+                except Exception as e:
+                    st.error(f"Error processing URL content: {str(e)}")
+            elif (
+                not st.session_state.pages
+                and not st.session_state.url_scrape_result
+                and upload_and_split
+            ):
+                st.toast(i18n("Please upload files or parse a URL first"), icon="🚨")
+
+        elif st.session_state.embed_stepper_bar == 2:
+
+            def embed_files_callback():
+                if not st.session_state.pages:
+                    st.toast(i18n("Please upload and split files first"), icon="🚨")
+                else:
+                    with st.spinner():
+                        try:
+                            # 始终使用当前知识库的处理器
+                            chroma_collection_processor.add_documents(
+                                documents=st.session_state.pages
+                            )
+                            st.session_state.document_counter += 1
+                            st.toast(i18n("Embed completed!"), icon="✅")
+                            # 清空st.session_state.pages
+                            st.session_state.pages = []
+                            # 清空url_scrape_result和url_input
+                            st.session_state.url_scrape_result = None
+                            st.session_state.url_input = ""
+                            st.session_state.embed_stepper_bar_counter = None
+                        except Exception as e:
+                            st.error(f"Error embedding files: {str(e)}")
+
+            if st.session_state.pages:
+                st.write(i18n("Choose the file you want to preview"))
+                pages_preview = {
+                    f"{page.page_content[:50]}...": page.page_content
+                    for page in st.session_state.pages
+                }
+                selected_page = st.selectbox(
+                    label=i18n("Choose the file you want to preview"),
+                    options=pages_preview.keys(),
+                    label_visibility="collapsed",
+                )
+                with st.expander(label=i18n("Content Preview"), expanded=True):
+                    if selected_page:
+                        st.write(pages_preview[selected_page])
+
+            embed_button = st.button(
+                label=i18n("Embed Files and Add to Knowledge Base"),
+                use_container_width=True,
+                type="primary",
+                on_click=embed_files_callback,
+            )
+
 
 # 知识库内容管理
 st.write(i18n("### Knowledge Base Content Management"))
@@ -561,31 +667,52 @@ st.write(
 
 col1, col2 = st.columns([0.7, 0.3])
 with col1:
-    file_names = chroma_collection_processor.list_all_filechunks_metadata_name(
-        st.session_state.document_counter
-    )
-    selected_file = st.selectbox(
-        label=i18n("Files in Knowledge Base"),
-        options=file_names,
-        label_visibility="collapsed",
-    )
+    try:
+        file_names = chroma_collection_processor.list_all_filechunks_metadata_name(
+            st.session_state.document_counter
+        )
+        selected_file = st.selectbox(
+            label=i18n("Files in Knowledge Base"),
+            options=file_names,
+            label_visibility="collapsed",
+        )
+    except Exception as e:
+        st.error(f"Error getting file list: {str(e)}")
+        selected_file = None
 with col2:
-    if st.button(label=i18n("Get Knowledge Base info")):
-        with st.spinner(i18n("Getting file info...")):
-            chroma_info_html = get_chroma_file_info(
+    get_knowledge_base_info_button = st.button(label=i18n("Get Knowledge Base info"))
+
+def delete_file_callback():
+    if selected_file:
+        try:
+            chroma_collection_processor.delete_documents_from_same_metadata(
+                files_name=selected_file
+            )
+            st.session_state.document_counter += 1
+            st.toast(i18n("File deleted successfully."), icon="✅")
+        except Exception as e:
+            st.error(f"Error deleting file: {str(e)}")
+    else:
+        st.warning(i18n("Please select the file you want to delete"))
+
+delete_file_button = st.button(
+    label=i18n("Delete File"),
+    use_container_width=True,
+    on_click=delete_file_callback,
+)
+
+if get_knowledge_base_info_button:
+    with st.spinner(i18n("Getting file info...")):
+        try:
+            chroma_info_html, document_count = get_chroma_file_info(
                 persist_path=KNOWLEDGE_BASE_DIR,
-                collection_name=chroma_collection_processor.collection_name,
+                collection_name=chroma_collection_processor.collection_id,
                 file_name=selected_file,
                 limit=len(
                     chroma_collection_processor.list_collection_all_filechunks_content()
                 ),
                 advance_info=False,
             )
-        components.html(chroma_info_html, height=800)
-
-if st.button(label=i18n("Delete the File"), use_container_width=True):
-    chroma_collection_processor.delete_documents_from_same_metadata(
-        files_name=selected_file
-    )
-    st.session_state.document_counter += 1
-    st.rerun()
+            components.html(chroma_info_html, height=700 if document_count > 2 else 400)
+        except Exception as e:
+            st.error(f"Error getting knowledge base info: {str(e)}")

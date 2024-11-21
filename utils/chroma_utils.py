@@ -1,7 +1,7 @@
 import chromadb
 import tabulate
 import pandas as pd
-
+from typing import Literal
 from core.basic_config import I18nAuto
 
 i18n = I18nAuto()
@@ -33,7 +33,7 @@ def combine_lists_to_dicts(docs, ids, metas):
     return dict_lists
 
 
-def text_to_html(x, api=False):
+def text_to_html(x, api=False, modal_content_type:Literal["kb","source"]="kb"):
     '''
     Encodes metadata in Chroma into HTML text for display in Gradio.
     
@@ -47,19 +47,46 @@ def text_to_html(x, api=False):
     x += "\n\n"
     if api:
         return x
+        
+    if modal_content_type == "source":
+        return """
+            <style>
+                .card {
+                    overflow-x: auto;
+                    overflow-y: auto;
+                    font-family: "微软雅黑", sans-serif;
+                    font-size: 16px;
+                    height: 300px;
+                    width: 96%%;
+                    white-space: pre-wrap;
+                    white-space: -moz-pre-wrap;
+                    white-space: -pre-wrap;
+                    white-space: -o-pre-wrap;
+                    word-wrap: break-word;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin: 10px;
+                    background-color: #f9f9f9;
+                    box-sizing: border-box;
+                }
+            </style>
+            <div class="card">%s</div>
+        """ % x
+        
     return """
             <style>
                 .card-container {
-                        display: flex;
-                        flex-wrap: wrap;
-                    }
+                    display: flex;
+                    flex-wrap: wrap;
+                }
                 .card {
                     overflow-x: auto;
                     overflow-y: auto;
                     font-family: "微软雅黑", sans-serif;
                     font-size: 16px;
                     height: 200px;
-                    width: 650px; 
+                    width: 96%%;
                     white-space: pre-wrap;
                     white-space: -moz-pre-wrap;
                     white-space: -pre-wrap;
@@ -71,13 +98,86 @@ def text_to_html(x, api=False):
                     margin: 10px;
                     background-color: #f9f9f9;
                     transition: box-shadow 0.3s;
-                    box-sizing: border-box; /* 确保宽度包括边框和内边距 */
+                    box-sizing: border-box;
+                    cursor: pointer;
+                }
+                .card:hover {
+                    box-shadow: 0 0 15px 0 rgba(0, 0, 0, 0.2);
+                }
+                .modal {
+                    display: none;
+                    position: fixed;
+                    z-index: 9999;
+                    left: 0;
+                    top: 0;
+                    width: 100%%;
+                    height: 100%%;
+                    background-color: rgba(0,0,0,0.4);
+                }
+                .modal-content {
+                    background-color: #fefefe;
+                    margin: 15%% auto;
+                    padding: 20px;
+                    border: 1px solid #888;
+                    width: 80%%;
+                    max-height: 70vh;
+                    overflow-y: auto;
+                    border-radius: 5px;
+                    position: relative;
+                    font-family: "微软雅黑", sans-serif;
+                    font-size: 16px;
+                }
+                .close {
+                    color: #aaa;
+                    float: right;
+                    font-size: 28px;
+                    font-weight: bold;
+                    cursor: pointer;
+                }
+                .close:hover {
+                    color: black;
                 }
                 </style>
-                <div class="card">
+                <div class="card" onclick="showModal(this.nextElementSibling)">
                 %s
                 </div>
-""" % x
+                <div id="myModal" class="modal">
+                    <div class="modal-content">
+                        <span class="close" onclick="hideModal(this.parentElement.parentElement)">&times;</span>
+                        <div>%s</div>
+                    </div>
+                </div>
+                <script>
+                function showModal(modal) {
+                    modal.style.display = "block";
+                    document.body.style.overflow = "hidden";
+                }
+                
+                function hideModal(modal) {
+                    modal.style.display = "none";
+                    document.body.style.overflow = "auto";
+                }
+                
+                // 点击模态框外部关闭
+                window.onclick = function(event) {
+                    if (event.target.className === "modal") {
+                        hideModal(event.target);
+                    }
+                }
+                
+                // 按ESC键关闭
+                document.addEventListener("keydown", function(event) {
+                    if (event.key === "Escape") {
+                        var modals = document.getElementsByClassName("modal");
+                        for (var i = 0; i < modals.length; i++) {
+                            if (modals[i].style.display === "block") {
+                                hideModal(modals[i]);
+                            }
+                        }
+                    }
+                });
+                </script>
+""" % (x, x)
 
 
 def dict_to_html(x:list[dict],file_name:str,advance_info:bool, small=True, api=False):
@@ -107,7 +207,12 @@ def dict_to_html(x:list[dict],file_name:str,advance_info:bool, small=True, api=F
         return f"""
             <style>
                 .small-container {{
-                    height: 650px;
+                    height: fit-content;
+                    max-height: 650px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin: 10px;
                     overflow-x: auto;
                     overflow-y: auto;
                 }}
@@ -140,6 +245,7 @@ def get_chroma_file_info(persist_path:str,
         
     Returns:
         str: HTML representation of the metadata
+        int: Number of documents retrieved
     '''
     try:
         client = chromadb.PersistentClient(path=persist_path)
@@ -156,5 +262,5 @@ def get_chroma_file_info(persist_path:str,
     chroma_data_dic = combine_lists_to_dicts(documents, ids, metadatas)
     
     kb_info_html = dict_to_html(chroma_data_dic,file_name,advance_info)
-    return kb_info_html
+    return kb_info_html, len(chroma_data_dic)
 
