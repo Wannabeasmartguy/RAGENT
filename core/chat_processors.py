@@ -305,7 +305,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         is_rerank: bool = False,
         is_hybrid_retrieve: bool = False,
         hybrid_retriever_weight: float = 0.5,
-        selected_file: str = None,
+        selected_file: Optional[str] = None,
     ) -> BaseRAGResponse:
         '''
         使用完全自定义的 RAG 模块，创建一个 RAG 响应

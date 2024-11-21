@@ -309,6 +309,13 @@ if "reset_counter" not in st.session_state:
 if 'dialog_lock' not in st.session_state:
     st.session_state.dialog_lock = False
 
+# 中断回复生成
+if "if_interrupt_rag_reply_generating" not in st.session_state:
+    st.session_state.if_interrupt_rag_reply_generating = False
+
+def interrupt_rag_reply_generating_callback():
+    st.session_state.if_interrupt_rag_reply_generating = True
+
 def debounced_dialog_change():
     """
     改进的防抖函数，增加锁机制
@@ -408,6 +415,67 @@ def update_rag_config_in_db_callback():
         },
         updated_at=datetime.now(),
     )
+
+def create_and_display_rag_chat_round(
+    prompt: str,
+    collection_name: str,
+    history_length: int = 32,
+    if_stream: bool = True,
+    is_rerank: bool = False,
+    is_hybrid_retrieve: bool = False,
+    hybrid_retrieve_weight: float = 0.5,
+    selected_file: Optional[str] = None,
+):
+    with st.chat_message("user", avatar=user_avatar):
+        st.html("<span class='rag-chat-user'></span>")
+        st.markdown(prompt)
+        st.html(get_style(style_type="RAG_USER_CHAT", st_version=st.__version__))
+
+    # Add user message to chat history
+    st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
+
+    processed_messages = list_length_transform(
+        history_length, st.session_state.custom_rag_chat_history
+    )
+    # 在 invoke 的 messages 中去除 response_id
+    processed_messages = [
+        dict_filter(item, ["role", "content"]) for item in processed_messages
+    ]
+
+    with st.chat_message("assistant", avatar=ai_avatar):
+        interrupt_button_placeholder = st.empty()
+        response_placeholder = st.empty()
+
+        interrupt_button = interrupt_button_placeholder.button(
+            label=i18n("Interrupt"),
+            on_click=interrupt_rag_reply_generating_callback,
+            use_container_width=True,
+        )
+
+        if interrupt_button:
+            st.session_state.if_interrupt_rag_reply_generating = False
+            st.stop()
+
+        with response_placeholder.container():
+            with st.spinner("Thinking..."):
+                refresh_retriever()
+                agentchat_processor = get_agentchat_processor()
+                try:
+                    response = agentchat_processor.create_custom_rag_response(
+                        collection_name=collection_name,
+                        messages=processed_messages,
+                        is_rerank=is_rerank,
+                        is_hybrid_retrieve=is_hybrid_retrieve,
+                        hybrid_retriever_weight=hybrid_retrieve_weight,
+                        stream=if_stream,
+                        selected_file=selected_file,
+                    )
+                except Exception as e:
+                    response = dict(error=str(e))
+            st.html("<span class='rag-chat-assistant'></span>")
+            handle_response(response=response, if_stream=if_stream)
+            st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
+            interrupt_button_placeholder.empty()
 
 try:
     set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
@@ -1095,41 +1163,15 @@ prompt = float_chat_input_with_audio_recorder(
 )
 
 if prompt and st.session_state.model:
-    with st.chat_message("user", avatar=user_avatar):
-        st.html("<span class='rag-chat-user'></span>")
-        st.markdown(prompt)
-        st.html(get_style(style_type="RAG_USER_CHAT", st_version=st.__version__))
-
-    # Add user message to chat history
-    st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
-
-    processed_messages = list_length_transform(
-        history_length, st.session_state.custom_rag_chat_history
+    create_and_display_rag_chat_round(
+        prompt=prompt,
+        collection_name=collection_selectbox,
+        history_length=history_length,
+        is_rerank=is_rerank,
+        is_hybrid_retrieve=is_hybrid_retrieve,
+        hybrid_retrieve_weight=hybrid_retrieve_weight,
+        if_stream=if_stream,
+        selected_file=selected_collection_file,
     )
-    # 在 invoke 的 messages 中去除 response_id
-    processed_messages = [
-        dict_filter(item, ["role", "content"]) for item in processed_messages
-    ]
-
-    with st.chat_message("assistant", avatar=ai_avatar):
-        with st.spinner("Thinking..."):
-            refresh_retriever()
-            agentchat_processor = get_agentchat_processor()
-            try:
-                response = agentchat_processor.create_custom_rag_response(
-                    collection_name=collection_selectbox,
-                    messages=processed_messages,
-                    is_rerank=is_rerank,
-                    is_hybrid_retrieve=is_hybrid_retrieve,
-                    hybrid_retriever_weight=hybrid_retrieve_weight,
-                    stream=if_stream,
-                    selected_file=selected_collection_file,
-                )
-            except Exception as e:
-                response = dict(error=str(e))
-        st.html("<span class='rag-chat-assistant'></span>")
-        handle_response(response=response, if_stream=if_stream)
-        st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
-
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

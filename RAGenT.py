@@ -1,4 +1,5 @@
 import streamlit as st
+from io import BytesIO
 from streamlit_float import *
 
 from autogen.agentchat.contrib.capabilities import transforms
@@ -183,9 +184,16 @@ if "chat_history" not in st.session_state:
         st.session_state.run_id
     ).memory["chat_history"]
 
+# 中断回复生成
+if "if_interrupt_reply_generating" not in st.session_state:
+    st.session_state.if_interrupt_reply_generating = False
+
 # 对话锁，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
 if 'dialog_lock' not in st.session_state:
     st.session_state.dialog_lock = False
+
+
+# ********** Functions only used in this page **********
 
 def debounced_dialog_change():
     """
@@ -283,6 +291,123 @@ def update_config_in_db_callback():
         updated_at=datetime.now(),
     )
 
+def interrupt_reply_generating_callback():
+    st.session_state.if_interrupt_reply_generating = True
+
+def create_and_display_chat_round(
+        prompt: str,
+        history_length: int = 16,
+        image_uploader: Optional[BytesIO] = None,
+        if_tools_call: bool = False,
+        if_stream: bool = False,
+):
+    # 显示用户消息
+    with st.chat_message("user", avatar=user_avatar):
+        st.html("<span class='chat-user'></span>")
+        st.markdown(prompt)
+        if image_uploader:
+            st.image(image_uploader)
+        # 根据Streamlit版本选择样式
+        st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
+
+    # Add user message to chat history
+    user_input = user_input_constructor(
+        prompt=prompt,
+        images=image_uploader,
+    )
+    st.session_state.chat_history.append(user_input)
+    dialog_processor.update_chat_history(
+        run_id=st.session_state.run_id,
+        chat_history=st.session_state.chat_history,
+    )
+
+    # Display assistant response in chat message container
+    with st.chat_message("assistant", avatar=ai_avatar):
+        interrupt_button_placeholder = st.empty()
+        response_placeholder = st.empty()
+
+        interrupt_button = interrupt_button_placeholder.button(
+            label=i18n("Interrupt"),
+            on_click=interrupt_reply_generating_callback,
+            use_container_width=True,
+        )
+
+        if interrupt_button:
+            st.session_state.if_interrupt_reply_generating = False
+            st.stop()
+
+        with response_placeholder.container():
+            with st.spinner("Thinking..."):
+                # 对消息的数量进行限制
+                # 根据历史对话消息数，创建 MessageHistoryLimiter
+                max_msg_transfrom = transforms.MessageHistoryLimiter(
+                    max_messages=history_length
+                )
+                processed_messages = max_msg_transfrom.apply_transform(
+                    deepcopy(st.session_state.chat_history)
+                )
+
+                system_prompt = (
+                    ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
+                        user_system_prompt=st.session_state.system_prompt
+                    )
+                    if if_tools_call
+                    else st.session_state.system_prompt
+                )
+                processed_messages.insert(0, {"role": "system", "content": system_prompt})
+
+                chatprocessor = ChatProcessor(
+                    requesthandler=requesthandler,
+                    model_type=st.session_state["model_type"],
+                    llm_config=st.session_state.chat_config_list[0],
+                )
+
+                try:
+                    response = generate_response(
+                        processed_messages=processed_messages,
+                        chatprocessor=chatprocessor,
+                        if_tools_call=if_tools_call,
+                        if_stream=if_stream,
+                    )
+                except Exception as e:
+                    response = dict(error=str(e))
+
+                st.html("<span class='chat-assistant'></span>")
+
+                if isinstance(response, dict) and "error" in response:
+                    st.error(response["error"])
+                else:
+                    if not if_stream:
+                        response_content = response.choices[0].message.content
+                        st.write(response_content)
+                        st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
+
+                        try:
+                            st.write(f"response cost: ${response.cost}")
+                        except:
+                            pass
+
+                        st.session_state.chat_history.append(
+                            {"role": "assistant", "content": response_content}
+                        )
+                    else:
+                        total_response = st.write_stream(response)
+                        st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
+                        st.session_state.chat_history.append(
+                            {"role": "assistant", "content": total_response}
+                        )
+
+                # 保存聊天记录
+                # chat_history_storage.upsert(
+                dialog_processor.update_chat_history(
+                    run_id=st.session_state.run_id,
+                    chat_history=st.session_state.chat_history,
+                )
+
+                # 清空中断按钮
+                interrupt_button_placeholder.empty()
+
+# ********** Sidebar **********
 
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
@@ -778,11 +903,6 @@ with st.sidebar:
                 key="history_length",
             )
 
-            # 根据历史对话消息数，创建 MessageHistoryLimiter
-            max_msg_transfrom = transforms.MessageHistoryLimiter(
-                max_messages=history_length
-            )
-
             delete_previous_round_button_col, clear_button_col = dialog_details_tab.columns(2)
 
             def clear_chat_history_callback():
@@ -846,6 +966,7 @@ with st.sidebar:
     back_to_top_bottom_placeholder0 = st.empty()
     back_to_top_bottom_placeholder1 = st.empty()
 
+# ********** Page **********
 
 float_init()
 st.title(st.session_state.run_name)
@@ -864,85 +985,11 @@ prompt = float_chat_input_with_audio_recorder(
 
 # Accept user input
 if prompt and st.session_state.model:
-    # 显示用户消息
-    with st.chat_message("user", avatar=user_avatar):
-        st.html("<span class='chat-user'></span>")
-        st.markdown(prompt)
-        if image_uploader:
-            st.image(image_uploader)
-        # 根据Streamlit版本选择样式
-        st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
-
-    # Add user message to chat history
-    user_input = user_input_constructor(
+    create_and_display_chat_round(
         prompt=prompt,
-        images=image_uploader,
+        image_uploader=image_uploader,
+        if_tools_call=if_tools_call,
+        if_stream=True
     )
-    st.session_state.chat_history.append(user_input)
-
-    # Display assistant response in chat message container
-    with st.chat_message("assistant", avatar=ai_avatar):
-        with st.spinner("Thinking..."):
-            # 对消息的数量进行限制
-            processed_messages = max_msg_transfrom.apply_transform(
-                deepcopy(st.session_state.chat_history)
-            )
-
-            system_prompt = (
-                ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
-                    user_system_prompt=st.session_state.system_prompt
-                )
-                if if_tools_call
-                else st.session_state.system_prompt
-            )
-            processed_messages.insert(0, {"role": "system", "content": system_prompt})
-
-            chatprocessor = ChatProcessor(
-                requesthandler=requesthandler,
-                model_type=st.session_state["model_type"],
-                llm_config=st.session_state.chat_config_list[0],
-            )
-
-            try:
-                response = generate_response(
-                    processed_messages=processed_messages,
-                    chatprocessor=chatprocessor,
-                    if_tools_call=if_tools_call,
-                    if_stream=if_stream,
-                )
-            except Exception as e:
-                response = dict(error=str(e))
-
-            st.html("<span class='chat-assistant'></span>")
-
-            if isinstance(response, dict) and "error" in response:
-                st.error(response["error"])
-            else:
-                if not if_stream:
-                    response_content = response.choices[0].message.content
-                    st.write(response_content)
-                    st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
-
-                    try:
-                        st.write(f"response cost: ${response.cost}")
-                    except:
-                        pass
-
-                    st.session_state.chat_history.append(
-                        {"role": "assistant", "content": response_content}
-                    )
-                else:
-                    total_response = st.write_stream(response)
-                    st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
-                    st.session_state.chat_history.append(
-                        {"role": "assistant", "content": total_response}
-                    )
-
-            # 保存聊天记录
-            # chat_history_storage.upsert(
-            dialog_processor.update_chat_history(
-                run_id=st.session_state.run_id,
-                chat_history=st.session_state.chat_history,
-            )
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
