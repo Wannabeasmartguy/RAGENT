@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from core.chat_processors import CozeChatProcessor
+from core.processors.chat.classic import CozeChatProcessor
 from model.coze.bot import Bot
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
 import streamlit as st

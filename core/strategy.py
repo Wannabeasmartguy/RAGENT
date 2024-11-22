@@ -64,7 +64,7 @@ class ChatProcessStrategy(ABC):
         pass
 
 
-class AgentChatProcessoStrategy(ABC):
+class AgentChatProcessStrategy(ABC):
     @abstractmethod
     def create_reflection_agent_response(self) -> Dict:
         pass

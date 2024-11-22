@@ -28,8 +28,8 @@ from core.basic_config import (
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from core.chat_processors import ChatProcessor, OAILikeConfigProcessor
-from core.dialog_processors import DialogProcessor
+from core.processors.chat.classic import ChatProcessor, OAILikeConfigProcessor
+from core.processors.dialog.dialog_processors import DialogProcessor
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,

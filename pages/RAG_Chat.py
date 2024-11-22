@@ -17,7 +17,7 @@ from core.basic_config import (
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from core.dialog_processors import DialogProcessor
+from core.processors.dialog.dialog_processors import DialogProcessor
 from llm.oai.completion import oai_config_generator
 from llm.aoai.completion import aoai_config_generator
 from llm.groq.completion import groq_openai_config_generator
@@ -43,8 +43,9 @@ from utils.st_utils import (
     float_chat_input_with_audio_recorder,
 )
 
-from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
-from core.kb_processors import (
+from core.processors.chat.agent import AgentChatProcessor
+from core.processors.config.llm import OAILikeConfigProcessor
+from core.processors.vector.chroma.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )
@@ -216,7 +217,7 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     display_rag_sources(response_sources)
 
 
-embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
+embedding_config_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dynamic_configs", "embedding_config.json")
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 

@@ -19,7 +19,7 @@ load_dotenv(override=True)
 from llm.ollama.completion import get_ollama_model_list
 from llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from core.chat_processors import OAILikeConfigProcessor
+from core.processors.chat.classic import OAILikeConfigProcessor
 from css.export_themes import default_theme, glassmorphism_theme
 from css.classic_chat_css import (
     USER_CHAT_STYLE_ST_V37,

@@ -23,7 +23,8 @@ from utils.basic_utils import (
     write_chat_history,
 )
 from llm.aoai.tools.tools import TO_TOOLS
-from core.chat_processors import AgentChatProcessor, OAILikeConfigProcessor
+from core.processors.chat.agent import AgentChatProcessor
+from core.processors.config.llm import OAILikeConfigProcessor
 from api.dependency import APIRequestHandler
 from autogen.cache import Cache
 from typing import List

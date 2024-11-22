@@ -1,6 +1,7 @@
 from typing import Literal, List, Dict, Any, Generator, Optional
 from functools import partial
 from uuid import uuid4
+from deprecated import deprecated
 import os
 import json
 import uuid
@@ -14,7 +15,7 @@ from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
 from api.routers.chat import LLMConfig, LLMParams
 from core.strategy import (
     ChatProcessStrategy,
-    AgentChatProcessoStrategy,
+    AgentChatProcessStrategy,
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
@@ -240,7 +241,8 @@ class ChatProcessor(ChatProcessStrategy):
                 raise ValueError(f"Error creating completion stream: {str(e)}") from e
 
 
-class AgentChatProcessor(AgentChatProcessoStrategy):
+@deprecated("AgentChatProcessor is deprecated. Use AgentChatProcessor in core.processors.chat.agent instead.")
+class AgentChatProcessor(AgentChatProcessStrategy):
     """
     处理 Agent Chat 消息的策略模式实现类
     """
@@ -459,6 +461,7 @@ class AgentChatProcessor(AgentChatProcessoStrategy):
         pass
 
 
+@deprecated("OAILikeConfigProcessor is deprecated. Use OAILikeConfigProcessor in core.processors.config.llm instead.")
 class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     """
     处理 OAI-like 模型的配置的策略模式实现类

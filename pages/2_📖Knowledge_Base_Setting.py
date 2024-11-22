@@ -12,7 +12,7 @@ from core.basic_config import (
     SUPPORTED_LANGUAGES,
     KNOWLEDGE_BASE_DIR,
 )
-from core.kb_processors import (
+from core.processors.vector.chroma.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )
