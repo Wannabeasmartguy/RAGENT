@@ -7,13 +7,13 @@ from core.basic_config import (
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from llm.Agent.pre_built import reflection_agent_with_nested_chat
-from llm.aoai.completion import aoai_config_generator
-from llm.groq.completion import groq_openai_config_generator
-from llm.llamafile.completion import llamafile_config_generator
-from llm.ollama.completion import ollama_config_generator
-from llm.fake.completion import fake_agent_chat_completion
-from llm.litellm.completion import litellm_config_generator
+from core.llm.Agent.pre_built import reflection_agent_with_nested_chat
+from core.llm.aoai.completion import aoai_config_generator
+from core.llm.groq.completion import groq_openai_config_generator
+from core.llm.llamafile.completion import llamafile_config_generator
+from core.llm.ollama.completion import ollama_config_generator
+from core.llm.fake.completion import fake_agent_chat_completion
+from core.llm.litellm.completion import litellm_config_generator
 from utils.basic_utils import (
     model_selector,
     split_list_by_key_value,
@@ -22,7 +22,7 @@ from utils.basic_utils import (
     reverse_traversal,
     write_chat_history,
 )
-from llm.aoai.tools.tools import TO_TOOLS
+from core.llm.aoai.tools.tools import TO_TOOLS
 from core.processors.chat.agent import AgentChatProcessor
 from core.processors.config.llm import OAILikeConfigProcessor
 from api.dependency import APIRequestHandler
@@ -61,8 +61,8 @@ if "function_call_agent_chat_history_displayed" not in st.session_state:
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
-logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
+logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
 set_pages_configs_in_common(
     version=VERSION, title="RAGenT-AgentChat", page_icon_path=logo_path
 )

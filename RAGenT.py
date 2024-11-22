@@ -18,17 +18,18 @@ load_dotenv(override=True)
 
 from api.dependency import APIRequestHandler
 
-from llm.oai.completion import oai_config_generator
-from llm.aoai.completion import aoai_config_generator
-from llm.ollama.completion import ollama_config_generator
-from llm.groq.completion import groq_openai_config_generator
-from llm.llamafile.completion import llamafile_config_generator
+from core.llm.oai.completion import oai_config_generator
+from core.llm.aoai.completion import aoai_config_generator
+from core.llm.ollama.completion import ollama_config_generator
+from core.llm.groq.completion import groq_openai_config_generator
+from core.llm.llamafile.completion import llamafile_config_generator
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
 )
-from core.processors.chat.classic import ChatProcessor, OAILikeConfigProcessor
+from core.processors.chat.classic import ChatProcessor
+from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import DialogProcessor
 from utils.basic_utils import (
     model_selector,
@@ -57,7 +58,7 @@ from tools.toolkits import (
     filter_out_selected_tools_dict,
     filter_out_selected_tools_list,
 )
-from css.components_css import CUSTOM_RADIO_STYLE
+from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 
 def generate_response(
@@ -116,9 +117,9 @@ if not chat_history_storage.table_exists():
 
 
 VERSION = "0.1.1"
-logo_path = os.path.join(os.path.dirname(__file__), "img", "RAGenT_logo.png")
+logo_path = os.path.join(os.path.dirname(__file__), "assets", "images", "logos", "RAGenT_logo.png")
 logo_text = os.path.join(
-    os.path.dirname(__file__), "img", "RAGenT_logo_with_text_horizon.png"
+    os.path.dirname(__file__), "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png"
 )
 # 将SVG编码为base64
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"

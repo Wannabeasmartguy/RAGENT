@@ -18,12 +18,12 @@ from core.basic_config import (
     SUPPORTED_LANGUAGES,
 )
 from core.processors.dialog.dialog_processors import DialogProcessor
-from llm.oai.completion import oai_config_generator
-from llm.aoai.completion import aoai_config_generator
-from llm.groq.completion import groq_openai_config_generator
-from llm.llamafile.completion import llamafile_config_generator
-from llm.ollama.completion import ollama_config_generator
-from llm.litellm.completion import litellm_config_generator
+from core.llm.oai.completion import oai_config_generator
+from core.llm.aoai.completion import aoai_config_generator
+from core.llm.groq.completion import groq_openai_config_generator
+from core.llm.llamafile.completion import llamafile_config_generator
+from core.llm.ollama.completion import ollama_config_generator
+from core.llm.litellm.completion import litellm_config_generator
 from utils.basic_utils import (
     model_selector,
     list_length_transform,
@@ -56,7 +56,7 @@ from modules.types.rag import BaseRAGResponse
 from model.config.embeddings import (
     EmbeddingConfiguration,
 )
-from css.components_css import CUSTOM_RADIO_STYLE
+from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 
 @lru_cache(maxsize=1)
@@ -226,8 +226,8 @@ oailike_config_processor = OAILikeConfigProcessor()
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
-logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
+logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 

@@ -10,8 +10,8 @@ from storage.displayer.coze import display_cozebot_response, display_coze_conver
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, 'img', 'RAGenT_logo.png')
-logo_text = os.path.join(parent_directory, "img", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(parent_directory, 'assets', 'images', 'logos', 'RAGenT_logo.png')
+logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
 set_pages_configs_in_common(version=VERSION,title="Coze-Agent",page_icon_path=logo_path)
 
 language = os.getenv("LANGUAGE", "简体中文")

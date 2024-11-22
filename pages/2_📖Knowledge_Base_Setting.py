@@ -238,9 +238,9 @@ init_session_state()
 with st.sidebar:
     current_directory = os.path.dirname(__file__)
     parent_directory = os.path.dirname(current_directory)
-    logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+    logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
     logo_text = os.path.join(
-        parent_directory, "img", "RAGenT_logo_with_text_horizon.png"
+        parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png"
     )
     st.logo(logo_text, icon_image=logo_path)
 
