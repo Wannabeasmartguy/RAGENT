@@ -1,6 +1,6 @@
 # RAGenT
 
-**English** | [中文文档](README_zh.md) | [日本語](README_ja.md)
+**English** | [中文文档](./docs/README_zh.md) | [日本語](./docs/README_ja.md)
 
 Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 

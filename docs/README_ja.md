@@ -1,6 +1,6 @@
 # RAGenT
 
- [English](README.md) | [中文文档](README_zh.md) | **日本語**
+ [English](../README.md) | [中文文档](README_zh.md) | **日本語**
 
 おそらく最も軽量なネイティブRAG + Agentアプリの1つであり、複雑な設定なしで、ワンクリックでAgentによるモデルと知識ベースの強力な機能を体験できます。
 
