@@ -214,7 +214,7 @@ class AgentChatProcessor(AgentChatProcessStrategy):
             message: str | Dict,
             tools: List,
         ) -> Dict:
-        from llm.Agent.pre_built import create_function_call_agent_response
+        from core.llm.Agent.pre_built import create_function_call_agent_response
         from utils.basic_utils import config_list_postprocess
         # 对config进行处理
         try:

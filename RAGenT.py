@@ -51,7 +51,7 @@ try:
     )
 except:
     st.rerun()
-from storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 from utils.chat.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from tools.toolkits import (

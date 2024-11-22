@@ -19,7 +19,7 @@ from model.config.embeddings import CollectionEmbeddingConfiguration
 from model.memory.base import MemoryRow
 from model.chat.assistant import AssistantRun
 from model.config.llm import *
-from storage.db.base import Sqlstorage
+from core.storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
 from core.encryption import FernetEncryptor
 from core.strategy import EncryptorStrategy

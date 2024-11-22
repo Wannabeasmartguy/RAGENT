@@ -4,7 +4,7 @@ import uuid
 
 from core.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from core.processors.chat.classic import CozeChatProcessor
-from storage.displayer.coze import display_cozebot_response, display_coze_conversation
+from core.storage.displayer.coze import display_cozebot_response, display_coze_conversation
 
 
 VERSION = "0.1.1"

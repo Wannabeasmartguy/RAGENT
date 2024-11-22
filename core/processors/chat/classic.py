@@ -9,7 +9,6 @@ import requests
 import copy
 
 from autogen import OpenAIWrapper
-from groq import Groq
 
 from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
 from api.routers.chat import LLMConfig, LLMParams
@@ -27,7 +26,7 @@ from core.basic_config import (
 )
 from core.strategy import EncryptorStrategy
 from core.encryption import FernetEncryptor
-from storage.db.sqlite import (
+from core.storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
 )

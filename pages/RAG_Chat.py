@@ -50,7 +50,7 @@ from core.processors.vector.chroma.kb_processors import (
     ChromaCollectionProcessorWithNoApi,
 )
 from api.dependency import APIRequestHandler
-from storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite import SqlAssistantStorage
 from model.chat.assistant import AssistantRun
 from modules.types.rag import BaseRAGResponse
 from model.config.embeddings import (

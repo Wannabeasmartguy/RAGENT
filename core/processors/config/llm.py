@@ -10,7 +10,7 @@ from core.basic_config import (
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )
-from storage.db.sqlite import (
+from core.storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
 )
 from model.config.llm import OpenAILikeLLMConfiguration

@@ -7,7 +7,7 @@ from loguru import logger
 from loguru._logger import Logger
 
 from core.strategy import DialogProcessStrategy
-from storage.db.base import Sqlstorage
+from core.storage.db.base import Sqlstorage
 from model.chat.assistant import AssistantRun
 
 
