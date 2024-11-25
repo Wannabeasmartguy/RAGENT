@@ -51,9 +51,8 @@ from core.processors.vector.chroma.kb_processors import (
 )
 from api.dependency import APIRequestHandler
 from core.storage.db.sqlite import SqlAssistantStorage
-from model.chat.assistant import AssistantRun
 from modules.types.rag import BaseRAGResponse
-from model.config.embeddings import (
+from core.model.config.embeddings import (
     EmbeddingConfiguration,
 )
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
@@ -112,7 +111,7 @@ def display_rag_sources(response_sources: Dict[str, Any]):
         if distance is not None:
             st.markdown(f"**{i18n('Vector Cosine Similarity')}**: {str(round((1-distance)*100, 2))}%")
         if relevance_score is not None:
-            st.markdown(f"**{i18n('Relevance Score by reranker')}**: {relevance_score}")
+            st.markdown(f"**{i18n('Relevance Score by reranker')}**: {str(round(relevance_score*100, 2))}%")
 
     def create_source_button(column, index):
         file_name = response_sources["metadatas"][index]["source"]

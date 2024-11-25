@@ -13,7 +13,7 @@ from core.basic_config import (
 from core.storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
 )
-from model.config.llm import OpenAILikeLLMConfiguration
+from core.model.config.llm import OpenAILikeLLMConfiguration
 
 
 class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):

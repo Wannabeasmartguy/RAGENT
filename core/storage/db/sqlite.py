@@ -14,11 +14,11 @@ from typing import Optional, List, Literal, Union, Any
 from loguru import logger
 from sqlalchemy.schema import Table
 from tenacity import retry, stop_after_attempt, wait_exponential
-from model.config.llm import LLMConfiguration
-from model.config.embeddings import CollectionEmbeddingConfiguration
-from model.memory.base import MemoryRow
-from model.chat.assistant import AssistantRun
-from model.config.llm import *
+from core.model.config.llm import LLMConfiguration
+from core.model.config.embeddings import CollectionEmbeddingConfiguration
+from core.model.memory.base import MemoryRow
+from core.model.chat.assistant import AssistantRun
+from core.model.config.llm import *
 from core.storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
 from core.encryption import FernetEncryptor

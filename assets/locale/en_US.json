@@ -176,5 +176,6 @@
     "Transcribing": "Transcribing",
     "Transcribed": "Transcribed",
     "System prompt updated": "System prompt updated",
-    "Interrupt": "Interrupt"
+    "Interrupt": "Interrupt",
+    "Relevance Score by reranker": "Relevance Score by reranker"
 }

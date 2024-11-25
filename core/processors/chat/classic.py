@@ -30,7 +30,7 @@ from core.storage.db.sqlite import (
     SqlAssistantLLMConfigStorage,
     SqlEmbeddingConfigStorage
 )
-from model.config.llm import OpenAILikeLLMConfiguration
+from core.model.config.llm import OpenAILikeLLMConfiguration
 from utils.tool_utils import create_tools_call_completion
 from tools.toolkits import TOOLS_LIST, TOOLS_MAP
 

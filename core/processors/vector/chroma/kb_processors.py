@@ -19,7 +19,7 @@ from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig,
 )
-from model.config.embeddings import (
+from core.model.config.embeddings import (
     EmbeddingModelConfiguration,
     KnowledgeBaseConfiguration,
     GlobalSettings,

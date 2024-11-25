@@ -176,5 +176,6 @@
     "Transcribing": "正在识别",
     "Transcribed": "识别完成",
     "System prompt updated": "系统提示已更新",
-    "Interrupt": "中断"
+    "Interrupt": "中断",
+    "Relevance Score by reranker": "重排序相关度"
 }
