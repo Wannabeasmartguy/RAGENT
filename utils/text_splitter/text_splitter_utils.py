@@ -8,6 +8,14 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 import os
 import tempfile
+# 下载punkt分词器，避免在运行时报错
+import nltk
+try:
+    nltk.data.find('punkt_tab')
+    nltk.data.find('averaged_perceptron_tagger_eng')
+except LookupError:
+    nltk.download('punkt_tab')
+    nltk.download('averaged_perceptron_tagger_eng')
 from pathlib import Path
 from typing import List
 

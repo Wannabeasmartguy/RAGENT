@@ -119,9 +119,10 @@ def display_rag_sources(response_sources: Dict[str, Any]):
         distance = response_sources["distances"][index] if "distances" in response_sources and response_sources["distances"] is not None else None
         relevance_score = response_sources["metadatas"][index].get("relevance_score")
 
+        button_key = f"source_button_{index}_{hash(file_name)}_{hash(distance)}_{hash(relevance_score)}"
         if column.button(
             i18n("Cited Source") + f" {index+1}",
-            key=f"source_button_{index}",
+            key=button_key,
             use_container_width=True
         ):
             show_source_content(
