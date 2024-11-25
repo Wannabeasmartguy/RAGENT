@@ -119,7 +119,19 @@ def display_rag_sources(response_sources: Dict[str, Any]):
         distance = response_sources["distances"][index] if "distances" in response_sources and response_sources["distances"] is not None else None
         relevance_score = response_sources["metadatas"][index].get("relevance_score")
 
-        button_key = f"source_button_{index}_{hash(file_name)}_{hash(distance)}_{hash(relevance_score)}"
+        content_hash = hash(file_content[:100] if file_content else '')
+
+        distance_str = f"{distance:.8f}" if distance is not None else "no_dist"
+        relevance_str = f"{relevance_score:.8f}" if relevance_score is not None else "no_score"
+
+        button_key = (
+            f"source_button_{index}"
+            f"_fn{hash(file_name)}"
+            f"_ct{content_hash}"
+            f"_d{distance_str}"
+            f"_r{relevance_str}"
+        )
+
         if column.button(
             i18n("Cited Source") + f" {index+1}",
             key=button_key,
