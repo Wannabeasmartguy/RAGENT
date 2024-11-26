@@ -576,6 +576,7 @@ with st.container(border=True):
                 label=i18n("Upload and Split Files"), 
                 use_container_width=True,
                 type="primary",
+                disabled=not (st.session_state.file_uploaded or st.session_state.url_scrape_result),
             )
 
             # 上传并分割文件按键
@@ -654,6 +655,7 @@ with st.container(border=True):
                 use_container_width=True,
                 type="primary",
                 on_click=embed_files_callback,
+                disabled=not st.session_state.pages,
             )
 
 

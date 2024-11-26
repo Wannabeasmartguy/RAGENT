@@ -624,56 +624,117 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         embedding_model_name_or_path: str,
         **openai_kwargs,
     ):
+        """初始化向量存储处理器
+        
+        Args:
+            embedding_model_type: 嵌入模型类型，支持 "openai"、"aoai" 或 "sentence_transformer"
+            embedding_model_name_or_path: 模型名称或路径
+            **openai_kwargs: OpenAI相关的额外参数(api_key, base_url等)
+        """
+        # 1. 保存基本模型信息
         self.embedding_model_type = embedding_model_type
         self.embedding_model_name_or_path = embedding_model_name_or_path
 
+        # 2. 创建模型配置信息
         model_id = str(uuid.uuid4())
-        if embedding_model_type == "aoai":
-            embedding_model = EmbeddingModelConfiguration(
-                id=model_id,
-                name=f"Azure OpenAI Embedding Model {model_id[:8]}",
-                embedding_type="aoai",
-                embedding_model_name_or_path=embedding_model_name_or_path,
-                api_key=openai_kwargs.get("api_key"),
-            )
-        elif embedding_model_type == "openai":
-            embedding_model = EmbeddingModelConfiguration(
-                id=model_id,
-                name=f"OpenAI Embedding Model {model_id[:8]}",
-                embedding_type="openai",
-                embedding_model_name_or_path=embedding_model_name_or_path,
-                api_key=openai_kwargs.get("api_key"),
-                base_url=openai_kwargs.get("base_url"),
-            )
-        elif embedding_model_type == "sentence_transformer":
-            embedding_model = EmbeddingModelConfiguration(
-                id=model_id,
-                name=f"Sentence Transformer Embedding Model {model_id[:8]}",
-                embedding_type="sentence_transformer",
-                embedding_model_name_or_path=embedding_model_name_or_path,
-            )
-        else:
-            raise ValueError("Unsupported embedding model type")
+        embedding_model = self._create_model_config(
+            model_id, 
+            embedding_model_type,
+            embedding_model_name_or_path,
+            openai_kwargs
+        )
 
-        if os.path.exists(EMBEDDING_CONFIG_FILE_PATH):
-            with open(EMBEDDING_CONFIG_FILE_PATH, "r") as f:
-                self.embedding_config = EmbeddingConfiguration(**json.load(f))
-        else:
-            from datetime import datetime
-
-            self.embedding_config = EmbeddingConfiguration(
-                global_settings=GlobalSettings(default_model=model_id),
-                models=[embedding_model],
-                knowledge_bases=[],
-                user_id=None,
-                created_at=datetime.now().isoformat(),
-                updated_at=datetime.now().isoformat(),
-            )
-
-        self.embedding_model: chromadb.EmbeddingFunction = self._create_embedding_model(
+        # 3. 尝试加载已有模型信息，或创建新的嵌入模型配置信息
+        self.embedding_config = self._load_or_create_embedding_config(
+            model_id, 
             embedding_model
         )
-        self.knowledgebase_collections: Dict[str, str] = self._list_chroma_collections()
+
+        # 4. 初始化嵌入模型和知识库集合
+        self.embedding_model = self._create_embedding_model(embedding_model)
+        self.knowledgebase_collections = self._list_chroma_collections()
+
+    def _create_model_config(
+        self, 
+        model_id: str,
+        embedding_model_type: str,
+        embedding_model_name_or_path: str,
+        openai_kwargs: dict
+    ) -> EmbeddingModelConfiguration:
+        """
+        创建模型配置，如果新增模型类型，请在此处添加
+        
+        Args:
+            model_id (str): 模型ID
+            embedding_model_type (str): 嵌入模型类型
+            embedding_model_name_or_path (str): 模型名称或路径
+            openai_kwargs (dict): OpenAI相关的额外参数(api_key, base_url等)
+
+        Returns:
+            EmbeddingModelConfiguration: 模型配置
+        """
+        model_configs = {
+            "aoai": {
+                "name": f"Azure OpenAI Embedding Model {model_id[:8]}",
+                "embedding_type": "aoai",
+                "extra_params": {
+                    "api_key": openai_kwargs.get("api_key"),
+                }
+            },
+            "openai": {
+                "name": f"OpenAI Embedding Model {model_id[:8]}",
+                "embedding_type": "openai",
+                "extra_params": {
+                    "api_key": openai_kwargs.get("api_key"),
+                    "base_url": openai_kwargs.get("base_url"),
+                }
+            },
+            "sentence_transformer": {
+                "name": f"Sentence Transformer Embedding Model {model_id[:8]}",
+                "embedding_type": "sentence_transformer",
+                "extra_params": {}
+            }
+        }
+
+        if embedding_model_type not in model_configs:
+            raise ValueError("Unsupported embedding type")
+
+        config = model_configs[embedding_model_type]
+        return EmbeddingModelConfiguration(
+            id=model_id,
+            name=config["name"],
+            embedding_type=config["embedding_type"],
+            embedding_model_name_or_path=embedding_model_name_or_path,
+            **config["extra_params"]
+        )
+
+    def _load_or_create_embedding_config(
+        self,
+        model_id: str,
+        embedding_model: EmbeddingModelConfiguration
+    ) -> EmbeddingConfiguration:
+        """
+        尝试加载已有嵌入配置，如果配置不存在，则创建新的嵌入配置
+        """
+        if os.path.exists(EMBEDDING_CONFIG_FILE_PATH):
+            # 加载已有配置
+            try:
+                with open(EMBEDDING_CONFIG_FILE_PATH, "r") as f:
+                    return EmbeddingConfiguration(**json.load(f))
+            except Exception as e:
+                logger.error(f"Error loading embedding config: {e}")
+                logger.info(f"Creating new embedding config for {model_id} due to loading error")
+
+        # 创建新的配置
+        from datetime import datetime
+        return EmbeddingConfiguration(
+            global_settings=GlobalSettings(default_model=model_id),
+            models=[embedding_model],
+            knowledge_bases=[],
+            user_id=None,
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat(),
+        )
 
     @classmethod
     def download_model(cls, model_name_or_path: str, repo_id: str) -> str:

@@ -88,12 +88,21 @@ def save_rag_chat_history():
     )
 
 
-def display_rag_sources(response_sources: Dict[str, Any]):
+def display_rag_sources(
+        response_sources: Dict[str, Any],
+        name_space: str,
+        visible_sources: int = 6,
+    ):
+    """
+    显示引用源
+    使用name_space（通常是response_id）创建session_state key，避免重复
+    使用预先生成的（response返回的）唯一ID，避免点击后id变化
+    """
     import itertools
 
     num_sources = len(response_sources["metadatas"])
     num_columns = min(3, num_sources)
-    visible_sources = min(6, num_sources)
+    visible_sources = min(visible_sources, num_sources)
 
     if num_sources == 0:
         st.toast(i18n("No sources found for this response."))
@@ -113,24 +122,29 @@ def display_rag_sources(response_sources: Dict[str, Any]):
         if relevance_score is not None:
             st.markdown(f"**{i18n('Relevance Score by reranker')}**: {str(round(relevance_score*100, 2))}%")
 
-    def create_source_button(column, index):
+    def create_source_button(column, index, name_space: str):
+        """
+        创建引用源按钮
+        使用name_space（通常是response_id）创建session_state key，避免重复
+        使用预先生成的唯一ID，避免点击后id变化
+
+        注意：
+        如果response_sources的结构发生变化，需要同步修改
+        """
         file_name = response_sources["metadatas"][index]["source"]
         file_content = response_sources["page_content"][index]
         distance = response_sources["distances"][index] if "distances" in response_sources and response_sources["distances"] is not None else None
         relevance_score = response_sources["metadatas"][index].get("relevance_score")
 
-        content_hash = hash(file_content[:100] if file_content else '')
-
-        distance_str = f"{distance:.8f}" if distance is not None else "no_dist"
-        relevance_str = f"{relevance_score:.8f}" if relevance_score is not None else "no_score"
-
-        button_key = (
-            f"source_button_{index}"
-            f"_fn{hash(file_name)}"
-            f"_ct{content_hash}"
-            f"_d{distance_str}"
-            f"_r{relevance_str}"
-        )
+        # 使用name_space（通常是response_id）创建session_state key
+        button_ids_key = f"button_ids_{name_space}"
+        
+        # 如果这个response的button_ids还不存在，初始化它
+        if button_ids_key not in st.session_state:
+            st.session_state[button_ids_key] = [str(uuid4()) for _ in range(len(response_sources["metadatas"]))]
+        
+        # 使用预先生成的唯一ID
+        button_key = f"source_button_{name_space}_{st.session_state[button_ids_key][index]}"
 
         if column.button(
             i18n("Cited Source") + f" {index+1}",
@@ -147,7 +161,7 @@ def display_rag_sources(response_sources: Dict[str, Any]):
     # 显示前 visible_sources 个源
     for index, column in enumerate(itertools.chain(*rows)):
         if index < visible_sources:
-            create_source_button(column, index)
+            create_source_button(column, index, name_space)  # 传入response_id
 
     # 如果有更多源，在展开器中显示
     if num_sources > 6:
@@ -163,7 +177,7 @@ def display_rag_sources(response_sources: Dict[str, Any]):
                 itertools.chain(*remaining_rows), start=visible_sources
             ):
                 if index < num_sources:
-                    create_source_button(column, index)
+                    create_source_button(column, index, name_space)  # 传入response_id
 
 
 # @st.cache_data
@@ -182,7 +196,7 @@ def write_custom_rag_chat_history(chat_history, _sources):
 
             if message["role"] == "assistant":
                 rag_sources = _sources[message["response_id"]]
-                display_rag_sources(rag_sources)
+                display_rag_sources(rag_sources, message["response_id"])
 
     combined_style = get_combined_style(st.__version__, "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT")
     combined_style = combined_style.replace("</style>\n<style>", "")
@@ -226,7 +240,7 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
 
     # 展示引用源
     response_sources = st.session_state.custom_rag_sources[response_id]
-    display_rag_sources(response_sources)
+    display_rag_sources(response_sources, response_id)
 
 
 embedding_config_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dynamic_configs", "embedding_config.json")
