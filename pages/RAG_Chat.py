@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from config.constants.app import (
     VERSION,
 )
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from config.constants.paths import (
     LOGO_DIR,
 )
@@ -26,8 +27,7 @@ from config.constants.databases import (
 )
 from core.basic_config import (
     I18nAuto,
-    set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
+    set_pages_configs_in_common
 )
 from core.processors.dialog.dialog_processors import DialogProcessor
 from core.llm.oai.completion import oai_config_generator
@@ -276,7 +276,10 @@ if not chat_history_storage.table_exists():
 
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 
 # ********** Initialize session state **********

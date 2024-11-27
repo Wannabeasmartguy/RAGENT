@@ -2,9 +2,6 @@ import chromadb
 import tabulate
 import pandas as pd
 from typing import Literal
-from core.basic_config import I18nAuto
-
-i18n = I18nAuto()
 
 
 def combine_lists_to_dicts(docs, ids, metas):
@@ -251,7 +248,7 @@ def get_chroma_file_info(persist_path:str,
         client = chromadb.PersistentClient(path=persist_path)
         collection_lang = client.get_collection(collection_name)
     except ValueError:
-        raise BaseException(i18n("“Knowledge Base path” is empty, Please enter the path"))
+        raise BaseException("“Knowledge Base path” is empty, Please enter the path")
     metadata_pre10 = collection_lang.peek(limit=limit)  
     
     #get data for the first <limit> files 

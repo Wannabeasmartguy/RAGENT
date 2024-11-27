@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Union, Optional, Callable
 from openai import OpenAI, AzureOpenAI, Stream
 from openai.types.chat.chat_completion import ChatCompletion
 
-from utils.chat.prompts import TOOL_USE_PROMPT
+from config.constants.prompts import TOOL_USE_PROMPT
 
 
 def function_to_json(func: Callable[..., Any]) -> str:

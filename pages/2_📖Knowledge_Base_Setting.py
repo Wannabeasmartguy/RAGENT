@@ -9,6 +9,7 @@ from loguru import logger
 from config.constants.app import (
     VERSION,
 )
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from config.constants.paths import (
     KNOWLEDGE_BASE_DIR,
     LOGO_DIR,
@@ -21,7 +22,6 @@ from config.constants.databases import (
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
 )
 from core.processors.vector.chroma.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
@@ -47,7 +47,10 @@ chroma_collection_processor = None
 
 # 全局变量和初始化
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 
 # 更新加载embed model配置文件的函数

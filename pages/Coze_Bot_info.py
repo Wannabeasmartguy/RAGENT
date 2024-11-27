@@ -1,9 +1,9 @@
 import streamlit as st
 import os
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, set_pages_configs_in_common
 from utils.coze_utils import display_bot_info
-
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
@@ -13,7 +13,10 @@ logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_
 set_pages_configs_in_common(version=VERSION,title="Coze Bot info",page_icon_path=logo_path)
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 
 with st.sidebar:

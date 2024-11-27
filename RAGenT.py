@@ -26,8 +26,8 @@ from core.llm.llamafile.completion import llamafile_config_generator
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
 )
+from config.constants.i18n import SUPPORTED_LANGUAGES
 from core.processors.chat.classic import ChatProcessor
 from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import DialogProcessor
@@ -48,11 +48,13 @@ from config.constants.paths import (
     LOGO_DIR,
 )
 from config.constants.chat import DEFAULT_DIALOG_TITLE
+from config.constants.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from config.constants.databases import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     CHAT_HISTORY_DB_TABLE
 )
+from config.constants.i18n import I18N_DIR
 try:
     from utils.st_utils import (
         float_chat_input_with_audio_recorder,
@@ -63,7 +65,6 @@ try:
 except:
     st.rerun()
 from core.storage.db.sqlite import SqlAssistantStorage
-from utils.chat.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from tools.toolkits import (
     filter_out_selected_tools_dict,
     filter_out_selected_tools_list,
@@ -105,7 +106,10 @@ def generate_response(
 
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 

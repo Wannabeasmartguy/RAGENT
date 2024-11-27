@@ -3,11 +3,17 @@ import pyperclip
 
 from typing import Dict, List
 
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto
+
 from core.model.coze.message import CozeBotResponse, Message
 from utils.basic_utils import copy_to_clipboard
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES["简体中文"]
+)
 
 
 def display_cozebot_response(coze_response: CozeBotResponse | Dict[str, str]) -> CozeBotResponse:

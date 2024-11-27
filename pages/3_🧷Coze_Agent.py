@@ -2,10 +2,10 @@ import streamlit as st
 import os
 import uuid
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors.chat.classic import CozeChatProcessor
 from core.storage.displayer.coze import display_cozebot_response, display_coze_conversation
-
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
@@ -15,7 +15,10 @@ logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_
 set_pages_configs_in_common(version=VERSION,title="Coze-Agent",page_icon_path=logo_path)
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 if "coze_chat_history_display" not in st.session_state:
     st.session_state.coze_chat_history_display = []

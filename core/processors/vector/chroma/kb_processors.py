@@ -27,7 +27,6 @@ from core.model.config.embeddings import (
     EmbeddingConfiguration,
 )
 
-i18n = I18nAuto()
 
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 EMBEDDING_CONFIG_FILE_PATH = os.path.join("dynamic_configs", "embedding_config.json")
@@ -267,9 +266,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             # 创建模型目录
             # os.makedirs(model_name_or_path, exist_ok=True)
 
-            create_info = i18n(
-                "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
-            )
+            create_info = "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
             return create_info
         else:
             # 模型目录存在
@@ -289,7 +286,7 @@ class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
             local_dir=model_name_or_path,
         )
 
-        return i18n("Model downloaded successfully!")
+        return "Model downloaded successfully!"
 
     @st.cache_data
     def list_all_knowledgebase_collections(_self, counter: int) -> List[str]:
@@ -762,11 +759,11 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                 repo_id=repo_id,
                 local_dir=model_name_or_path,
             )
-            return i18n("Model downloaded successfully!")
+            return "Model downloaded successfully!"
         except Exception as e:
             error_message = f"Download model error: {str(e)}"
             logger.error(error_message)
-            return i18n(error_message)
+            return error_message
 
     def model_dir_verify(self, model_name_or_path: str):
         """
@@ -780,9 +777,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             # 创建模型目录
             # os.makedirs(model_name_or_path, exist_ok=True)
 
-            create_info = i18n(
-                "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
-            )
+            create_info = "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
             return create_info
         else:
             # 模型目录存在

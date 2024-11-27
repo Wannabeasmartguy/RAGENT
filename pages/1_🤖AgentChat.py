@@ -5,7 +5,6 @@ from loguru import logger
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
 )
 from core.llm.Agent.pre_built import reflection_agent_with_nested_chat
 from core.llm.aoai.completion import aoai_config_generator
@@ -25,6 +24,7 @@ from utils.basic_utils import (
 from core.llm.aoai.tools.tools import TO_TOOLS
 from core.processors.chat.agent import AgentChatProcessor
 from core.processors.config.llm import OAILikeConfigProcessor
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from api.dependency import APIRequestHandler
 from autogen.cache import Cache
 from typing import List
@@ -36,7 +36,10 @@ oailike_config_processor = OAILikeConfigProcessor()
 
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 # Initialize chat history, to avoid error when reloading the page
 if "agent_chat_history_displayed" not in st.session_state:
