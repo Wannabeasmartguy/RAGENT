@@ -5,6 +5,12 @@ import locale
 import streamlit as st
 
 
+SUPPORTED_LANGUAGES = {
+    "English": "en-US",
+    "简体中文": "zh-CN",
+}
+
+
 class I18nAuto:
     def __init__(self, **kwargs):
         if os.path.exists("config.json"):

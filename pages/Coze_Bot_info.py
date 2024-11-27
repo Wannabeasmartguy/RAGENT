@@ -1,13 +1,11 @@
 import streamlit as st
 import os
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common
+from core.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
 from utils.coze_utils import display_bot_info
-from config.constants.app import (
-    VERSION,
-    SUPPORTED_LANGUAGES,
-)
 
+
+VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, 'assets', 'images', 'logos', 'RAGenT_logo.png')

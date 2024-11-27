@@ -14,7 +14,6 @@ from pydantic import ValidationError
 
 from config.constants.app import (
     VERSION,
-    SUPPORTED_LANGUAGES,
 )
 from config.constants.paths import (
     LOGO_DIR,
@@ -28,6 +27,7 @@ from config.constants.databases import (
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
+    SUPPORTED_LANGUAGES,
 )
 from core.processors.dialog.dialog_processors import DialogProcessor
 from core.llm.oai.completion import oai_config_generator

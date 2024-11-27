@@ -26,6 +26,7 @@ from core.llm.llamafile.completion import llamafile_config_generator
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
+    SUPPORTED_LANGUAGES,
 )
 from core.processors.chat.classic import ChatProcessor
 from core.processors.config.llm import OAILikeConfigProcessor
@@ -42,13 +43,11 @@ from utils.basic_utils import (
 )
 from config.constants.app import (
     VERSION,
-    SUPPORTED_LANGUAGES,
 )
 from config.constants.paths import (
     LOGO_DIR,
 )
 from config.constants.chat import DEFAULT_DIALOG_TITLE
-from config.constants.prompt import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from config.constants.databases import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
@@ -64,6 +63,7 @@ try:
 except:
     st.rerun()
 from core.storage.db.sqlite import SqlAssistantStorage
+from utils.chat.prompts import ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from tools.toolkits import (
     filter_out_selected_tools_dict,
     filter_out_selected_tools_list,

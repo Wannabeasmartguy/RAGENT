@@ -16,9 +16,10 @@ from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+from config.constants.app import SUPPORTED_LANGUAGES
 from core.llm.ollama.completion import get_ollama_model_list
 from core.llm.groq.completion import get_groq_models
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto
 from core.processors.chat.classic import OAILikeConfigProcessor
 from assets.styles.css.export_themes import default_theme, glassmorphism_theme
 from assets.styles.css.classic_chat_css import (
