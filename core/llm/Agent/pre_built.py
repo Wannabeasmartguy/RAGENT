@@ -8,10 +8,10 @@ from autogen.cache import Cache
 from autogen.coding import DockerCommandLineCodeExecutor, LocalCommandLineCodeExecutor
 from autogen.agentchat.contrib.capabilities import transform_messages, transforms
 
-from llm.groq.completion import GroqClient
-from llm.llamafile.completion import LlamafileClient
-from llm.ollama.completion import OllamaClient
-from llm.aoai.tools.tools import TO_TOOLS
+from core.llm.groq.completion import GroqClient
+from core.llm.llamafile.completion import LlamafileClient
+from core.llm.ollama.completion import OllamaClient
+from core.llm.aoai.tools.tools import TO_TOOLS
 from utils.basic_utils import dict_filter
 
 

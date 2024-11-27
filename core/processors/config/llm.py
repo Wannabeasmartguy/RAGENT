@@ -4,10 +4,11 @@ import uuid
 from typing import Dict, List, Optional
 from core.strategy import OpenAILikeModelConfigProcessStrategy, EncryptorStrategy
 from core.encryption import FernetEncryptor
-from core.basic_config import (
+from config.constants.paths import (
     CONFIGS_BASE_DIR,
     CONFIGS_DB_FILE,
-    EMBEDDING_CONFIGS_DB_TABLE,
+)
+from config.constants.databases import (
     LLM_CONFIGS_DB_TABLE
 )
 from core.storage.db.sqlite import (

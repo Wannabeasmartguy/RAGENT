@@ -14,7 +14,8 @@ from huggingface_hub import snapshot_download
 from langchain_core.documents.base import Document
 from loguru import logger
 
-from core.basic_config import I18nAuto, KNOWLEDGE_BASE_DIR
+from core.basic_config import I18nAuto
+from config.constants.paths import KNOWLEDGE_BASE_DIR
 from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig,

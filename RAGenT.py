@@ -41,7 +41,18 @@ from utils.basic_utils import (
     USER_AVATAR_SVG,
     AI_AVATAR_SVG
 )
-
+from config.constants.app import (
+    VERSION,
+)
+from config.constants.paths import (
+    LOGO_DIR,
+)
+from config.constants.chat import DEFAULT_DIALOG_TITLE
+from config.constants.databases import (
+    CHAT_HISTORY_DIR,
+    CHAT_HISTORY_DB_FILE,
+    CHAT_HISTORY_DB_TABLE
+)
 try:
     from utils.st_utils import (
         float_chat_input_with_audio_recorder,
@@ -100,26 +111,19 @@ requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
-chat_history_db_dir = os.path.join(
-    os.path.dirname(__file__), "databases", "chat_history"
-)
-chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
-if not os.path.exists(chat_history_db_dir):
-    os.makedirs(chat_history_db_dir)
+if not os.path.exists(CHAT_HISTORY_DIR):
+    os.makedirs(CHAT_HISTORY_DIR)
 chat_history_storage = SqlAssistantStorage(
-    table_name="chatbot_chat_history",
-    db_file=chat_history_db_file,
+    table_name=CHAT_HISTORY_DB_TABLE,
+    db_file=CHAT_HISTORY_DB_FILE,
 )
 dialog_processor = DialogProcessor(storage=chat_history_storage)
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
 
-VERSION = "0.1.1"
-logo_path = os.path.join(os.path.dirname(__file__), "assets", "images", "logos", "RAGenT_logo.png")
-logo_text = os.path.join(
-    os.path.dirname(__file__), "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png"
-)
+logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
 # 将SVG编码为base64
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -155,7 +159,7 @@ run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 if len(run_id_list) == 0:
     dialog_processor.create_dialog(
         run_id=str(uuid4()),
-        run_name="New dialog",
+        run_name=DEFAULT_DIALOG_TITLE,
         llm_config=aoai_config_generator()[0],
         name="assistant",
         assistant_data={"model_type": "AOAI"},
@@ -192,6 +196,9 @@ if "if_interrupt_reply_generating" not in st.session_state:
 if 'dialog_lock' not in st.session_state:
     st.session_state.dialog_lock = False
 
+# 当前对话标题自动生成标志，首次对话时，自动生成对话标题
+if 'if_auto_generate_dialog_title' not in st.session_state:
+    st.session_state.if_auto_generate_dialog_title = False
 
 # ********** Functions only used in this page **********
 
@@ -784,7 +791,7 @@ with st.sidebar:
                     new_run_id = str(uuid4())
                     dialog_processor.create_dialog(
                         run_id=new_run_id,
-                        run_name="New dialog",
+                        run_name=DEFAULT_DIALOG_TITLE,
                         llm_config=aoai_config_generator(
                             model=model_selector("AOAI")[0],
                             stream=True
@@ -794,7 +801,7 @@ with st.sidebar:
                             "system_prompt": "You are a helpful assistant."
                         }
                     )
-                    st.session_state.run_name = "New dialog"
+                    st.session_state.run_name = DEFAULT_DIALOG_TITLE
                     st.session_state.system_prompt = get_system_prompt(st.session_state.run_id)
                     st.session_state.chat_history = []
                     st.session_state.current_run_id_index = 0
@@ -816,7 +823,7 @@ with st.sidebar:
                         st.session_state.run_id = str(uuid4())
                         dialog_processor.create_dialog(
                             run_id=st.session_state.run_id,
-                            run_name="New dialog",
+                            run_name=DEFAULT_DIALOG_TITLE,
                             llm_config=aoai_config_generator(
                                     model=model_selector("AOAI")[0], stream=True
                             )[0],

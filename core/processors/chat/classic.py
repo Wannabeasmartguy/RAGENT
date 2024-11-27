@@ -18,9 +18,11 @@ from core.strategy import (
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
-from core.basic_config import (
+from config.constants.paths import (
     CONFIGS_BASE_DIR,
     CONFIGS_DB_FILE,
+)
+from config.constants.databases import (
     EMBEDDING_CONFIGS_DB_TABLE,
     LLM_CONFIGS_DB_TABLE
 )

@@ -12,6 +12,18 @@ from loguru import logger
 from datetime import datetime
 from pydantic import ValidationError
 
+from config.constants.app import (
+    VERSION,
+)
+from config.constants.paths import (
+    LOGO_DIR,
+)
+from config.constants.databases import (
+    CHAT_HISTORY_DIR,
+    CHAT_HISTORY_DB_FILE,
+    EMBEDDING_CONFIG_FILE_PATH,
+    RAG_CHAT_HISTORY_DB_TABLE,
+)
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
@@ -243,27 +255,20 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     display_rag_sources(response_sources, response_id)
 
 
-embedding_config_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dynamic_configs", "embedding_config.json")
-
 requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
-VERSION = "0.1.1"
-current_directory = os.path.dirname(__file__)
-parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
-logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
-chat_history_db_dir = os.path.join(parent_directory, "databases", "chat_history")
-chat_history_db_file = os.path.join(chat_history_db_dir, "chat_history.db")
-if not os.path.exists(chat_history_db_dir):
-    os.makedirs(chat_history_db_dir)
+if not os.path.exists(CHAT_HISTORY_DIR):
+    os.makedirs(CHAT_HISTORY_DIR)
 chat_history_storage = SqlAssistantStorage(
-    table_name="custom_rag_chat_history",
-    db_file=chat_history_db_file,
+    table_name=RAG_CHAT_HISTORY_DB_TABLE,
+    db_file=CHAT_HISTORY_DB_FILE,
 )
 dialog_processor = DialogProcessor(storage=chat_history_storage)
 if not chat_history_storage.table_exists():
@@ -999,7 +1004,7 @@ with st.sidebar:
         with st.container(border=True):
 
             def update_collection_processor_callback():
-                with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
 
                 st.session_state.collection_config = next(
@@ -1015,13 +1020,13 @@ with st.sidebar:
 
             def get_collection_options():
                 try:
-                    with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                    with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
                         embedding_config = json.load(f)
                     return [
                         kb["name"] for kb in embedding_config.get("knowledge_bases", [])
                     ]
                 except FileNotFoundError:
-                    logger.error(f"File not found: {embedding_config_file_path}")
+                    logger.error(f"File not found: {EMBEDDING_CONFIG_FILE_PATH}")
                     return []
 
             collection_selectbox = st.selectbox(
@@ -1045,7 +1050,7 @@ with st.sidebar:
             )
 
             if collection_selectbox and query_mode_toggle:
-                with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+                with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
                 st.session_state.collection_config = next(
                     (

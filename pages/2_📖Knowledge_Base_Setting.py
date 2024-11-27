@@ -6,11 +6,22 @@ import json
 import uuid
 from typing import Dict, List
 from loguru import logger
+from config.constants.app import (
+    VERSION,
+)
+from config.constants.paths import (
+    KNOWLEDGE_BASE_DIR,
+    LOGO_DIR,
+    EMBEDDING_OPTIONS_FILE_PATH
+)
+from config.constants.databases import (
+    EMBEDDING_DIR,
+    EMBEDDING_CONFIG_FILE_PATH,
+)
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
     SUPPORTED_LANGUAGES,
-    KNOWLEDGE_BASE_DIR,
 )
 from core.processors.vector.chroma.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
@@ -37,16 +48,11 @@ chroma_collection_processor = None
 # 全局变量和初始化
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
-embedding_dir = "embeddings"
-embedding_config_file_path = os.path.join("dynamic_configs", "embedding_config.json")
 
 
 # 更新加载embed model配置文件的函数
 def load_embedding_model_config() -> Dict[str, Dict[str, List[str]]]:
-    config_path = os.path.join(
-        os.path.dirname(__file__), "..", "configs", "embedding_model_config.json"
-    )
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(EMBEDDING_OPTIONS_FILE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -73,7 +79,7 @@ def init_session_state():
 
 
 def load_embedding_config():
-    if not os.path.exists(embedding_config_file_path):
+    if not os.path.exists(EMBEDDING_CONFIG_FILE_PATH):
         initial_config = EmbeddingConfiguration(
             global_settings=GlobalSettings(default_model=""),
             models=[],
@@ -81,13 +87,13 @@ def load_embedding_config():
         )
         save_embedding_config(initial_config)
 
-    with open(embedding_config_file_path, "r", encoding="utf-8") as f:
+    with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
         config_data = json.load(f)
     return EmbeddingConfiguration(**config_data)
 
 
 def save_embedding_config(config):
-    with open(embedding_config_file_path, "w", encoding="utf-8") as f:
+    with open(EMBEDDING_CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
         json.dump(config.model_dump(), f, indent=2, default=datetime_serializer)
 
 
@@ -222,10 +228,7 @@ def get_or_create_model_id(collection_name, embedding_config):
 
 
 try:
-    VERSION = "0.1.1"
-    current_directory = os.path.dirname(__file__)
-    parent_directory = os.path.dirname(current_directory)
-    logo_path = os.path.join(parent_directory, "img", "RAGenT_logo.png")
+    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
     set_pages_configs_in_common(
         version=VERSION, title="Knowledge Base Management", page_icon_path=logo_path
     )
@@ -236,12 +239,8 @@ init_session_state()
 
 # 侧边栏
 with st.sidebar:
-    current_directory = os.path.dirname(__file__)
-    parent_directory = os.path.dirname(current_directory)
-    logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
-    logo_text = os.path.join(
-        parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png"
-    )
+    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+    logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
     st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
@@ -294,7 +293,7 @@ with st.sidebar:
                 ChromaVectorStoreProcessorWithNoApi.download_model(
                     repo_id=f"{st.session_state.embed_model_owner_organization}/{st.session_state.embed_model}",
                     model_name_or_path=os.path.join(
-                        embedding_dir, st.session_state.embed_model
+                        EMBEDDING_DIR, st.session_state.embed_model
                     ),
                 )
                 st.toast(i18n("Model downloaded successfully!"), icon="✅")
