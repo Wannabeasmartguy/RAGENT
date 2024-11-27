@@ -5,7 +5,6 @@ from loguru import logger
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
 )
 from core.llm.Agent.pre_built import reflection_agent_with_nested_chat
 from core.llm.aoai.completion import aoai_config_generator
@@ -14,6 +13,7 @@ from core.llm.llamafile.completion import llamafile_config_generator
 from core.llm.ollama.completion import ollama_config_generator
 from core.llm.fake.completion import fake_agent_chat_completion
 from core.llm.litellm.completion import litellm_config_generator
+from config.constants.app import SUPPORTED_LANGUAGES
 from utils.basic_utils import (
     model_selector,
     split_list_by_key_value,

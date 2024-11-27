@@ -1,3 +1,7 @@
+# Default system prompt
+DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant."
+
+# Tool use prompt
 TOOL_USE_PROMPT = "You are an intelligent assistant that chooses whether or not to use a tool based on user commands."
 
 ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT = """You are an intelligent assistant that chooses whether or not to use a tool based on user commands. 

@@ -2,12 +2,14 @@ import streamlit as st
 import os
 import uuid
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors.chat.classic import CozeChatProcessor
 from core.storage.displayer.coze import display_cozebot_response, display_coze_conversation
+from config.constants.app import (
+    VERSION,
+    SUPPORTED_LANGUAGES,
+)
 
-
-VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
 logo_path = os.path.join(parent_directory, 'assets', 'images', 'logos', 'RAGenT_logo.png')

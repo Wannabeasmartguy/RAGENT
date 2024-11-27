@@ -8,6 +8,7 @@ from typing import Dict, List
 from loguru import logger
 from config.constants.app import (
     VERSION,
+    SUPPORTED_LANGUAGES,
 )
 from config.constants.paths import (
     KNOWLEDGE_BASE_DIR,
@@ -21,7 +22,6 @@ from config.constants.databases import (
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
-    SUPPORTED_LANGUAGES,
 )
 from core.processors.vector.chroma.kb_processors import (
     ChromaVectorStoreProcessorWithNoApi,
