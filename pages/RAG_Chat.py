@@ -557,7 +557,44 @@ def restore_knowledge_base_config():
     if kb_config:
         st.session_state.collection_name = kb_config.get("collection_name")
         st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
-        st.session_state.selected_collection_file = kb_config.get("selected_file")
+        
+        # 检查文件是否仍然存在于知识库中
+        selected_file = kb_config.get("selected_file")
+        if selected_file:
+            try:
+                # 创建collection processor来检查文件
+                with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
+                    embedding_config = json.load(f)
+                collection_config = next(
+                    (
+                        kb
+                        for kb in embedding_config.get("knowledge_bases", [])
+                        if kb["name"] == st.session_state["collection_name"]
+                    ),
+                    {},
+                )
+
+                collection_processor = ChromaCollectionProcessorWithNoApi(
+                    collection_name=kb_config.get("collection_name"),
+                    embedding_config=EmbeddingConfiguration(**embedding_config),
+                    embedding_model_id=collection_config.get("embedding_model_id")
+                )
+                
+                # 获取当前知识库中的所有文件
+                available_files = collection_processor.list_all_filechunks_raw_metadata_name(0)
+                
+                # 只有当文件仍然存在时才设置selected_file
+                if selected_file in available_files:
+                    st.session_state.selected_collection_file = selected_file
+                else:
+                    st.session_state.selected_collection_file = None
+                    logger.warning(f"Selected file {selected_file} no longer exists in knowledge base")
+            except Exception as e:
+                logger.error(f"Error checking file existence: {e}")
+                st.session_state.selected_collection_file = None
+        else:
+            st.session_state.selected_collection_file = None
+            
         st.session_state.is_rerank = kb_config.get("is_rerank", False)
         st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
         st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
@@ -1074,6 +1111,10 @@ with st.sidebar:
 
                 update_knowledge_base_config()
                 st.session_state.reset_counter += 1
+            
+            def change_collection_callback():
+                st.session_state.selected_collection_file = None
+                update_collection_processor_callback()
 
             def get_collection_options():
                 try:
@@ -1090,7 +1131,7 @@ with st.sidebar:
                 label=i18n("Collection"),
                 options=get_collection_options(),
                 placeholder=i18n("Please create a new collection first"),
-                on_change=update_collection_processor_callback,
+                on_change=change_collection_callback,
                 key="collection_name",
             )
 
@@ -1125,12 +1166,16 @@ with st.sidebar:
                         "embedding_model_id"
                     ),
                 )
+                # 获取可用文件列表
+                available_files = collection_processor.list_all_filechunks_raw_metadata_name(st.session_state.reset_counter)
+                # 检查当前选中的文件是否有效
+                if st.session_state.selected_collection_file not in available_files:
+                    st.session_state.selected_collection_file = None
+                    update_knowledge_base_config()
 
                 selected_collection_file = collection_files_placeholder.selectbox(
                     label=i18n("Files"),
-                    options=collection_processor.list_all_filechunks_raw_metadata_name(
-                        st.session_state.reset_counter
-                    ),
+                    options=available_files,
                     format_func=lambda x: x.split("/")[-1].split("\\")[-1],
                     on_change=update_knowledge_base_config,
                     key="selected_collection_file"
@@ -1138,6 +1183,7 @@ with st.sidebar:
 
                 def refresh_collection_files_button_callback():
                     st.session_state.reset_counter += 1
+                    st.session_state.selected_collection_file = None
                     refresh_retriever()
                     st.toast("知识库文件已刷新")
 
@@ -1245,6 +1291,11 @@ with st.sidebar:
     back_to_top_bottom_placeholder0 = st.empty()
     back_to_top_bottom_placeholder1 = st.empty()
 
+    st.write(f"collection_name: {st.session_state.collection_name}")
+    st.write(f"selected_collection_file: {st.session_state.selected_collection_file}")
+    st.write(f"is_rerank: {st.session_state.is_rerank}")
+    st.write(f"is_hybrid_retrieve: {st.session_state.is_hybrid_retrieve}")
+    st.write(f"hybrid_retrieve_weight: {st.session_state.hybrid_retrieve_weight}")
 
 float_init()
 # st.write(st.session_state.rag_chat_config_list)
@@ -1255,7 +1306,11 @@ write_custom_rag_chat_history(
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 # Control the chat input to prevent error when the model is not selected
-if st.session_state.model == None or collection_selectbox == None:
+if (
+    st.session_state.model == None or 
+    st.session_state.collection_name == None or 
+    (st.session_state.query_mode_toggle and not st.session_state.selected_collection_file)
+):
     st.session_state.prompt_disabled = True
 else:
     st.session_state.prompt_disabled = False
@@ -1278,4 +1333,6 @@ elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
 elif collection_selectbox == None:
     st.error(i18n("Please select a knowledge base collection"))
+elif (not selected_collection_file and st.session_state.query_mode_toggle):
+    st.error(i18n("You must select a file in the knowledge base when single file query mode is enabled"))
 
