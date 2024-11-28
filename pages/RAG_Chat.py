@@ -29,7 +29,7 @@ from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common
 )
-from core.processors.dialog.dialog_processors import DialogProcessor
+from core.processors.dialog.dialog_processors import RAGChatDialogProcessor
 from core.llm.oai.completion import oai_config_generator
 from core.llm.aoai.completion import aoai_config_generator
 from core.llm.groq.completion import groq_openai_config_generator
@@ -95,7 +95,7 @@ def save_rag_chat_history():
         chat_history=st.session_state.custom_rag_chat_history,
         task_data={"source_documents": st.session_state.custom_rag_sources},
         assistant_data={
-                "model_type": st.session_state.model_type,
+            "model_type": st.session_state.model_type,
         },
     )
 
@@ -270,9 +270,13 @@ chat_history_storage = SqlAssistantStorage(
     table_name=RAG_CHAT_HISTORY_DB_TABLE,
     db_file=CHAT_HISTORY_DB_FILE,
 )
-dialog_processor = DialogProcessor(storage=chat_history_storage)
+dialog_processor = RAGChatDialogProcessor(
+    storage=chat_history_storage,
+    logger=logger
+)
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
+    logger.info("Created new RAG chat history table")
 
 
 language = os.getenv("LANGUAGE", "简体中文")
@@ -299,11 +303,15 @@ if "oai_like_model_config_dict" not in st.session_state:
         "noneed": {"base_url": "http://127.0.0.1:8080/v1", "api_key": "noneed"}
     }
 
+# 初始化对话列表
 rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+
+# 如果没有对话，创建一个默认对话
 if len(rag_run_id_list) == 0:
+    new_run_id = str(uuid4())
     dialog_processor.create_dialog(
         name="assistant",
-        run_id=str(uuid4()),
+        run_id=new_run_id,
         llm_config=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
         run_name="New dialog",
         task_data={"source_documents": {}},
@@ -311,21 +319,30 @@ if len(rag_run_id_list) == 0:
             "model_type": "AOAI",
         },
     )
+    # 重新获取对话列表
     rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+
+# 初始化当前对话索引
 if "rag_current_run_id_index" not in st.session_state:
     st.session_state.rag_current_run_id_index = 0
-while st.session_state.rag_current_run_id_index > len(rag_run_id_list):
-    st.session_state.rag_current_run_id_index -= 1
+
+# 确保索引在有效范围内
+st.session_state.rag_current_run_id_index = min(
+    st.session_state.rag_current_run_id_index,
+    len(rag_run_id_list) - 1
+)
+
+# 设置当前对话ID
 if "rag_run_id" not in st.session_state:
-    st.session_state.rag_run_id = rag_run_id_list[
-        st.session_state.rag_current_run_id_index
-    ]
+    st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
 
 # initialize config
 if "rag_chat_config_list" not in st.session_state:
     st.session_state.rag_chat_config_list = [
         dialog_processor.get_dialog(st.session_state.rag_run_id).llm
     ]
+if "knowledge_base_config" not in st.session_state:
+    st.session_state.knowledge_base_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
