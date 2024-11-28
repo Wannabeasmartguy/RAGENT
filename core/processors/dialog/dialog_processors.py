@@ -239,7 +239,12 @@ class RAGChatDialogProcessor(DialogProcessor):
         )
 
     # 添加对RAG聊天对话中保存向量数据库相关数据的操作
-    def update_knowledge_base_config(self, *, run_id: str, knowledge_base_config: Dict[str, Any]):
+    def update_knowledge_base_config(
+        self, 
+        *, 
+        run_id: str, 
+        knowledge_base_config: Dict[str, Any]
+    ):
         """
         更新当前对话指向的知识库配置
         
@@ -250,6 +255,8 @@ class RAGChatDialogProcessor(DialogProcessor):
                 is_rerank (bool): 是否启用重排序
                 is_hybrid_retrieve (bool): 是否启用混合检索
                 hybrid_retrieve_weight (float): 混合检索权重
+                query_mode (str): 查询模式 ("collection" 或 "file")
+                selected_file (str, optional): 单文件模式下选择的文件
         """
         def _update():
             try:

@@ -342,7 +342,13 @@ if "rag_chat_config_list" not in st.session_state:
         dialog_processor.get_dialog(st.session_state.rag_run_id).llm
     ]
 if "knowledge_base_config" not in st.session_state:
-    st.session_state.knowledge_base_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
+    kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
+    st.session_state.collection_name = kb_config.get("collection_name")
+    st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
+    st.session_state.selected_collection_file = kb_config.get("selected_file")
+    st.session_state.is_rerank = kb_config.get("is_rerank", False)
+    st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
+    st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
@@ -529,6 +535,33 @@ def create_and_display_rag_chat_round(
             st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
             interrupt_button_placeholder.empty()
 
+# 在知识库设置发生变化时保存配置
+def update_knowledge_base_config():
+    knowledge_base_config = {
+        "collection_name": st.session_state.get("collection_name"),
+        "query_mode": "file" if st.session_state.get("query_mode_toggle") else "collection",
+        "selected_file": st.session_state.get("selected_collection_file") if st.session_state.get("query_mode_toggle") else None,
+        "is_rerank": st.session_state.get("is_rerank", False),
+        "is_hybrid_retrieve": st.session_state.get("is_hybrid_retrieve", False),
+        "hybrid_retrieve_weight": st.session_state.get("hybrid_retrieve_weight", 0.5),
+    }
+    
+    dialog_processor.update_knowledge_base_config(
+        run_id=st.session_state.rag_run_id,
+        knowledge_base_config=knowledge_base_config
+    )
+
+# 在加载对话时恢复知识库配置
+def restore_knowledge_base_config():
+    kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
+    if kb_config:
+        st.session_state.collection_name = kb_config.get("collection_name")
+        st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
+        st.session_state.selected_collection_file = kb_config.get("selected_file")
+        st.session_state.is_rerank = kb_config.get("is_rerank", False)
+        st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
+        st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
+
 try:
     set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
 except:
@@ -604,6 +637,9 @@ with st.sidebar:
                     except (TypeError, ValidationError):
                         st.session_state.custom_rag_chat_history = []
                         st.session_state.custom_rag_sources = {}
+
+                    # 恢复知识库配置
+                    restore_knowledge_base_config()
 
                 else:
                     st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
@@ -1036,6 +1072,7 @@ with st.sidebar:
                     {},
                 )
 
+                update_knowledge_base_config()
                 st.session_state.reset_counter += 1
 
             def get_collection_options():
@@ -1067,6 +1104,7 @@ with st.sidebar:
                     "Default is whole collection query mode, if enabled, the source document would only be the selected file"
                 ),
                 on_change=update_collection_processor_callback,
+                key="query_mode_toggle"
             )
 
             if collection_selectbox and query_mode_toggle:
@@ -1094,6 +1132,8 @@ with st.sidebar:
                         st.session_state.reset_counter
                     ),
                     format_func=lambda x: x.split("/")[-1].split("\\")[-1],
+                    on_change=update_knowledge_base_config,
+                    key="selected_collection_file"
                 )
 
                 def refresh_collection_files_button_callback():
@@ -1111,9 +1151,17 @@ with st.sidebar:
             else:
                 selected_collection_file = None
 
-            is_rerank = st.toggle(label=i18n("Rerank"), value=False, key="is_rerank")
+            is_rerank = st.toggle(
+                label=i18n("Rerank"), 
+                value=False,
+                on_change=update_knowledge_base_config,
+                key="is_rerank"
+            )
             is_hybrid_retrieve = st.toggle(
-                label=i18n("Hybrid retrieve"), value=False, key="is_hybrid_retrieve"
+                label=i18n("Hybrid retrieve"), 
+                value=False, 
+                on_change=update_knowledge_base_config,
+                key="is_hybrid_retrieve"
             )
             hybrid_retrieve_weight_placeholder = st.empty()
             if is_hybrid_retrieve:
@@ -1123,6 +1171,7 @@ with st.sidebar:
                     max_value=1.0,
                     value=0.5,
                     step=0.1,
+                    on_change=update_knowledge_base_config,
                     key="hybrid_retrieve_weight",
                 )
             else:
@@ -1206,7 +1255,7 @@ write_custom_rag_chat_history(
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 # Control the chat input to prevent error when the model is not selected
-if st.session_state.model == None:
+if st.session_state.model == None or collection_selectbox == None:
     st.session_state.prompt_disabled = True
 else:
     st.session_state.prompt_disabled = False
@@ -1214,7 +1263,7 @@ prompt = float_chat_input_with_audio_recorder(
     if_tools_call=False, prompt_disabled=st.session_state.prompt_disabled
 )
 
-if prompt and st.session_state.model:
+if prompt and st.session_state.model and collection_selectbox:
     create_and_display_rag_chat_round(
         prompt=prompt,
         collection_name=collection_selectbox,
@@ -1227,3 +1276,6 @@ if prompt and st.session_state.model:
     )
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
+elif collection_selectbox == None:
+    st.error(i18n("Please select a knowledge base collection"))
+
