@@ -6,17 +6,16 @@ from pydantic import BaseModel, ConfigDict
 class AssistantRun(BaseModel):
     """Assistant Run that is stored in the database"""
 
-    # Assistant name
     name: Optional[str] = None
-    # Run UUID
+    """Assistant name"""
     run_id: str
-    # Run name
+    """Run UUID"""
     run_name: Optional[str] = None
-    # ID of the user participating in this run
+    """Run name"""
     user_id: Optional[str] = None
-    # LLM data (name, model, etc.)
+    """ID of the user participating in this run"""
     llm: Optional[Dict[str, Any]] = None
-    # Assistant Memory, looks like the following:
+    """LLM data (name, model, etc.)"""
     # {
     #     'chat_history': [
     #         {
@@ -52,18 +51,19 @@ class AssistantRun(BaseModel):
     #     'retrieval': 'last_n'
     # }
     memory: Optional[Dict[str, Any]] = None
-    # Metadata associated with this assistant
+    """Assistant Memory"""
     assistant_data: Optional[Dict[str, Any]] = None
-    # Metadata associated with this run
+    """Metadata associated with this assistant"""
     run_data: Optional[Dict[str, Any]] = None
-    # Metadata associated the user participating in this run
+    """Metadata associated with this run"""
     user_data: Optional[Dict[str, Any]] = None
-    # Metadata associated with the assistant tasks
+    """Metadata associated the user participating in this run"""
     task_data: Optional[Dict[str, Any]] = None
-    # The timestamp of when this run was created
+    """Metadata associated with the assistant tasks"""
     created_at: Optional[datetime] = None
-    # The timestamp of when this run was last updated
+    """The timestamp of when this run was created"""
     updated_at: Optional[datetime] = None
+    """The timestamp of when this run was last updated"""
 
     model_config = ConfigDict(from_attributes=True)
 

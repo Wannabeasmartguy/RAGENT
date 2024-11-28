@@ -93,7 +93,7 @@ def save_rag_chat_history():
     dialog_processor.update_chat_history(
         run_id=st.session_state.rag_run_id,
         chat_history=st.session_state.custom_rag_chat_history,
-        additional_task_data={"source_documents": st.session_state.custom_rag_sources},
+        task_data={"source_documents": st.session_state.custom_rag_sources},
         assistant_data={
                 "model_type": st.session_state.model_type,
         },
@@ -1120,7 +1120,7 @@ with st.sidebar:
         dialog_processor.update_chat_history(
             run_id=st.session_state.rag_run_id,
             chat_history=st.session_state.custom_rag_chat_history,
-            additional_task_data={"source_documents": st.session_state.custom_rag_sources},
+            task_data={"source_documents": st.session_state.custom_rag_sources},
         )
         st.session_state.rag_current_run_id_index = rag_run_id_list.index(
             st.session_state.rag_run_id
@@ -1147,7 +1147,7 @@ with st.sidebar:
         dialog_processor.update_chat_history(
             run_id=st.session_state.rag_run_id,
             chat_history=st.session_state.custom_rag_chat_history,
-            additional_task_data={"source_documents": st.session_state.custom_rag_sources},
+            task_data={"source_documents": st.session_state.custom_rag_sources},
         )
 
     delete_previous_round_button = delete_previous_round_button_col.button(

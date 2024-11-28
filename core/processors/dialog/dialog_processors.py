@@ -118,7 +118,7 @@ class DialogProcessor(DialogProcessStrategy):
         run_id: str,
         chat_history: List[Dict[str, Any]],
         assistant_data: Optional[Dict[str, Any]] = None,
-        additional_task_data: Optional[Dict[str, Any]] = None,
+        task_data: Optional[Dict[str, Any]] = None,
         updated_at: Optional[datetime] = None
     ):
         """更新对话历史"""
@@ -135,7 +135,7 @@ class DialogProcessor(DialogProcessStrategy):
                     llm=current_run.llm,
                     memory={"chat_history": chat_history},
                     assistant_data=assistant_data or current_run.assistant_data,
-                    task_data=additional_task_data or current_run.task_data,
+                    task_data=task_data or current_run.task_data,
                     updated_at=updated_at or datetime.now()
                 )
             )

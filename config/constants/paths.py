@@ -16,7 +16,7 @@ ASSETS_DIR = os.path.join(ROOT_DIR, "assets")
 IMAGES_DIR = os.path.join(ASSETS_DIR, "images")
 STYLES_DIR = os.path.join(ASSETS_DIR, "styles")
 LOCALE_DIR = os.path.join(ASSETS_DIR, "locale")
-LOG_DIR = os.path.join(ROOT_DIR, "log") 
+LOG_DIR = os.path.join(ROOT_DIR, "log")
 
 # 各资源类型
 LOGO_DIR = os.path.join(IMAGES_DIR, "logos")
