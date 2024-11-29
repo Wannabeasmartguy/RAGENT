@@ -1291,11 +1291,6 @@ with st.sidebar:
     back_to_top_bottom_placeholder0 = st.empty()
     back_to_top_bottom_placeholder1 = st.empty()
 
-    st.write(f"collection_name: {st.session_state.collection_name}")
-    st.write(f"selected_collection_file: {st.session_state.selected_collection_file}")
-    st.write(f"is_rerank: {st.session_state.is_rerank}")
-    st.write(f"is_hybrid_retrieve: {st.session_state.is_hybrid_retrieve}")
-    st.write(f"hybrid_retrieve_weight: {st.session_state.hybrid_retrieve_weight}")
 
 float_init()
 # st.write(st.session_state.rag_chat_config_list)
