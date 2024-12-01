@@ -33,4 +33,4 @@ streamlit-float==0.3.5
 openai-whisper==20231117
 streamlit-antd-components==0.3.2
 fake-useragent==1.5.1
-duckduckgo-search==6.3.5
+duckduckgo_search==6.3.5
