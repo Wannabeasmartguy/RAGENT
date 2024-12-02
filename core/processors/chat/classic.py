@@ -1,6 +1,7 @@
 from typing import Literal, List, Dict, Any, Generator, Optional
 from functools import partial
 from uuid import uuid4
+from copy import deepcopy
 from deprecated import deprecated
 import os
 import json
@@ -9,9 +10,12 @@ import requests
 import copy
 
 from autogen import OpenAIWrapper
+from loguru import logger
 
 from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
-from api.routers.chat import LLMConfig, LLMParams
+from core.model.llm import LLMParams
+from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
+from core.llm._client_info import OPENAI_SUPPORTED_CLIENTS
 from core.strategy import (
     ChatProcessStrategy,
     AgentChatProcessStrategy,
@@ -21,6 +25,7 @@ from core.strategy import (
 from core.strategy import EncryptorStrategy
 from core.encryption import FernetEncryptor
 from utils.tool_utils import create_tools_call_completion
+from utils.log.logger_config import setup_logger
 
 from modules.rag.builder.builder import RAGBuilder
 from modules.llm.openai import OpenAILLM
@@ -48,44 +53,8 @@ class ChatProcessor(ChatProcessStrategy):
         self.model_type = model_type
         self.llm_config = llm_config
         self.create_tools_call_completion = partial(create_tools_call_completion, config_list=[llm_config])
-
-    def create_completion(
-            self, 
-            messages: List[Dict[str, str]],
-        ) -> Dict:
-        """
-        通过 requesthandler ，根据 model_type ，调用相应的 API 接口
-        """
-        if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
-
-            # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
-            if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
-                path = "/chat/openai-like-chat/openai"
-
-            # 否则，走 request 或另行定义的 SDK （如 Groq）
-            else:
-                # path = "/chat/openai-like-chat/xxxx"
-                pass
-
-        response = self.requesthandler.post(
-            endpoint=path,
-            data={
-                "llm_config": self.llm_config,
-                "llm_params": self.llm_config.get(
-                    "params",
-                    {
-                        "temperature": 0.5,
-                        "top_p": 0.1,
-                        "max_tokens": 4096
-                    }
-                ),
-                "messages": messages
-            }
-        )
-        
-        return response
     
-    def create_completion_noapi(
+    def create_completion(
         self,
         messages: List[dict]
     ):
@@ -93,137 +62,85 @@ class ChatProcessor(ChatProcessStrategy):
         创建一个 LLM 模型，并使用该模型生成一个响应。
         
         Args:
-            source (str):  支持的 LLM 推理源，保存于 dependence.py 中。
             llm_config (LLMConfig): LLM 模型的配置信息。
             llm_params (LLMParams, optional): LLM 模型的参数信息，包括 temperature、top_p 和 max_tokens。
             messages (List[dict]): 完整的对话消息列表。
-            support_sources (dict): 支持的 LLM 源列表。
             
         Returns:
             Dict: 生成的响应。
         '''
-        llm_config = LLMConfig(**self.llm_config)
         llm_params = LLMParams(**self.llm_config.get("params", {}))
+        llm_config = deepcopy(self.llm_config)
+        llm_config.pop("params")
         
         # 检查 source 是否在支持列表中
         source = self.model_type.lower()
 
-        if source not in SUPPORTED_SOURCES["sources"]:
+        if source not in SUPPORTED_CLIENTS:
             raise ValueError(f"Unsupported source: {source}")
         
         # 根据 source 选择不同的处理逻辑
-        # 如果 Source 在 sources 中为 "sdk"，则使用 OpenAI SDK 进行处理
-        # 如果 Source 在 sources 中为 "request"，则使用 Request 进行处理
-
-        try:
-            if SUPPORTED_SOURCES["sources"][source] == "sdk":
+        if source in OPENAI_SUPPORTED_CLIENTS:
+            try:
                 client = OpenAIWrapper(
-                    **llm_config.dict(exclude_unset=True),
+                    **llm_config,
                     # 禁用缓存
                     cache = None,
                     cache_seed = None
                 )
+                response = client.create(
+                    messages = messages,
+                    model = llm_config.get("model"),
+                    temperature = llm_params.temperature,
+                    top_p = llm_params.top_p,
+                    max_tokens = llm_params.max_tokens
+                )
+                return response
+            except Exception as e:
+                raise ValueError(f"Error creating completion: {str(e)}") from e
 
-                if llm_params:
-                    response = client.create(
-                        messages = messages,
-                        model = llm_config.model,
-                        temperature = llm_params.temperature,
-                        top_p = llm_params.top_p,
-                        max_tokens = llm_params.max_tokens
-                    )
-                else:
-                    response = client.create(
-                        messages = messages,
-                        model = llm_config.model,
-                    )
-
-            return response
-        except Exception as e:
-            raise ValueError(f"Error creating completion: {str(e)}") from e
-
-    def create_completion_stream_api(
-            self, 
-            messages: List[Dict[str, str]],
-        ) -> str:
-        """
-        通过 requesthandler ，根据 model_type ，调用相应的 API 接口创建流式输出
-        """
-        if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
-            # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
-            if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
-                path = "/chat/openai-like-chat/openai/stream"
-
-            # 否则，走 request 或另行定义的 SDK （如 Groq）
-            else:
-                # path = "/chat/openai-like-chat/xxxx/stream"
-                pass
-            
-        response = self.requesthandler.post(
-            endpoint=path,
-            data={
-                "llm_config": self.llm_config,
-                "llm_params": self.llm_config.get(
-                    "params",
-                    {
-                        "temperature": 0.5,
-                        "top_p": 0.1,
-                        "max_tokens": 4096,
-                        "stream": True
-                    }
-                ),
-                "messages": messages
-            }
-        )
-        
-        return response
-    
-    def create_completion_stream_noapi(
+    def create_completion_stream(
             self, 
             messages: List[Dict[str, str]],
         ) -> Generator:
         """
-        通过 requesthandler ，根据 model_type ，调用相应的 SDK (不经过后端API)接口创建流式输出
+        创建流式输出
         """
-        if self.model_type.lower() in SUPPORTED_SOURCES["sources"]:
-            # 如果 model_type 的小写名称在 SUPPORTED_SOURCES 字典中的对应值为 "sdk" ，则走 OpenAI 的 SDK
+        if self.model_type.lower() in OPENAI_SUPPORTED_CLIENTS:
             try:
-                if SUPPORTED_SOURCES["sources"][self.model_type.lower()] == "sdk":
-                    if self.llm_config.get("api_type") != "azure":
-                        from openai import OpenAI
-                        client = OpenAI(
-                            api_key=self.llm_config.get("api_key"),
-                            base_url=self.llm_config.get("base_url"),
-                        )
-                        
-                        response = client.chat.completions.create(
-                            model=self.llm_config.get("model"),
-                            messages=messages,
-                            temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
-                            top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
-                            max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
-                            stream=True
-                        )
-                    
-                    else:
-                        from openai import AzureOpenAI
-                        client = AzureOpenAI(
-                            api_key=self.llm_config.get("api_key"),
-                            azure_endpoint=self.llm_config.get("base_url"),
-                            api_version=self.llm_config.get("api_version"),
-                        )
+                if self.llm_config.get("api_type") != "azure":
+                    from openai import OpenAI
+                    client = OpenAI(
+                        api_key=self.llm_config.get("api_key"),
+                        base_url=self.llm_config.get("base_url"),
+                    )
+                    response = client.chat.completions.create(
+                        model=self.llm_config.get("model"),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
+                
+                else:
+                    from openai import AzureOpenAI
+                    client = AzureOpenAI(
+                        api_key=self.llm_config.get("api_key"),
+                        azure_endpoint=self.llm_config.get("base_url"),
+                        api_version=self.llm_config.get("api_version"),
+                    )
+                    response = client.chat.completions.create(
+                        # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
+                        model=self.llm_config.get("model").replace(".", ""),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
 
-                        response = client.chat.completions.create(
-                            # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
-                            model=self.llm_config.get("model").replace(".", ""),
-                            messages=messages,
-                            temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
-                            top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
-                            max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
-                            stream=True
-                        )
-
-                    return response
+                return response
             except Exception as e:
                 raise ValueError(f"Error creating completion stream: {str(e)}") from e
 

@@ -10,6 +10,8 @@ SUPPORTED_SOURCES = {
     "openai-like": OpenAIConfig
 }
 
+OPENAI_SUPPORTED_CLIENTS = ["openai", "aoai", "llamafile", "ollama", "groq", "openai-like"]
+
 def generate_client_config(
         source: Literal["openai", "aoai", "llamafile", "ollama", "groq", "openai-like"], 
         **kwargs

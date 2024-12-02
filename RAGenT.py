@@ -71,7 +71,6 @@ def generate_response(
     processed_messages: List[Dict[str, Union[str, Dict, List]]],
     chatprocessor: ChatProcessor,
     if_tools_call: bool,
-    if_stream: bool,
 ):
     if if_tools_call:
         tools_list_selected = filter_out_selected_tools_list(
@@ -88,12 +87,13 @@ def generate_response(
             function_map=tools_map_selected,
         )
     else:
-        if if_stream:
-            response = chatprocessor.create_completion_stream_noapi(
+        # AutoGen在v0.2版本中，没有找到创建流式输出的方法，所以分开处理
+        if st.session_state.if_stream:
+            response = chatprocessor.create_completion_stream(
                 messages=processed_messages
             )
         else:
-            response = chatprocessor.create_completion_noapi(
+            response = chatprocessor.create_completion(
                 messages=processed_messages
             )
     return response
@@ -265,7 +265,6 @@ def create_and_display_chat_round(
     history_length: int = 16,
     image_uploader: Optional[BytesIO] = None,
     if_tools_call: bool = False,
-    if_stream: bool = False,
 ):
     # 显示用户消息
     with st.chat_message("user", avatar=user_avatar):
@@ -335,7 +334,6 @@ def create_and_display_chat_round(
                         processed_messages=processed_messages,
                         chatprocessor=chatprocessor,
                         if_tools_call=if_tools_call,
-                        if_stream=if_stream,
                     )
                 except Exception as e:
                     response = dict(error=str(e))
@@ -1000,7 +998,6 @@ if prompt and st.session_state.model:
         prompt=prompt,
         image_uploader=image_uploader,
         if_tools_call=if_tools_call,
-        if_stream=True,
     )
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
