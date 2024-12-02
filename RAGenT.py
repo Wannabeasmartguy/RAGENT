@@ -18,11 +18,7 @@ load_dotenv(override=True)
 
 from api.dependency import APIRequestHandler
 
-from core.llm.oai.completion import oai_config_generator
-from core.llm.aoai.completion import aoai_config_generator
-from core.llm.ollama.completion import ollama_config_generator
-from core.llm.groq.completion import groq_openai_config_generator
-from core.llm.llamafile.completion import llamafile_config_generator
+from core.llm._client_info import generate_client_config
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
@@ -159,7 +155,7 @@ if len(run_id_list) == 0:
     dialog_processor.create_dialog(
         run_id=str(uuid4()),
         run_name=DEFAULT_DIALOG_TITLE,
-        llm_config=aoai_config_generator()[0],
+        llm_config=generate_client_config(source="aoai").model_dump(),
         name="assistant",
         assistant_data={"model_type": "AOAI"},
     )
@@ -237,60 +233,16 @@ def update_config_in_db_callback():
     Update config in db.
     """
     origin_config_list = deepcopy(st.session_state.chat_config_list)
-    if st.session_state["model_type"] == "OpenAI":
-        config_list = oai_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
+    config_list = [
+        generate_client_config(
+            source=st.session_state["model_type"].lower(),
+            model=st.session_state.model if st.session_state["model_type"].lower() != "llamafile" else "Not given",
             temperature=st.session_state.temperature,
             top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "AOAI":
-        config_list = aoai_config_generator(
-            model=st.session_state.model,
             max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
             stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Ollama":
-        config_list = ollama_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Groq":
-        config_list = groq_openai_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Llamafile":
-        try:
-            config_list = llamafile_config_generator(
-                model=st.session_state.model,
-                api_key=st.session_state.llamafile_api_key,
-                base_url=st.session_state.llamafile_endpoint,
-                max_tokens=st.session_state.max_tokens,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                stream=st.session_state.if_stream,
-            )
-        except (UnboundLocalError, AttributeError) as e:
-            # 如果st.session_state没有定义llamafile_api_key，则使用默认值
-            logger.warning(f"Error when generating config for llamafile: {e}")
-            logger.warning("Just use other existing config")
-            # params 可以使用已有配置
-            config_list = llamafile_config_generator(
-                max_tokens=st.session_state.max_tokens,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                stream=st.session_state.if_stream,
-            )
+        ).model_dump()
+    ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
     dialog_processor.update_dialog_config(
@@ -834,9 +786,11 @@ with st.sidebar:
                     dialog_processor.create_dialog(
                         run_id=new_run_id,
                         run_name=DEFAULT_DIALOG_TITLE,
-                        llm_config=aoai_config_generator(
-                            model=model_selector("AOAI")[0], stream=True
-                        )[0],
+                        llm_config=generate_client_config(
+                            source="aoai",
+                            model=model_selector("AOAI")[0], 
+                            stream=True
+                        ).model_dump(),
                         assistant_data={
                             "model_type": "AOAI",
                             "system_prompt": DEFAULT_SYSTEM_PROMPT,
@@ -870,9 +824,11 @@ with st.sidebar:
                         dialog_processor.create_dialog(
                             run_id=st.session_state.run_id,
                             run_name=DEFAULT_DIALOG_TITLE,
-                            llm_config=aoai_config_generator(
-                                model=model_selector("AOAI")[0], stream=True
-                            )[0],
+                            llm_config=generate_client_config(
+                                source="aoai",
+                                model=model_selector("AOAI")[0], 
+                                stream=True
+                            ).model_dump(),
                             assistant_data={
                                 "system_prompt": get_system_prompt(
                                     st.session_state.run_id

@@ -1,15 +1,14 @@
-import streamlit as st
-import streamlit.components.v1 as components
 import os
 import json
 import base64
+import streamlit as st
+import streamlit.components.v1 as components
+from datetime import datetime
 from typing import Dict, Any, Optional, Union
 from streamlit_float import *
 from uuid import uuid4
-from copy import deepcopy
 from functools import lru_cache
 from loguru import logger
-from datetime import datetime
 from pydantic import ValidationError
 
 from config.constants.app import (
@@ -30,12 +29,7 @@ from core.basic_config import (
     set_pages_configs_in_common
 )
 from core.processors.dialog.dialog_processors import RAGChatDialogProcessor
-from core.llm.oai.completion import oai_config_generator
-from core.llm.aoai.completion import aoai_config_generator
-from core.llm.groq.completion import groq_openai_config_generator
-from core.llm.llamafile.completion import llamafile_config_generator
-from core.llm.ollama.completion import ollama_config_generator
-from core.llm.litellm.completion import litellm_config_generator
+from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
     model_selector,
     list_length_transform,
@@ -312,7 +306,11 @@ if len(rag_run_id_list) == 0:
     dialog_processor.create_dialog(
         name="assistant",
         run_id=new_run_id,
-        llm_config=aoai_config_generator(model=model_selector("AOAI")[0], stream=True)[0],
+        llm_config=generate_client_config(
+            source="aoai",
+            model=model_selector("AOAI")[0],
+            stream=True
+        ).model_dump(),
         run_name="New dialog",
         task_data={"source_documents": {}},
         assistant_data={
@@ -406,62 +404,16 @@ def update_rag_config_in_db_callback():
     from copy import deepcopy
 
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
-    if st.session_state["model_type"] == "OpenAI":
-        config_list = oai_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
+    config_list = [
+        generate_client_config(
+            source=st.session_state["model_type"].lower(),
+            model=st.session_state.model if st.session_state["model_type"].lower() != "llamafile" else "Not given",
             temperature=st.session_state.temperature,
             top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "AOAI":
-        config_list = aoai_config_generator(
-            model=st.session_state.model,
             max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
             stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Ollama":
-        config_list = ollama_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Groq":
-        config_list = groq_openai_config_generator(
-            model=st.session_state.model,
-            max_tokens=st.session_state.max_tokens,
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
-            stream=st.session_state.if_stream,
-        )
-    elif st.session_state["model_type"] == "Llamafile":
-        try:
-            config_list = llamafile_config_generator(
-                model=st.session_state.model,
-                api_key=st.session_state.llamafile_api_key,
-                base_url=st.session_state.llamafile_endpoint,
-                max_tokens=st.session_state.max_tokens,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                stream=st.session_state.if_stream,
-            )
-        except (UnboundLocalError, AttributeError) as e:
-            # 如果st.session_state没有定义llamafile_api_key，则使用默认值
-            logger.warning(f"Error when generating config for llamafile: {e}")
-            logger.warning("Just use other existing config")
-            # params 可以使用已有配置
-            config_list = llamafile_config_generator(
-                max_tokens=st.session_state.max_tokens,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                stream=st.session_state.if_stream,
-            )
-    elif st.session_state["model_type"] == "LiteLLM":
-        config_list = litellm_config_generator(model=st.session_state["model"])
+        ).model_dump()
+    ]
     st.session_state["rag_chat_config_list"] = config_list
     log_dict_changes(origin_config_list[0], config_list[0])
     dialog_processor.update_dialog_config(
@@ -702,9 +654,11 @@ with st.sidebar:
                     dialog_processor.create_dialog(
                         run_id=st.session_state.rag_run_id,
                         run_name="New dialog",
-                        llm_config=aoai_config_generator(
-                            model=model_selector("AOAI")[0], stream=True
-                        )[0],
+                        llm_config=generate_client_config(
+                            source="aoai",
+                            model=model_selector("AOAI")[0],
+                            stream=True
+                        ).model_dump(),
                         task_data={
                             "source_documents": {},
                         },
@@ -731,9 +685,11 @@ with st.sidebar:
                         dialog_processor.create_dialog(
                             run_id=st.session_state.rag_run_id,
                             run_name="New dialog",
-                            llm_config=aoai_config_generator(
-                                model=model_selector("AOAI")[0], stream=True
-                            )[0],
+                            llm_config=generate_client_config(
+                                source="aoai",
+                                model=model_selector("AOAI")[0],
+                                stream=True
+                            ).model_dump(),
                             task_data={
                                 "source_documents": {},
                             },
@@ -956,7 +912,7 @@ with st.sidebar:
 
                 def get_selected_llamafile_endpoint() -> str:
                     try:
-                        return st.session_state.chat_config_list[0].get("base_url")
+                        return st.session_state.rag_chat_config_list[0].get("base_url")
                     except:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
@@ -971,7 +927,7 @@ with st.sidebar:
 
                 def get_selected_llamafile_api_key() -> str:
                     try:
-                        return st.session_state.chat_config_list[0].get("api_key")
+                        return st.session_state.rag_chat_config_list[0].get("api_key")
                     except:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
@@ -1290,6 +1246,8 @@ with st.sidebar:
     back_to_top_placeholder1 = st.empty()
     back_to_top_bottom_placeholder0 = st.empty()
     back_to_top_bottom_placeholder1 = st.empty()
+
+    st.write(st.session_state.rag_chat_config_list[0])
 
 
 float_init()

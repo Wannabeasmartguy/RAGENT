@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Literal
+from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
 
 class LLMParams(BaseModel):
@@ -9,10 +9,16 @@ class LLMParams(BaseModel):
     max_tokens: int = Field(default=4096, gt=0, description="Maximum number of tokens to generate")
     stream: bool = Field(default=False, description="If true, the LLM will stream the response")
 
-class LLMBaseConfig(BaseModel):
+class LLMBaseConfig(BaseModel, ABC):
     """LLM 配置"""
-    llm: str = Field(..., description="Model name")
+    model: str = Field(..., description="Model name")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
+
+    @classmethod
+    @abstractmethod
+    def from_env(cls, **kwargs) -> "LLMBaseConfig":
+        """从环境变量和kwargs创建配置"""
+        pass
 
 class AzureOpenAIConfig(LLMBaseConfig):
     """Azure OpenAI配置"""
@@ -49,7 +55,7 @@ class OpenAIConfig(LLMBaseConfig):
     def from_env(cls, **kwargs) -> "OpenAIConfig":
         """从环境变量和kwargs创建配置"""
         return cls(
-            llm=kwargs.get("llm", "gpt-3.5-turbo"),
+            model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=os.getenv("OPENAI_API_KEY", kwargs.get("api_key", "noopenaikey")),
             base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
             params=LLMParams(
@@ -70,9 +76,9 @@ class OllamaConfig(LLMBaseConfig):
     def from_env(cls, **kwargs) -> "OllamaConfig":
         """从环境变量和kwargs创建配置"""
         return cls(
-            llm=kwargs.get("llm", "noneed"),
+            model=kwargs.get("model", "nogiven"),
             api_key=os.getenv("OLLAMA_API_KEY", kwargs.get("api_key", "noollamakey")),
-            base_url=os.getenv("OLLAMA_API_ENDPOINT", kwargs.get("base_url", "noollamaendpoint")),
+            base_url=os.getenv("OLLAMA_API_ENDPOINT", kwargs.get("base_url", "http://localhost:11434/v1")),
             params=LLMParams(
                 temperature=kwargs.get("temperature", 0.5),
                 top_p=kwargs.get("top_p", 1.0), 
@@ -91,7 +97,7 @@ class GroqConfig(LLMBaseConfig):
     def from_env(cls, **kwargs) -> "GroqConfig":
         """从环境变量和kwargs创建配置"""
         return cls(
-            llm=kwargs.get("llm", "llama3-8b-8192"),
+            model=kwargs.get("model", "llama3-8b-8192"),
             api_key=os.getenv("GROQ_API_KEY", kwargs.get("api_key", "nogroqkey")),
             base_url=os.getenv("GROQ_API_ENDPOINT", kwargs.get("base_url", "https://api.groq.com/openai/v1")),
             params=LLMParams(
