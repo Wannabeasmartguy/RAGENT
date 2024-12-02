@@ -4,17 +4,6 @@ import uuid
 from typing import Dict, List, Optional
 from core.strategy import OpenAILikeModelConfigProcessStrategy, EncryptorStrategy
 from core.encryption import FernetEncryptor
-from config.constants.paths import (
-    CONFIGS_BASE_DIR,
-    CONFIGS_DB_FILE,
-)
-from config.constants.databases import (
-    LLM_CONFIGS_DB_TABLE
-)
-from core.storage.db.sqlite import (
-    SqlAssistantLLMConfigStorage,
-)
-from core.model.config.llm import OpenAILikeLLMConfiguration
 
 
 class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
@@ -142,62 +131,3 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
             }
             for config_id, config in self.exist_config.items()
         ]
-
-
-class OAILikeSqliteConfigProcessor(OpenAILikeModelConfigProcessStrategy):
-    """
-    处理 OAI-like 模型的配置的策略模式实现类，数据保存在 SQlite 中
-    """
-    def __init__(
-            self,
-            table_name: str = LLM_CONFIGS_DB_TABLE,
-            db_url: Optional[str] = None,
-            db_file: Optional[str] = CONFIGS_DB_FILE
-        ):
-        self.storage = SqlAssistantLLMConfigStorage(
-            table_name=table_name,
-            db_url=db_url,
-            db_file=db_file
-        )
-        self.models_table = self.storage.get_all_models()
-    
-    def reinitialize(self) -> None:
-        """
-        重新初始化类实例
-        """
-        self.__init__()
-
-    def get_config(self) -> Dict:
-        """
-        获取完整的配置文件配置信息的字典
-        """
-        model_config = {}
-        for model in self.models_table:
-            model_info = model.dict()
-            model_config[model.model_name] = model_info
-        return model_config
-    
-    def update_config(
-        self,
-        model_name:str,
-        api_key: str,
-        base_url: Optional[str] = None,
-        **kwargs,
-    ) -> None:
-        """
-        更新模型的配置信息
-        
-        Args:
-            model_name (str): 模型的名称
-            api_key (str): 模型的API Key
-            base_url (Optional[str], optional): 访问模型的端点.
-            kwargs (Dict): 其他配置信息
-        """
-        oai_like_config = OpenAILikeLLMConfiguration(
-            model_id=str(uuid.uuid4()),
-            model_name=model_name,
-            api_key=api_key,
-            base_url=base_url,
-            **kwargs
-        )
-        self.storage.upsert(oai_like_config)

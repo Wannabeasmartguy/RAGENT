@@ -8,7 +8,7 @@ from loguru._logger import Logger
 
 from core.strategy import DialogProcessStrategy
 from core.storage.db.base import Sqlstorage
-from core.model.chat.assistant import AssistantRun
+from core.model.app import AssistantRun
 
 
 class DialogProcessor(DialogProcessStrategy):

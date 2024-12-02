@@ -64,7 +64,7 @@ from core.processors.vector.chroma.kb_processors import (
 from api.dependency import APIRequestHandler
 from core.storage.db.sqlite import SqlAssistantStorage
 from modules.types.rag import BaseRAGResponse
-from core.model.config.embeddings import (
+from core.model.embeddings import (
     EmbeddingConfiguration,
 )
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
