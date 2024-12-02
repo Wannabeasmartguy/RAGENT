@@ -76,6 +76,8 @@
 
 #### AgentChat 页面
 
+> **注意**：由于 AutoGen v0.4 完全重写，AgentChat 页面将在未来版本中更新，目前仅使用 AutoGen v0.2 作为测试。如果需要使用 AgentChat 页面，请使用 `python startup.py` 启动应用，而不是 `streamlit run RAGenT.py`。
+
 借由 AutoGen 框架实现（测试），对模型的兼容性请参考 [AutoGen](https://github.com/microsoft/autogen) 的文档。
 
 Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure OpenAI, Groq 以及本地模型（[通过 LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
@@ -107,6 +109,8 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 2. 启动应用：
 
    命令行运行：`streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
+
+   如果你想要使用 AgentChat 页面，请使用 `python startup.py` 启动应用，而不是 `streamlit run RAGenT.py`。
 
 ## Todo
 

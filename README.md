@@ -72,6 +72,8 @@ The Function Calls on this page are native and work for all OpenAI Compatible mo
 
 #### AgentChat Page
 
+> **Note**: Due to AutoGen v0.4 is completely rewritten, the AgentChat Page will be updated in the future version and now is only supported for testing with AutoGen v0.2. If you want to use the AgentChat Page, please use `python startup.py` to start the application rather than `streamlit run RAGenT.py`.
+
 Relying on the AutoGen framework for implementation (testing), please refer to the documentation of [AutoGen](https://github.com/microsoft/autogen) for model compatibility.
 
 Function call can significantly enhance the capabilities of LLM and currently supports OpenAI, Azure OpenAI, Groq, and local models.（[by LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
@@ -103,6 +105,8 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 2. launch the application:
 
 Run: Run `streamlit run RAGenT.py` on the command line can start it.
+
+If you want to use the AgentChat page, please use `python startup.py` to start the application rather than `streamlit run RAGenT.py`.
 
 ## Route
 

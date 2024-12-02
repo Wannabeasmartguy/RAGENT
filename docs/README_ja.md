@@ -72,6 +72,8 @@ Function Callは`Chat`と`AgentChat`の両方のページでサポートされ�
 
 #### エージェントチャットページ
 
+> **注意**：AutoGen v0.4 は完全に再構築されているため、AgentChat ページは将来のバージョンで更新されます。現在は AutoGen v0.2 を使用してテストしています。AgentChat ページを使用する場合は、`python startup.py` を使用してアプリケーションを起動してください。
+
 AutoGenフレームワークに依存して実装されています（テスト中）。モデルの互換性については[AutoGen](https://github.com/microsoft/autogen)のドキュメントを参照してください。
 
 Function CallはLLMの能力を大幅に強化することができ、現在はOpenAI、Azure OpenAI、Groq、およびローカルモデルをサポートしています。（[LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)による）
@@ -103,6 +105,8 @@ Function CallはLLMの能力を大幅に強化することができ、現在はO
 2. アプリケーションを起動します：
 
 コマンドラインで`streamlit run RAGenT.py`を実行すると起動します。
+
+AgentChat ページを使用する場合は、`python startup.py` を使用してアプリケーションを起動してください。
 
 ## ルート
 
