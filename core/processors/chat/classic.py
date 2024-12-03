@@ -106,7 +106,12 @@ class ChatProcessor(ChatProcessStrategy):
         """
         创建流式输出
         """
-        if self.model_type.lower() in OPENAI_SUPPORTED_CLIENTS:
+        source = self.model_type.lower()
+
+        if source not in SUPPORTED_CLIENTS:
+            raise ValueError(f"Unsupported source: {source}")
+        
+        if source in OPENAI_SUPPORTED_CLIENTS:
             try:
                 if self.llm_config.get("api_type") != "azure":
                     from openai import OpenAI
