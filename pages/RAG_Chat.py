@@ -1,34 +1,33 @@
 import os
 import json
 import base64
-import streamlit as st
-import streamlit.components.v1 as components
 from datetime import datetime
 from typing import Dict, Any, Optional, Union
-from streamlit_float import *
 from uuid import uuid4
 from functools import lru_cache
-from loguru import logger
-from pydantic import ValidationError
 
-from config.constants.app import (
+from config.constants import (
     VERSION,
-)
-from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from config.constants.paths import (
+    I18N_DIR,
+    SUPPORTED_LANGUAGES,
     LOGO_DIR,
-)
-from config.constants.databases import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     EMBEDDING_CONFIG_FILE_PATH,
     RAG_CHAT_HISTORY_DB_TABLE,
 )
-from core.basic_config import (
-    I18nAuto,
-    set_pages_configs_in_common
+from core.basic_config import I18nAuto, set_pages_configs_in_common
+from core.processors import (
+    AgentChatProcessor,
+    RAGChatDialogProcessor,
+    OAILikeConfigProcessor,
+    ChromaVectorStoreProcessorWithNoApi,
+    ChromaCollectionProcessorWithNoApi,
 )
-from core.processors.dialog.dialog_processors import RAGChatDialogProcessor
+from core.model.embeddings import (
+    EmbeddingConfiguration,
+)
+from core.storage.db.sqlite import SqlAssistantStorage
 from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
     model_selector,
@@ -49,19 +48,16 @@ from utils.st_utils import (
     float_chat_input_with_audio_recorder,
 )
 
-from core.processors.chat.agent import AgentChatProcessor
-from core.processors.config.llm import OAILikeConfigProcessor
-from core.processors.vector.chroma.kb_processors import (
-    ChromaVectorStoreProcessorWithNoApi,
-    ChromaCollectionProcessorWithNoApi,
-)
 from api.dependency import APIRequestHandler
-from core.storage.db.sqlite import SqlAssistantStorage
+
 from modules.types.rag import BaseRAGResponse
-from core.model.embeddings import (
-    EmbeddingConfiguration,
-)
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
+
+import streamlit as st
+import streamlit.components.v1 as components
+from streamlit_float import *
+from loguru import logger
+from pydantic import ValidationError
 
 
 @lru_cache(maxsize=1)
@@ -95,10 +91,10 @@ def save_rag_chat_history():
 
 
 def display_rag_sources(
-        response_sources: Dict[str, Any],
-        name_space: str,
-        visible_sources: int = 6,
-    ):
+    response_sources: Dict[str, Any],
+    name_space: str,
+    visible_sources: int = 6,
+):
     """
     显示引用源
     使用name_space（通常是response_id）创建session_state key，避免重复
@@ -117,16 +113,32 @@ def display_rag_sources(
     rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
 
     @st.dialog(title=i18n("Cited Source"), width="large")
-    def show_source_content(file_name: str, file_content: str, distance: Optional[float] = None, relevance_score: Optional[float] = None):
+    def show_source_content(
+        file_name: str,
+        file_content: str,
+        distance: Optional[float] = None,
+        relevance_score: Optional[float] = None,
+    ):
         """显示源文件内容的对话框"""
         from utils.chroma_utils import text_to_html
-        components.html(text_to_html(file_content, modal_content_type="source"), height=330)
+
+        components.html(
+            text_to_html(
+                file_content,
+                modal_content_type="source",
+            ),
+            height=330,
+        )
 
         st.markdown(f"**{i18n('Cited Source')}**: {file_name}")
         if distance is not None:
-            st.markdown(f"**{i18n('Vector Cosine Similarity')}**: {str(round((1-distance)*100, 2))}%")
+            st.markdown(
+                f"**{i18n('Vector Cosine Similarity')}**: {str(round((1-distance)*100, 2))}%"
+            )
         if relevance_score is not None:
-            st.markdown(f"**{i18n('Relevance Score by reranker')}**: {str(round(relevance_score*100, 2))}%")
+            st.markdown(
+                f"**{i18n('Relevance Score by reranker')}**: {str(round(relevance_score*100, 2))}%"
+            )
 
     def create_source_button(column, index, name_space: str):
         """
@@ -139,29 +151,38 @@ def display_rag_sources(
         """
         file_name = response_sources["metadatas"][index]["source"]
         file_content = response_sources["page_content"][index]
-        distance = response_sources["distances"][index] if "distances" in response_sources and response_sources["distances"] is not None else None
+        distance = (
+            response_sources["distances"][index]
+            if "distances" in response_sources
+            and response_sources["distances"] is not None
+            else None
+        )
         relevance_score = response_sources["metadatas"][index].get("relevance_score")
 
         # 使用name_space（通常是response_id）创建session_state key
         button_ids_key = f"button_ids_{name_space}"
-        
+
         # 如果这个response的button_ids还不存在，初始化它
         if button_ids_key not in st.session_state:
-            st.session_state[button_ids_key] = [str(uuid4()) for _ in range(len(response_sources["metadatas"]))]
-        
+            st.session_state[button_ids_key] = [
+                str(uuid4()) for _ in range(len(response_sources["metadatas"]))
+            ]
+
         # 使用预先生成的唯一ID
-        button_key = f"source_button_{name_space}_{st.session_state[button_ids_key][index]}"
+        button_key = (
+            f"source_button_{name_space}_{st.session_state[button_ids_key][index]}"
+        )
 
         if column.button(
             i18n("Cited Source") + f" {index+1}",
             key=button_key,
-            use_container_width=True
+            use_container_width=True,
         ):
             show_source_content(
                 file_name=file_name,
                 file_content=file_content,
                 distance=distance,
-                relevance_score=relevance_score
+                relevance_score=relevance_score,
             )
 
     # 显示前 visible_sources 个源
@@ -204,17 +225,19 @@ def write_custom_rag_chat_history(chat_history, _sources):
                 rag_sources = _sources[message["response_id"]]
                 display_rag_sources(rag_sources, message["response_id"])
 
-    combined_style = get_combined_style(st.__version__, "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT")
+    combined_style = get_combined_style(
+        st.__version__, "RAG_USER_CHAT", "RAG_ASSISTANT_CHAT"
+    )
     combined_style = combined_style.replace("</style>\n<style>", "")
     st.html(combined_style)
 
 
 def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool):
-    
+
     if isinstance(response, dict) and "error" in response:
         st.error(response["error"])
         return
-    
+
     # 先将引用sources添加到 st.session
     st.session_state.custom_rag_sources.update(
         {response.response_id: response.source_documents}
@@ -266,7 +289,7 @@ chat_history_storage = SqlAssistantStorage(
 )
 dialog_processor = RAGChatDialogProcessor(
     storage=chat_history_storage,
-    logger=logger
+    logger=logger,
 )
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
@@ -283,9 +306,9 @@ i18n = I18nAuto(
 # ********** Initialize session state **********
 
 # 回调函数防抖
-if 'last_dialog_change_time' not in st.session_state:
+if "last_dialog_change_time" not in st.session_state:
     st.session_state.last_dialog_change_time = 0
-if 'debounce_delay' not in st.session_state:
+if "debounce_delay" not in st.session_state:
     st.session_state.debounce_delay = 0.5  # 500毫秒的防抖延迟
 
 if "prompt_disabled" not in st.session_state:
@@ -309,7 +332,7 @@ if len(rag_run_id_list) == 0:
         llm_config=generate_client_config(
             source="aoai",
             model=model_selector("AOAI")[0],
-            stream=True
+            stream=True,
         ).model_dump(),
         run_name="New dialog",
         task_data={"source_documents": {}},
@@ -326,13 +349,14 @@ if "rag_current_run_id_index" not in st.session_state:
 
 # 确保索引在有效范围内
 st.session_state.rag_current_run_id_index = min(
-    st.session_state.rag_current_run_id_index,
-    len(rag_run_id_list) - 1
+    st.session_state.rag_current_run_id_index, len(rag_run_id_list) - 1
 )
 
 # 设置当前对话ID
 if "rag_run_id" not in st.session_state:
-    st.session_state.rag_run_id = rag_run_id_list[st.session_state.rag_current_run_id_index]
+    st.session_state.rag_run_id = rag_run_id_list[
+        st.session_state.rag_current_run_id_index
+    ]
 
 # initialize config
 if "rag_chat_config_list" not in st.session_state:
@@ -350,10 +374,14 @@ if "knowledge_base_config" not in st.session_state:
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
-    st.session_state.custom_rag_chat_history = dialog_processor.get_dialog(st.session_state.rag_run_id).memory["chat_history"]
+    st.session_state.custom_rag_chat_history = dialog_processor.get_dialog(
+        st.session_state.rag_run_id
+    ).memory["chat_history"]
 if "custom_rag_sources" not in st.session_state:
     try:
-        st.session_state.custom_rag_sources = dialog_processor.get_dialog(st.session_state.rag_run_id).task_data["source_documents"]
+        st.session_state.custom_rag_sources = dialog_processor.get_dialog(
+            st.session_state.rag_run_id
+        ).task_data["source_documents"]
     except TypeError:
         # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
         st.session_state.custom_rag_sources = {}
@@ -362,30 +390,36 @@ if "reset_counter" not in st.session_state:
     st.session_state.reset_counter = 0
 
 # 对话锁，用于防止对话框频繁切换时，将其他对话的配置更新到当前对话中。
-if 'dialog_lock' not in st.session_state:
+if "dialog_lock" not in st.session_state:
     st.session_state.dialog_lock = False
 
 # 中断回复生成
 if "if_interrupt_rag_reply_generating" not in st.session_state:
     st.session_state.if_interrupt_rag_reply_generating = False
 
+
 def interrupt_rag_reply_generating_callback():
     st.session_state.if_interrupt_rag_reply_generating = True
+
 
 def debounced_dialog_change():
     """
     改进的防抖函数，增加锁机制
     """
     import time
+
     current_time = time.time()
-    
+
     # 如果当前有锁，直接返回 False
     if st.session_state.dialog_lock:
         st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
         return False
-        
+
     # 检查是否满足防抖延迟
-    if current_time - st.session_state.last_dialog_change_time > st.session_state.debounce_delay:
+    if (
+        current_time - st.session_state.last_dialog_change_time
+        > st.session_state.debounce_delay
+    ):
         try:
             # 设置锁定状态
             st.session_state.dialog_lock = True
@@ -394,8 +428,9 @@ def debounced_dialog_change():
         finally:
             # 确保锁一定会被释放
             st.session_state.dialog_lock = False
-            
+
     return False
+
 
 def update_rag_config_in_db_callback():
     """
@@ -407,7 +442,11 @@ def update_rag_config_in_db_callback():
     config_list = [
         generate_client_config(
             source=st.session_state["model_type"].lower(),
-            model=st.session_state.model if st.session_state["model_type"].lower() != "llamafile" else "Not given",
+            model=(
+                st.session_state.model
+                if st.session_state["model_type"].lower() != "llamafile"
+                else "Not given"
+            ),
             temperature=st.session_state.temperature,
             top_p=st.session_state.top_p,
             max_tokens=st.session_state.max_tokens,
@@ -425,6 +464,7 @@ def update_rag_config_in_db_callback():
         },
         updated_at=datetime.now(),
     )
+
 
 def create_and_display_rag_chat_round(
     prompt: str,
@@ -487,21 +527,28 @@ def create_and_display_rag_chat_round(
             st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
             interrupt_button_placeholder.empty()
 
+
 # 在知识库设置发生变化时保存配置
 def update_knowledge_base_config():
     knowledge_base_config = {
         "collection_name": st.session_state.get("collection_name"),
-        "query_mode": "file" if st.session_state.get("query_mode_toggle") else "collection",
-        "selected_file": st.session_state.get("selected_collection_file") if st.session_state.get("query_mode_toggle") else None,
+        "query_mode": (
+            "file" if st.session_state.get("query_mode_toggle") else "collection"
+        ),
+        "selected_file": (
+            st.session_state.get("selected_collection_file")
+            if st.session_state.get("query_mode_toggle")
+            else None
+        ),
         "is_rerank": st.session_state.get("is_rerank", False),
         "is_hybrid_retrieve": st.session_state.get("is_hybrid_retrieve", False),
         "hybrid_retrieve_weight": st.session_state.get("hybrid_retrieve_weight", 0.5),
     }
-    
+
     dialog_processor.update_knowledge_base_config(
-        run_id=st.session_state.rag_run_id,
-        knowledge_base_config=knowledge_base_config
+        run_id=st.session_state.rag_run_id, knowledge_base_config=knowledge_base_config
     )
+
 
 # 在加载对话时恢复知识库配置
 def restore_knowledge_base_config():
@@ -509,7 +556,7 @@ def restore_knowledge_base_config():
     if kb_config:
         st.session_state.collection_name = kb_config.get("collection_name")
         st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
-        
+
         # 检查文件是否仍然存在于知识库中
         selected_file = kb_config.get("selected_file")
         if selected_file:
@@ -529,9 +576,9 @@ def restore_knowledge_base_config():
                 collection_processor = ChromaCollectionProcessorWithNoApi(
                     collection_name=kb_config.get("collection_name"),
                     embedding_config=EmbeddingConfiguration(**embedding_config),
-                    embedding_model_id=collection_config.get("embedding_model_id")
+                    embedding_model_id=collection_config.get("embedding_model_id"),
                 )
-                
+
                 # 获取当前知识库中的所有文件
                 available_files = collection_processor.list_all_filechunks_raw_metadata_name(0)
                 
@@ -540,19 +587,25 @@ def restore_knowledge_base_config():
                     st.session_state.selected_collection_file = selected_file
                 else:
                     st.session_state.selected_collection_file = None
-                    logger.warning(f"Selected file {selected_file} no longer exists in knowledge base")
+                    logger.warning(
+                        f"Selected file {selected_file} no longer exists in knowledge base"
+                    )
             except Exception as e:
                 logger.error(f"Error checking file existence: {e}")
                 st.session_state.selected_collection_file = None
         else:
             st.session_state.selected_collection_file = None
-            
+
         st.session_state.is_rerank = kb_config.get("is_rerank", False)
         st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
         st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
 try:
-    set_pages_configs_in_common(version=VERSION, title="RAG Chat", page_icon_path=logo_path)
+    set_pages_configs_in_common(
+        version=VERSION,
+        title="RAG Chat",
+        page_icon_path=logo_path,
+    )
 except:
     st.rerun()
 
@@ -580,7 +633,9 @@ with st.sidebar:
 
     with rag_dialog_settings_tab:
         # st.write(i18n("Dialogues list"))
-        rag_dialogs_list_tab, rag_dialog_details_tab = st.tabs([i18n("Dialogues list"), i18n("Dialogues details")])
+        rag_dialogs_list_tab, rag_dialog_details_tab = st.tabs(
+            [i18n("Dialogues list"), i18n("Dialogues details")]
+        )
 
         with rag_dialogs_list_tab:
             dialogs_container = st.container(height=400, border=True)
@@ -597,31 +652,41 @@ with st.sidebar:
 
                     # 更新session state
                     st.session_state.rag_run_id = selected_run.run_id
-                    st.session_state.rag_current_run_id_index = (
-                        [run.run_id for run in dialog_processor.get_all_dialogs()].index(
-                            st.session_state.rag_run_id
-                        )
-                    )
+                    st.session_state.rag_current_run_id_index = [
+                        run.run_id for run in dialog_processor.get_all_dialogs()
+                    ].index(st.session_state.rag_run_id)
 
                     # 获取并更新chat_config_list
                     new_chat_config = selected_run.llm
-                    st.session_state.rag_chat_config_list = [new_chat_config] if new_chat_config else []
+                    st.session_state.rag_chat_config_list = (
+                        [new_chat_config] if new_chat_config else []
+                    )
 
-                    logger.info(f"RAG dialog change, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.rag_run_id}")
-                    
-                    if 'rag_chat_config_list' in st.session_state and st.session_state.rag_chat_config_list and new_chat_config:
+                    logger.info(
+                        f"RAG dialog change, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.rag_run_id}"
+                    )
+
+                    if (
+                        "rag_chat_config_list" in st.session_state
+                        and st.session_state.rag_chat_config_list
+                        and new_chat_config
+                    ):
                         log_dict_changes(
                             original_dict=st.session_state.rag_chat_config_list[0],
                             new_dict=new_chat_config,
-                    )
-                        
+                        )
+
                     # 更新聊天历史
                     try:
                         st.session_state.custom_rag_chat_history = (
-                            dialog_processor.get_dialog(st.session_state.rag_saved_dialog.run_id).memory["chat_history"]
+                            dialog_processor.get_dialog(
+                                st.session_state.rag_saved_dialog.run_id
+                            ).memory["chat_history"]
                         )
                         st.session_state.custom_rag_sources = (
-                            dialog_processor.get_dialog(st.session_state.rag_saved_dialog.run_id).task_data["source_documents"]
+                            dialog_processor.get_dialog(
+                                st.session_state.rag_saved_dialog.run_id
+                            ).task_data["source_documents"]
                         )
                     except (TypeError, ValidationError):
                         st.session_state.custom_rag_chat_history = []
@@ -631,7 +696,10 @@ with st.sidebar:
                     restore_knowledge_base_config()
 
                 else:
-                    st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
+                    st.toast(
+                        i18n("Please wait, processing the last dialog switch..."),
+                        icon="🔄",
+                    )
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
@@ -669,7 +737,9 @@ with st.sidebar:
                     ]
                     st.session_state.custom_rag_chat_history = []
                     st.session_state.custom_rag_sources = {}
-                    logger.info(f"Add a new RAG dialog, added dialog name: {st.session_state.rag_run_name}, added dialog id: {st.session_state.rag_run_id}")
+                    logger.info(
+                        f"Add a new RAG dialog, added dialog name: {st.session_state.rag_run_name}, added dialog id: {st.session_state.rag_run_id}"
+                    )
 
                 add_dialog_button = st.button(
                     label=i18n("Add a new dialog"),
@@ -688,7 +758,7 @@ with st.sidebar:
                             llm_config=generate_client_config(
                                 source="aoai",
                                 model=model_selector("AOAI")[0],
-                                stream=True
+                                stream=True,
                             ).model_dump(),
                             task_data={
                                 "source_documents": {},
@@ -700,19 +770,25 @@ with st.sidebar:
                         st.session_state.custom_rag_chat_history = []
                         st.session_state.custom_rag_sources = {}
                     else:
-                        st.session_state.rag_run_id = (
-                            [run.run_id for run in dialog_processor.get_all_dialogs()][st.session_state.rag_current_run_id_index]
-                        )
+                        st.session_state.rag_run_id = [
+                            run.run_id for run in dialog_processor.get_all_dialogs()
+                        ][st.session_state.rag_current_run_id_index]
                         st.session_state.rag_chat_config_list = [
                             dialog_processor.get_dialog(st.session_state.rag_run_id).llm
                         ]
                         st.session_state.custom_rag_chat_history = (
-                            dialog_processor.get_dialog(st.session_state.rag_run_id).memory["chat_history"]
+                            dialog_processor.get_dialog(
+                                st.session_state.rag_run_id
+                            ).memory["chat_history"]
                         )
                         st.session_state.custom_rag_sources = (
-                            dialog_processor.get_dialog(st.session_state.rag_run_id).task_data["source_documents"]
+                            dialog_processor.get_dialog(
+                                st.session_state.rag_run_id
+                            ).task_data["source_documents"]
                         )
-                    logger.info(f"Delete a RAG dialog, deleted dialog name: {st.session_state.rag_run_name}, deleted dialog id: {st.session_state.rag_run_id}")
+                    logger.info(
+                        f"Delete a RAG dialog, deleted dialog name: {st.session_state.rag_run_name}, deleted dialog id: {st.session_state.rag_run_id}"
+                    )
 
                 delete_dialog_button = st.button(
                     label=i18n("Delete selected dialog"),
@@ -722,8 +798,7 @@ with st.sidebar:
 
             with rag_dialog_details_tab:
                 dialog_details_settings_popover = st.expander(
-                    label=i18n("Dialogues details"),
-                    expanded=True
+                    label=i18n("Dialogues details"), expanded=True
                 )
 
                 def rag_dialog_name_change_callback():
@@ -732,14 +807,18 @@ with st.sidebar:
                         run_id=st.session_state.rag_run_id,
                         new_name=st.session_state.rag_run_name,
                     )
-                    logger.info(f"RAG dialog name changed from {origin_run_name} to {st.session_state.rag_run_name}.(run_id: {st.session_state.rag_run_id})")
-                    st.session_state.rag_current_run_id_index = [run.run_id for run in dialog_processor.get_all_dialogs()].index(
-                        st.session_state.rag_run_id
+                    logger.info(
+                        f"RAG dialog name changed from {origin_run_name} to {st.session_state.rag_run_name}.(run_id: {st.session_state.rag_run_id})"
                     )
+                    st.session_state.rag_current_run_id_index = [
+                        run.run_id for run in dialog_processor.get_all_dialogs()
+                    ].index(st.session_state.rag_run_id)
 
                 dialog_name = dialog_details_settings_popover.text_input(
                     label=i18n("Dialog name"),
-                    value=dialog_processor.get_dialog(st.session_state.rag_run_id).run_name,
+                    value=dialog_processor.get_dialog(
+                        st.session_state.rag_run_id
+                    ).run_name,
                     key="rag_run_name",
                     on_change=rag_dialog_name_change_callback,
                 )
@@ -756,9 +835,7 @@ with st.sidebar:
                     min_value=1,
                     value=32,
                     step=1,
-                    help=i18n(
-                        "The number of messages to keep in the llm memory."
-                    ),
+                    help=i18n("The number of messages to keep in the llm memory."),
                     key="history_length",
                 )
 
@@ -771,7 +848,9 @@ with st.sidebar:
             options = ["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"]
             try:
                 return options.index(
-                    dialog_processor.get_dialog(st.session_state.rag_run_id).assistant_data["model_type"]
+                    dialog_processor.get_dialog(
+                        st.session_state.rag_run_id
+                    ).assistant_data["model_type"]
                 )
             except:
                 return 0
@@ -946,7 +1025,7 @@ with st.sidebar:
                         model=select_box1,
                         base_url=llamafile_endpoint,
                         api_key=llamafile_api_key,
-                        description=st.session_state.get("config_description", "")
+                        description=st.session_state.get("config_description", ""),
                     )
                     st.toast(i18n("Model config saved successfully"), icon="✅")
                     return config_id
@@ -954,7 +1033,7 @@ with st.sidebar:
                 config_description = st.text_input(
                     label=i18n("Config Description"),
                     key="config_description",
-                    placeholder=i18n("Enter a description for this configuration")
+                    placeholder=i18n("Enter a description for this configuration"),
                 )
 
                 save_oai_like_config_button = st.button(
@@ -966,8 +1045,11 @@ with st.sidebar:
                 st.write("---")
 
                 config_list = oailike_config_processor.list_model_configs()
-                config_options = [f"{config['model']} - {config['description']}" for config in config_list]
-                
+                config_options = [
+                    f"{config['model']} - {config['description']}"
+                    for config in config_list
+                ]
+
                 selected_config = st.selectbox(
                     label=i18n("Select model config"),
                     options=config_options,
@@ -976,35 +1058,39 @@ with st.sidebar:
                         i18n("Click the Load button to apply the configuration"),
                         icon="🚨",
                     ),
-                    key="selected_config"
+                    key="selected_config",
                 )
 
                 def load_oai_like_config_button_callback():
                     selected_index = config_options.index(st.session_state.selected_config)
-                    selected_config_id = config_list[selected_index]['id']
-                    
+                    selected_config_id = config_list[selected_index]["id"]
+
                     logger.info(f"Loading model config: {selected_config_id}")
-                    config = oailike_config_processor.get_model_config(config_id=selected_config_id)
-                    
+                    config = oailike_config_processor.get_model_config(
+                        config_id=selected_config_id
+                    )
+
                     if config:
                         config_data = config
-                        st.session_state.oai_like_model_config_dict = {config_data['model']: config_data}
-                        st.session_state.rag_current_run_id_index = rag_run_id_list.index(
-                            st.session_state.rag_run_id
+                        st.session_state.oai_like_model_config_dict = {
+                            config_data["model"]: config_data
+                        }
+                        st.session_state.rag_current_run_id_index = (
+                            rag_run_id_list.index(st.session_state.rag_run_id)
                         )
-                        st.session_state.model = config_data['model']
-                        st.session_state.llamafile_endpoint = config_data['base_url']
-                        st.session_state.llamafile_api_key = config_data['api_key']
-                        st.session_state.config_description = config_data.get('description', '')
-                        
+                        st.session_state.model = config_data["model"]
+                        st.session_state.llamafile_endpoint = config_data["base_url"]
+                        st.session_state.llamafile_api_key = config_data["api_key"]
+                        st.session_state.config_description = config_data.get("description", "")
+
                         logger.info(
                             f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
                         )
 
                         # 更新rag_chat_config_list
-                        st.session_state["rag_chat_config_list"][0]["model"] = config_data['model']
-                        st.session_state["rag_chat_config_list"][0]["api_key"] = config_data['api_key']
-                        st.session_state["rag_chat_config_list"][0]["base_url"] = config_data['base_url']
+                        st.session_state["rag_chat_config_list"][0]["model"] = config_data["model"]
+                        st.session_state["rag_chat_config_list"][0]["api_key"] = config_data["api_key"]
+                        st.session_state["rag_chat_config_list"][0]["base_url"] = config_data["base_url"]
 
                         logger.info(
                             f"Chat config list updated: {st.session_state.rag_chat_config_list}"
@@ -1031,7 +1117,7 @@ with st.sidebar:
 
                 def delete_oai_like_config_button_callback():
                     selected_index = config_options.index(st.session_state.selected_config)
-                    selected_config_id = config_list[selected_index]['id']
+                    selected_config_id = config_list[selected_index]["id"]
                     oailike_config_processor.delete_model_config(selected_config_id)
                     st.toast(i18n("Model config deleted successfully"), icon="🗑️")
                     # st.rerun()
@@ -1067,7 +1153,7 @@ with st.sidebar:
 
                 update_knowledge_base_config()
                 st.session_state.reset_counter += 1
-            
+
             def change_collection_callback():
                 st.session_state.selected_collection_file = None
                 update_collection_processor_callback()
@@ -1101,7 +1187,7 @@ with st.sidebar:
                     "Default is whole collection query mode, if enabled, the source document would only be the selected file"
                 ),
                 on_change=update_collection_processor_callback,
-                key="query_mode_toggle"
+                key="query_mode_toggle",
             )
 
             if collection_selectbox and query_mode_toggle:
@@ -1123,7 +1209,11 @@ with st.sidebar:
                     ),
                 )
                 # 获取可用文件列表
-                available_files = collection_processor.list_all_filechunks_raw_metadata_name(st.session_state.reset_counter)
+                available_files = (
+                    collection_processor.list_all_filechunks_raw_metadata_name(
+                        st.session_state.reset_counter
+                    )
+                )
                 # 检查当前选中的文件是否有效
                 if st.session_state.selected_collection_file not in available_files:
                     st.session_state.selected_collection_file = None
@@ -1134,7 +1224,7 @@ with st.sidebar:
                     options=available_files,
                     format_func=lambda x: x.split("/")[-1].split("\\")[-1],
                     on_change=update_knowledge_base_config,
-                    key="selected_collection_file"
+                    key="selected_collection_file",
                 )
 
                 def refresh_collection_files_button_callback():
@@ -1154,16 +1244,16 @@ with st.sidebar:
                 selected_collection_file = None
 
             is_rerank = st.toggle(
-                label=i18n("Rerank"), 
+                label=i18n("Rerank"),
                 value=False,
                 on_change=update_knowledge_base_config,
-                key="is_rerank"
+                key="is_rerank",
             )
             is_hybrid_retrieve = st.toggle(
-                label=i18n("Hybrid retrieve"), 
-                value=False, 
+                label=i18n("Hybrid retrieve"),
+                value=False,
                 on_change=update_knowledge_base_config,
-                key="is_hybrid_retrieve"
+                key="is_hybrid_retrieve",
             )
             hybrid_retrieve_weight_placeholder = st.empty()
             if is_hybrid_retrieve:
@@ -1197,18 +1287,32 @@ with st.sidebar:
 
     def delete_previous_round_callback():
         # 删除最后一轮对话
-        if len(st.session_state.custom_rag_chat_history) >= 2 and st.session_state.custom_rag_chat_history[-1]["role"] == "assistant" and st.session_state.custom_rag_chat_history[-2]["role"] == "user":
-            st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-2]
+        if (
+            len(st.session_state.custom_rag_chat_history) >= 2
+            and st.session_state.custom_rag_chat_history[-1]["role"] == "assistant"
+            and st.session_state.custom_rag_chat_history[-2]["role"] == "user"
+        ):
+            st.session_state.custom_rag_chat_history = (
+                st.session_state.custom_rag_chat_history[:-2]
+            )
         elif len(st.session_state.custom_rag_chat_history) > 0:
-            st.session_state.custom_rag_chat_history = st.session_state.custom_rag_chat_history[:-1]
+            st.session_state.custom_rag_chat_history = (
+                st.session_state.custom_rag_chat_history[:-1]
+            )
 
         # 删除最后一轮对话对应的源文档
         if st.session_state.custom_rag_chat_history:
             last_message = st.session_state.custom_rag_chat_history[-1]
-            if isinstance(last_message, dict) and 'content' in last_message:
-                st.session_state.custom_rag_sources = {key: value for key, value in st.session_state.custom_rag_sources.items() if key not in last_message['content']}
+            if isinstance(last_message, dict) and "content" in last_message:
+                st.session_state.custom_rag_sources = {
+                    key: value
+                    for key, value in st.session_state.custom_rag_sources.items()
+                    if key not in last_message["content"]
+                }
             else:
-                logger.warning("Final message format error, cannot delete corresponding source documents")
+                logger.warning(
+                    "Final message format error, cannot delete corresponding source documents"
+                )
         else:
             logger.info("Chat history is empty, no need to delete source documents")
 
@@ -1236,18 +1340,16 @@ with st.sidebar:
     )
     if export_button:
         export_dialog(
-            chat_history=st.session_state.custom_rag_chat_history, 
+            chat_history=st.session_state.custom_rag_chat_history,
             is_rag=True,
             chat_name=st.session_state.rag_run_name,
-            model_name=st.session_state.model
+            model_name=st.session_state.model,
         )
 
     back_to_top_placeholder0 = st.empty()
     back_to_top_placeholder1 = st.empty()
     back_to_top_bottom_placeholder0 = st.empty()
     back_to_top_bottom_placeholder1 = st.empty()
-
-    st.write(st.session_state.rag_chat_config_list[0])
 
 
 float_init()
@@ -1260,9 +1362,12 @@ back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 # Control the chat input to prevent error when the model is not selected
 if (
-    st.session_state.model == None or 
-    st.session_state.collection_name == None or 
-    (st.session_state.query_mode_toggle and not st.session_state.selected_collection_file)
+    st.session_state.model == None
+    or st.session_state.collection_name == None
+    or (
+        st.session_state.query_mode_toggle
+        and not st.session_state.selected_collection_file
+    )
 ):
     st.session_state.prompt_disabled = True
 else:
@@ -1286,6 +1391,9 @@ elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
 elif collection_selectbox == None:
     st.error(i18n("Please select a knowledge base collection"))
-elif (not selected_collection_file and st.session_state.query_mode_toggle):
-    st.error(i18n("You must select a file in the knowledge base when single file query mode is enabled"))
-
+elif not selected_collection_file and st.session_state.query_mode_toggle:
+    st.error(
+        i18n(
+            "You must select a file in the knowledge base when single file query mode is enabled"
+        )
+    )

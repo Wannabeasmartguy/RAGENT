@@ -1,21 +1,15 @@
-import streamlit as st
-import streamlit_antd_components as sac
-import streamlit.components.v1 as components
 import os
 import json
 import uuid
 from typing import Dict, List
-from loguru import logger
-from config.constants.app import (
+
+from config.constants import (
     VERSION,
-)
-from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from config.constants.paths import (
+    I18N_DIR,
+    SUPPORTED_LANGUAGES,
     KNOWLEDGE_BASE_DIR,
     LOGO_DIR,
-    EMBEDDING_OPTIONS_FILE_PATH
-)
-from config.constants.databases import (
+    EMBEDDING_OPTIONS_FILE_PATH,
     EMBEDDING_DIR,
     EMBEDDING_CONFIG_FILE_PATH,
 )
@@ -23,7 +17,7 @@ from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
 )
-from core.processors.vector.chroma.kb_processors import (
+from core.processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )
@@ -39,6 +33,11 @@ from core.model.embeddings import (
     GlobalSettings,
     KnowledgeBaseConfiguration,
 )
+
+import streamlit as st
+import streamlit_antd_components as sac
+import streamlit.components.v1 as components
+from loguru import logger
 
 # 全局变量声明
 global chroma_vectorstore_processor, chroma_collection_processor
