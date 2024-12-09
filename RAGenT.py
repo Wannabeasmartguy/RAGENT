@@ -91,13 +91,11 @@ def generate_response(
             function_map=tools_map_selected,
         )
     else:
-        # AutoGen在v0.2版本中，没有找到创建流式输出的方法，所以分开处理
-        if st.session_state.if_stream:
-            response = chatprocessor.create_completion_stream(
-                messages=processed_messages
-            )
-        else:
-            response = chatprocessor.create_completion(messages=processed_messages)
+        response = chatprocessor.create_completion(
+            messages=processed_messages,
+            stream=st.session_state.if_stream,
+        )
+
     return response
 
 
@@ -372,11 +370,6 @@ def create_and_display_chat_round(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
                             )
                         )
-
-                        try:
-                            st.write(f"response cost: ${response.cost}")
-                        except:
-                            pass
 
                         st.session_state.chat_history.append(
                             {"role": "assistant", "content": response_content}
