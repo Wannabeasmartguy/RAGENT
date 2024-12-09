@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Union
 from uuid import uuid4
 from functools import lru_cache
+from copy import deepcopy
 
 from config.constants import (
     VERSION,
@@ -31,7 +32,6 @@ from core.storage.db.sqlite import SqlAssistantStorage
 from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
     model_selector,
-    list_length_transform,
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
@@ -51,6 +51,7 @@ from utils.st_utils import (
 from api.dependency import APIRequestHandler
 
 from modules.types.rag import BaseRAGResponse
+from modules.chat.transform import MessageHistoryTransform
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 import streamlit as st
@@ -484,8 +485,12 @@ def create_and_display_rag_chat_round(
     # Add user message to chat history
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
 
-    processed_messages = list_length_transform(
-        history_length, st.session_state.custom_rag_chat_history
+    # 对消息的数量进行限制
+    max_msg_transfrom = MessageHistoryTransform(
+        max_size=history_length
+    )
+    processed_messages = max_msg_transfrom.transform(
+        deepcopy(st.session_state.custom_rag_chat_history)
     )
     # 在 invoke 的 messages 中去除 response_id
     processed_messages = [

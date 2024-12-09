@@ -19,6 +19,7 @@ from core.processors import (
     DialogProcessor,
 )
 from core.storage.db.sqlite import SqlAssistantStorage
+from modules.chat.transform import MessageHistoryTransform
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
@@ -63,7 +64,6 @@ from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 import streamlit as st
 from streamlit_float import *
-from autogen.agentchat.contrib.capabilities import transforms
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -326,10 +326,10 @@ def create_and_display_chat_round(
             with st.spinner("Thinking..."):
                 # 对消息的数量进行限制
                 # 根据历史对话消息数，创建 MessageHistoryLimiter
-                max_msg_transfrom = transforms.MessageHistoryLimiter(
-                    max_messages=history_length
+                max_msg_transfrom = MessageHistoryTransform(
+                    max_size=history_length
                 )
-                processed_messages = max_msg_transfrom.apply_transform(
+                processed_messages = max_msg_transfrom.transform(
                     deepcopy(st.session_state.chat_history)
                 )
 
