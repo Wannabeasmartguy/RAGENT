@@ -248,20 +248,48 @@ def update_config_in_db_callback():
     Update config in db.
     """
     origin_config_list = deepcopy(st.session_state.chat_config_list)
-    config_list = [
-        generate_client_config(
-            source=st.session_state["model_type"].lower(),
-            model=(
-                st.session_state.model
-                if st.session_state["model_type"].lower() != "llamafile"
-                else "Not given"
-            ),
-            temperature=st.session_state.temperature,
-            top_p=st.session_state.top_p,
-            max_tokens=st.session_state.max_tokens,
-            stream=st.session_state.if_stream,
-        ).model_dump()
-    ]
+    if st.session_state["model_type"] == "Llamafile":
+        # 先获取模型配置
+        model_config = oailike_config_processor.get_model_config(
+            model=st.session_state.model
+        )
+        if model_config and len(model_config) > 1:
+            for model_id, model_config_detail in model_config.items():
+                if st.session_state.model in model_config_detail.get("model"):
+                    selected_model_config = model_config_detail
+                    break
+        elif model_config and len(model_config) == 1:
+            selected_model_config = next(iter(model_config.values()))
+        else:
+            selected_model_config = {}
+
+        config_list = [
+            generate_client_config(
+                source=st.session_state["model_type"].lower(),
+                model=(
+                    st.session_state.model
+                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
+                    else "Not given"
+                ),
+                api_key=selected_model_config.get("api_key", "Not given"),
+                base_url=selected_model_config.get("base_url", "Not given"),
+                temperature=st.session_state.temperature,
+                top_p=st.session_state.top_p,
+                max_tokens=st.session_state.max_tokens,
+                stream=st.session_state.if_stream,
+            ).model_dump()
+        ]
+    else:
+        config_list = [
+            generate_client_config(
+                source=st.session_state["model_type"].lower(),
+                model=st.session_state.model,
+                temperature=st.session_state.temperature,
+                top_p=st.session_state.top_p,
+                max_tokens=st.session_state.max_tokens,
+                stream=st.session_state.if_stream,
+            ).model_dump()
+        ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
     dialog_processor.update_dialog_config(
