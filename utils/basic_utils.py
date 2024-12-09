@@ -16,17 +16,18 @@ from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-from llm.ollama.completion import get_ollama_model_list
-from llm.groq.completion import get_groq_models
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
-from core.chat_processors import OAILikeConfigProcessor
-from css.export_themes import default_theme, glassmorphism_theme
-from css.classic_chat_css import (
+from core.llm.ollama.completion import get_ollama_model_list
+from core.llm.groq.completion import get_groq_models
+from core.basic_config import I18nAuto
+from core.processors.chat.classic import OAILikeConfigProcessor
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
+from assets.styles.css.export_themes import default_theme, glassmorphism_theme
+from assets.styles.css.classic_chat_css import (
     USER_CHAT_STYLE_ST_V37,
     USER_CHAT_STYLE_ST_V39,
     ASSISTANT_CHAT_STYLE,
 )
-from css.rag_chat_css import (
+from assets.styles.css.rag_chat_css import (
     RAG_CHAT_USER_STYLE_ST_V37,
     RAG_CHAT_USER_STYLE_ST_V39,
     RAG_CHAT_ASSISTANT_STYLE_ST_V37,
@@ -107,7 +108,10 @@ def get_combined_style(
     return "".join(get_style(style_type, st_version) for style_type in style_types)
 
 
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES["简体中文"]
+)
 
 @lru_cache(maxsize=10)
 def model_selector(model_type):

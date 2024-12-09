@@ -2,12 +2,16 @@ import json
 from datetime import datetime
 from typing import Dict
 
-from core.chat_processors import CozeChatProcessor
-from model.coze.bot import Bot
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from core.processors.chat.classic import CozeChatProcessor
+from core.model.coze.bot import Bot
+from core.basic_config import I18nAuto
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 import streamlit as st
 
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES["简体中文"])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES["简体中文"]
+)
 
 def json_to_botcard(json_data: str | Dict):
     """

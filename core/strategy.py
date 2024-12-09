@@ -14,7 +14,7 @@ class DialogProcessStrategy(ABC):
     @abstractmethod
     def update_chat_history(self):
         pass
-    
+
     @abstractmethod
     def create_dialog(self):
         pass
@@ -31,6 +31,7 @@ class DialogProcessStrategy(ABC):
     def get_all_dialogs(self):
         pass
 
+
 class EncryptorStrategy(ABC):
     @abstractmethod
     def encrypt(self, data: str) -> str:
@@ -39,6 +40,7 @@ class EncryptorStrategy(ABC):
     @abstractmethod
     def decrypt(self, data: str) -> str:
         pass
+
 
 class OpenAILikeModelConfigProcessStrategy(ABC):
     @abstractmethod
@@ -64,7 +66,7 @@ class ChatProcessStrategy(ABC):
         pass
 
 
-class AgentChatProcessoStrategy(ABC):
+class AgentChatProcessStrategy(ABC):
     @abstractmethod
     def create_reflection_agent_response(self) -> Dict:
         pass

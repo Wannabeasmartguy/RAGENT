@@ -5,6 +5,7 @@ from loguru import logger
 
 from core.strategy import EncryptorStrategy
 
+
 class FernetEncryptor(EncryptorStrategy):
     def __init__(self, key=None):
         if key is None:
@@ -18,14 +19,20 @@ class FernetEncryptor(EncryptorStrategy):
                 else:
                     # 如果不存在，则生成新的密钥
                     key = Fernet.generate_key()
-                    logger.warning("Don't set `ENCRYPTION_KEY` environment variable, a new key has been generated.")
+                    logger.warning(
+                        "Don't set `ENCRYPTION_KEY` environment variable, a new key has been generated."
+                    )
                     # 将密钥保存到文件中
                     with open("encryption_key.txt", "w") as f:
                         f.write(key.decode())
         self.cipher_suite = Fernet(key)
 
     def encrypt(self, data: str) -> str:
-        return base64.urlsafe_b64encode(self.cipher_suite.encrypt(data.encode())).decode()
+        return base64.urlsafe_b64encode(
+            self.cipher_suite.encrypt(data.encode())
+        ).decode()
 
     def decrypt(self, encrypted_data: str) -> str:
-        return self.cipher_suite.decrypt(base64.urlsafe_b64decode(encrypted_data)).decode()
+        return self.cipher_suite.decrypt(
+            base64.urlsafe_b64decode(encrypted_data)
+        ).decode()

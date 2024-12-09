@@ -7,7 +7,8 @@ from typing import List, Dict, Optional, Literal
 from streamlit_float import *
 from pkg_resources import parse_version
 
-from core.basic_config import I18nAuto, SUPPORTED_LANGUAGES
+from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
+from core.basic_config import I18nAuto
 from utils.basic_utils import (
     copy_to_clipboard,
     export_chat_history_callback
@@ -15,7 +16,10 @@ from utils.basic_utils import (
 from tools.toolkits import TO_TOOLS
 
 language = os.getenv("LANGUAGE", "简体中文")
-i18n = I18nAuto(language=SUPPORTED_LANGUAGES[language])
+i18n = I18nAuto(
+    i18n_dir=I18N_DIR,
+    language=SUPPORTED_LANGUAGES[language]
+)
 
 SCROLL_BUTTON_CONSTANTS = {
     "BACK_TO_TOP": {

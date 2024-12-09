@@ -9,7 +9,7 @@ if __name__ == "__main__":
     sys.argv = [
         "streamlit",
         "run",
-        resolve_path("RAGenT.py"),
+        resolve_path("app/RAGenT.py"),
         "--global.developmentMode=false",
     ]
     sys.exit(stcli.main())
