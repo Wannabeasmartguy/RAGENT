@@ -138,9 +138,9 @@ def model_selector(model_type):
             logger.info("Failed to get Groq model list, using default model list")
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
     elif model_type == "Llamafile":
-        return ["Noneed"]
+        return ["Not given"]
     elif model_type == "LiteLLM":
-        return ["Noneed"]
+        return ["Not given"]
     else:
         return None
 
@@ -153,7 +153,7 @@ def oai_model_config_selector(oai_model_config:Dict):
     if model_name in config_dict:
         return model_name, config_dict[model_name]["base_url"], config_dict[model_name]["api_key"]
     else:
-        return "noneed", "http://127.0.0.1:8080/v1", "noneed"
+        return "Not given", "Not given", "Not given"
 
 
 # Display chat messages from history on app rerun
