@@ -37,8 +37,6 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
-    get_style,
-    get_combined_style,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
@@ -46,6 +44,8 @@ from utils.st_utils import (
     back_to_top,
     back_to_bottom,
     float_chat_input_with_audio_recorder,
+    get_style,
+    get_combined_style,
 )
 
 from api.dependency import APIRequestHandler
