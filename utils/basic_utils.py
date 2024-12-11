@@ -1,20 +1,12 @@
-import streamlit as st
-import pyperclip
-from streamlit import cache_resource
-from pkg_resources import parse_version
-
 import os
 import re
 import copy
 import base64
 import textwrap
 from datetime import datetime, timezone
-from loguru import logger
-from functools import lru_cache
 from typing import List, Dict, Optional, Union, Tuple, Literal
 from io import BytesIO
-from dotenv import load_dotenv
-load_dotenv(override=True)
+from functools import lru_cache
 
 from core.llm.ollama.completion import get_ollama_model_list
 from core.llm.groq.completion import get_groq_models
@@ -27,31 +19,25 @@ from assets.styles.css.classic_chat_css import (
     USER_CHAT_STYLE_ST_V39,
     ASSISTANT_CHAT_STYLE,
 )
+from utils.log.logger_config import setup_logger
 from assets.styles.css.rag_chat_css import (
     RAG_CHAT_USER_STYLE_ST_V37,
     RAG_CHAT_USER_STYLE_ST_V39,
     RAG_CHAT_ASSISTANT_STYLE_ST_V37,
     RAG_CHAT_ASSISTANT_STYLE_ST_V39,
 )
+from config.constants import (
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
+)
 
-USER_AVATAR_SVG = """
-    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user-square" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-    <path d="M9 10a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
-    <path d="M6 21v-1a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v1" />
-    <path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" />
-    </svg>
-"""
+import streamlit as st
+import pyperclip
+from pkg_resources import parse_version
+from loguru import logger
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
-AI_AVATAR_SVG = """
-    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-message-chatbot" width="44" height="44" viewBox="0 0 24 24" stroke-width="1.5" stroke="#1455ea" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-    <path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z" />
-    <path d="M9.5 9h.01" />
-    <path d="M14.5 9h.01" />
-    <path d="M9.5 13a3.5 3.5 0 0 0 5 0" />
-    </svg>
-"""
 
 # 定义样式常量
 STYLE_CONSTANTS = {
@@ -115,14 +101,37 @@ i18n = I18nAuto(
 
 @lru_cache(maxsize=10)
 def model_selector(model_type):
-    if model_type == "OpenAI" or model_type == "AOAI":
-        return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
+    if model_type == "OpenAI":
+        from openai import OpenAI
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            model_raw_list = client.models.list().data
+            model_list = [model.id for model in model_raw_list]
+            return model_list
+        except Exception as e:
+            logger.warning(f"Failed to get OpenAI model list: {e}")
+            logger.info("Using default model list")
+            return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
+    elif model_type == "AOAI":
+        from openai import AzureOpenAI
+        try:
+            client = AzureOpenAI(api_key=os.getenv("AZURE_OAI_KEY"), azure_endpoint=os.getenv("AZURE_OAI_ENDPOINT"))
+            model_list = client.models.list().data
+            return [model.id for model in model_list]
+        except Exception as e:
+            logger.warning(f"Failed to get AOAI model list: {e}")
+            logger.info("Using default model list")
+            return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
     elif model_type == "Ollama":
         try:
-           model_list = get_ollama_model_list() 
-           return model_list
-        except:
-            return ["qwen:7b-chat"]
+            from openai import OpenAI
+            client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key="noneed")
+            model_list = client.models.list().data
+            return [model.id for model in model_list]
+        except Exception as e:
+            logger.warning(f"Failed to get Ollama model list: {e}")
+            logger.info("Using request method to get model list")
+            return get_ollama_model_list()
     elif model_type == "Groq":
         try:
             groq_api_key = os.getenv("GROQ_API_KEY")
@@ -134,13 +143,14 @@ def model_selector(model_type):
 
             logger.info(f"Groq model list: {model_list}, excluded models:{excluded_models}")
             return model_list_exclude_tts
-        except:
-            logger.info("Failed to get Groq model list, using default model list")
+        except Exception as e:
+            logger.warning(f"Failed to get Groq model list: {e}")
+            logger.info("Using default model list")
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
     elif model_type == "Llamafile":
-        return ["Noneed"]
+        return ["Not given"]
     elif model_type == "LiteLLM":
-        return ["Noneed"]
+        return ["Not given"]
     else:
         return None
 
@@ -153,7 +163,7 @@ def oai_model_config_selector(oai_model_config:Dict):
     if model_name in config_dict:
         return model_name, config_dict[model_name]["base_url"], config_dict[model_name]["api_key"]
     else:
-        return "noneed", "http://127.0.0.1:8080/v1", "noneed"
+        return "Not given", "Not given", "Not given"
 
 
 # Display chat messages from history on app rerun

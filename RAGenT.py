@@ -27,8 +27,6 @@ from utils.basic_utils import (
     config_list_postprocess,
     user_input_constructor,
     get_style,
-    USER_AVATAR_SVG,
-    AI_AVATAR_SVG,
 )
 from utils.log.logger_config import (
     setup_logger,
@@ -55,6 +53,8 @@ from config.constants import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     CHAT_HISTORY_DB_TABLE,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
 )
 from tools.toolkits import (
     filter_out_selected_tools_dict,
