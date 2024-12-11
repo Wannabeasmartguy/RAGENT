@@ -16,6 +16,8 @@ from config.constants import (
     CHAT_HISTORY_DB_FILE,
     EMBEDDING_CONFIG_FILE_PATH,
     RAG_CHAT_HISTORY_DB_TABLE,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
 )
 from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors import (
@@ -35,10 +37,6 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
-    get_style,
-    get_combined_style,
-    USER_AVATAR_SVG,
-    AI_AVATAR_SVG,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
@@ -46,6 +44,8 @@ from utils.st_utils import (
     back_to_top,
     back_to_bottom,
     float_chat_input_with_audio_recorder,
+    get_style,
+    get_combined_style,
 )
 
 from api.dependency import APIRequestHandler

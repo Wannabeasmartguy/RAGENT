@@ -2,7 +2,11 @@
 from .app import VERSION
 from .i18n import SUPPORTED_LANGUAGES, I18N_DIR
 from .paths import LOGO_DIR, KNOWLEDGE_BASE_DIR, EMBEDDING_OPTIONS_FILE_PATH
-from .chat import DEFAULT_DIALOG_TITLE
+from .chat import (
+    DEFAULT_DIALOG_TITLE,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
+)
 from .prompts import DEFAULT_SYSTEM_PROMPT, ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
 from .databases import (
     CHAT_HISTORY_DIR,
@@ -29,4 +33,6 @@ __all__ = [
     'EMBEDDING_DIR',
     'EMBEDDING_CONFIG_FILE_PATH',
     'RAG_CHAT_HISTORY_DB_TABLE',
+    'USER_AVATAR_SVG',
+    'AI_AVATAR_SVG',
 ]

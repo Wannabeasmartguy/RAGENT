@@ -11,8 +11,7 @@ import copy
 
 from loguru import logger
 
-from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
-from core.model.llm import LLMParams
+from api.dependency import APIRequestHandler
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import OPENAI_SUPPORTED_CLIENTS
 from core.strategy import (
