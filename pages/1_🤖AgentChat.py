@@ -1,40 +1,196 @@
 import streamlit as st
 import os
+import asyncio
+from typing import List, Union, Coroutine, AsyncGenerator
+from copy import deepcopy
 from loguru import logger
 
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
 )
-from core.llm.Agent.pre_built import reflection_agent_with_nested_chat
-from core.llm.aoai.completion import aoai_config_generator
-from core.llm.groq.completion import groq_openai_config_generator
-from core.llm.llamafile.completion import llamafile_config_generator
-from core.llm.ollama.completion import ollama_config_generator
-from core.llm.fake.completion import fake_agent_chat_completion
-from core.llm.litellm.completion import litellm_config_generator
 from utils.basic_utils import (
     model_selector,
-    split_list_by_key_value,
-    oai_model_config_selector,
-    reverse_traversal,
 )
-from utils.st_utils import (
-    write_chat_history,
+from config.constants import (
+    VERSION,
+    LOGO_DIR,
 )
-from core.llm.aoai.tools.tools import TO_TOOLS
-from core.processors.chat.agent import AgentChatProcessor
+from core.llm._client_info import generate_client_config
 from core.processors.config.llm import OAILikeConfigProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from api.dependency import APIRequestHandler
-from autogen.cache import Cache
-from typing import List
+from utils.basic_utils import config_list_postprocess, oai_model_config_selector
+from ext.autogen.teams.reflect import ReflectionTeamBuilder
+
+from autogen_agentchat.base import TaskResult
+from autogen_agentchat.messages import TextMessage, MultiModalMessage
 
 
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
+def update_config_in_db_callback():
+    """
+    Update config in db.
+    """
+    origin_config_list = deepcopy(st.session_state.agent_chat_config_list)
+
+    st.session_state.model = model_selector(st.session_state["model_type"])[0]
+    if st.session_state["model_type"] == "Llamafile":
+        # 先获取模型配置
+        model_config = oailike_config_processor.get_model_config(
+            model=st.session_state.model
+        )
+        if model_config and len(model_config) > 1:
+            for model_id, model_config_detail in model_config.items():
+                if st.session_state.model in model_config_detail.get("model"):
+                    selected_model_config = model_config_detail
+                    break
+        elif model_config and len(model_config) == 1:
+            selected_model_config = next(iter(model_config.values()))
+        else:
+            selected_model_config = {}
+
+        config_list = [
+            generate_client_config(
+                source=st.session_state["model_type"].lower(),
+                model=(
+                    st.session_state.model
+                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
+                    else "Not given"
+                ),
+                api_key=selected_model_config.get("api_key", "Not given"),
+                base_url=selected_model_config.get("base_url", "Not given"),
+                temperature=st.session_state.temperature,
+                top_p=st.session_state.top_p,
+                max_tokens=st.session_state.max_tokens,
+                stream=st.session_state.if_stream,
+            ).model_dump()
+        ]
+    else:
+        config_list = [
+            generate_client_config(
+                source=st.session_state["model_type"].lower(),
+                model=st.session_state.model,
+                temperature=st.session_state.temperature,
+                top_p=st.session_state.top_p,
+                max_tokens=st.session_state.max_tokens,
+                stream=st.session_state.if_stream,
+            ).model_dump()
+        ]
+    st.session_state["agent_chat_config_list"] = config_list
+
+
+def create_and_run_reflection_team(user_task: TextMessage):
+    reflection_team = (
+        ReflectionTeamBuilder()
+        .set_model_client(
+            source=st.session_state["model_type"].lower(), 
+            config_list=st.session_state.agent_chat_config_list
+        ).set_primary_agent(
+            system_message="You are a helpful AI assistant."
+        ).set_critic_agent(
+            system_message="Provide constructive feedback. Respond with 'APPROVE' to when your feedbacks are addressed."
+        ).set_max_messages(
+            max_messages=5
+        ).set_termination_text(
+            text="APPROVE"
+        ).build()
+    )
+    if st.session_state.if_stream:
+        response = reflection_team.run_stream(task=user_task)
+        return response
+    else:
+        response = reflection_team.run(task=user_task)
+        return response
+
+
+def write_task_result(
+        task_result: TaskResult, 
+        *,
+        with_final_answer: bool = True,
+        with_thought: bool = True
+):
+    with st.chat_message(name="assistant thought", avatar="🤖"):
+        if with_thought:
+            with st.expander(label="Thought", expanded=True):
+                for message in task_result.messages:
+                    with st.container(border=True):
+                        if isinstance(message, TextMessage):
+                            st.write(f"{message.source}: ")
+                            st.write(message.content)
+    if with_final_answer:
+        with st.chat_message(name="assistant", avatar="🤖"):
+            content = [message.content for message in task_result.messages if message.content != "" and message.content != "APPROVE"]
+            st.write(content[-1])
+
+
+async def write_coroutine(
+        agent_chat_result: Coroutine, 
+        *,
+        with_final_answer: bool = True,
+        with_thought: bool = True
+    ):
+    # 如果是协程，先执行协程以获取结果
+    result = await agent_chat_result
+    if isinstance(result, TaskResult):
+        write_task_result(result, with_final_answer=with_final_answer, with_thought=with_thought)
+        return result
+
+
+async def write_stream_result(
+    agent_chat_result: AsyncGenerator, 
+    *,
+    with_final_answer: bool = True,
+    with_thought: bool = True
+):
+    generator = agent_chat_result
+    last_result = None
+    
+    if with_thought:
+        with st.chat_message(name="assistant", avatar="🤖"):
+            with st.expander(label="Thought", expanded=True):
+                async for chunk in generator:
+                    if isinstance(chunk, TextMessage):
+                        with st.container(border=True):
+                            st.write(f"{chunk.source}: ")
+                            st.write(chunk.content)
+                    elif isinstance(chunk, TaskResult):
+                        last_result = chunk
+
+    # 在循环结束后处理最后的 TaskResult
+    if last_result and with_final_answer:
+        with st.chat_message(name="assistant", avatar="🤖"):
+            content = [message.content for message in last_result.messages if message.content != "" and message.content != "APPROVE"]
+            st.write(content[-1])
+    
+    return last_result
+
+
+async def write_chunks_or_coroutine(
+        agent_chat_result: Union[Coroutine, AsyncGenerator],
+        *,
+        with_final_answer: bool = True,
+        with_thought: bool = True
+    ):
+    # 检查 agent_chat_result 是协程还是异步生成器
+    # 如果是协程，可知使用了run
+    if asyncio.iscoroutine(agent_chat_result):
+        return await write_coroutine(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+    elif isinstance(agent_chat_result, AsyncGenerator):
+        # 如果是异步生成器，可知使用了run_stream
+        return await write_stream_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+    else:
+        raise ValueError("Invalid agent chat result type")
+
+
+def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
+    for message in chat_history:
+        if isinstance(message, TaskResult):
+            write_task_result(message)
+        elif isinstance(message, TextMessage):
+            if message.source == "user":
+                with st.chat_message(name="user", avatar="🧑‍💻"):
+                    st.write(message.content)
 
 oailike_config_processor = OAILikeConfigProcessor()
-
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -42,100 +198,22 @@ i18n = I18nAuto(
     language=SUPPORTED_LANGUAGES[language]
 )
 
-# Initialize chat history, to avoid error when reloading the page
-if "agent_chat_history_displayed" not in st.session_state:
-    st.session_state.agent_chat_history_displayed = []
-if "agent_chat_history_total" not in st.session_state:
-    st.session_state.agent_chat_history_total = []
-
-# Initialize openai-like model config
-if "oai_like_model_config_dict" not in st.session_state:
-    st.session_state.oai_like_model_config_dict = {
-        "noneed":{
-            "base_url": "http://127.0.0.1:8080/v1",
-            "api_key": "noneed"
-        }
-    }
-
-# Initialize function call agent chat history, to avoid error when reloading the page
-if "function_call_agent_chat_history_displayed" not in st.session_state:
-    st.session_state.function_call_agent_chat_history_displayed = []
+# initialize config
+if "agent_chat_config_list" not in st.session_state:
+    st.session_state.agent_chat_config_list = [generate_client_config(
+        source="openai",
+        model=model_selector("OpenAI")[0]
+    ).model_dump()]
+# initialize chat history
+if "agent_chat_history" not in st.session_state:
+    st.session_state.agent_chat_history = []
 
 
-VERSION = "0.1.1"
-current_directory = os.path.dirname(__file__)
-parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo.png")
-logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
 set_pages_configs_in_common(
     version=VERSION, title="RAGenT-AgentChat", page_icon_path=logo_path
 )
-
-
-def annotate_agent_thoughts(
-    thoughts_in_chat_history: List[dict], key: str = "if_thought"
-):
-    """
-    This function is used to annotate the agent's thoughts.
-
-    Args:
-        thoughts_in_chat_history (List[dict]): A list of dictionaries, each representing a message in the chat history.
-        key (str): The key to be used for annotating the agent's thoughts.
-    """
-    for index, chat in enumerate(result_chat_his):
-        if index == 0 or index == len(result_chat_his) - 1:
-            chat[key] = 0
-        else:
-            chat[key] = 1
-    return thoughts_in_chat_history
-
-
-def display_agent_thoughts(
-    thoughts_in_chat_history: List[dict], key: str = "if_thought"
-):
-    """
-    This function is used to display the agent's thoughts.
-
-    Args:
-        thoughts_in_chat_history (List[dict]): A list of dictionaries, each representing a message in the chat history.
-    """
-    with st.container(border=True):
-        # 按顺序展示字典中有"if_thought"字段的内容
-        counter = 0
-        splitter_counter = 0
-        for i, thought in enumerate(thoughts_in_chat_history):
-            if thought[key] == 0:
-                splitter_counter += 1
-                if splitter_counter == 2:
-                    break
-            if thought[key] == 1:
-                with st.expander(f"Agent Thought details({counter+1})"):
-                    st.write(thought["content"])
-                    counter += 1
-
-
-def write_agent_chat_history(total_chat_history):
-    for message in total_chat_history:
-        if message["if_thought"] == 0 and message["role"] == "user":
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-        if message["if_thought"] == 0 and message["role"] == "assistant":
-            with st.chat_message(message["role"]):
-                display_agent_thoughts(total_chat_history, key="if_thought")
-                st.markdown(message["content"])
-
-
-def initialize_agent_chat_history(
-    chat_history: List[dict], chat_history_total: List[dict]
-):
-    round_list = split_list_by_key_value(chat_history_total, key="if_thought", value=0)
-    round_counter = 0
-    for message in chat_history:
-        with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                display_agent_thoughts(round_list[round_counter], key="if_thought")
-                round_counter += 1
-            st.markdown(message["content"])
 
 
 with st.sidebar:
@@ -151,276 +229,291 @@ with st.sidebar:
     )
     st.write("---")
 
-    agent_type = st.selectbox(
-        label=i18n("Agent type"),
-        options=["Reflection", "Function Call"],
-        key="agent_type",
-        # 显示时删除掉下划线及以后的内容
-        format_func=lambda x: x.replace("_lc", ""),
+    dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
+        [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
     )
 
-    if agent_type == "Function Call":
-        with st.expander(label=i18n("Function Call Setting")):
-            function_mutiple_selectbox = st.multiselect(
-                label=i18n("Functions"),
-                options=TO_TOOLS.keys(),
-                default=list(TO_TOOLS.keys())[:2],
-                help=i18n("Select functions you want to use."),
-                # format_func 将所有名称开头的"tool_"去除
-                format_func=lambda x: x.replace("tool_", ""),
+    with model_settings_tab:
+        model_choosing_container = st.expander(
+            label=i18n("Model Choosing"), expanded=True
+        )
+
+        select_box0 = model_choosing_container.selectbox(
+            label=i18n("Model type"),
+            options=["OpenAI", "Ollama", "Groq", "Llamafile"],
+            key="model_type",
+            on_change=update_config_in_db_callback,
+        )
+
+        with st.expander(label=i18n("Model config"), expanded=True):
+            max_tokens = st.number_input(
+                label=i18n("Max tokens"),
+                min_value=1,
+                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
+                    "max_tokens", 1900
+                ),
+                step=1,
+                key="max_tokens",
+                on_change=update_config_in_db_callback,
+                help=i18n(
+                    "Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000)."
+                ),
             )
-            with st.popover(
-                label=i18n("Function Description"), use_container_width=True
+            temperature = st.slider(
+                label=i18n("Temperature"),
+                min_value=0.0,
+                max_value=1.0,
+                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
+                    "temperature", 0.5
+                ),
+                step=0.1,
+                key="temperature",
+                on_change=update_config_in_db_callback,
+                help=i18n(
+                    "'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5."
+                ),
+            )
+            top_p = st.slider(
+                label=i18n("Top p"),
+                min_value=0.0,
+                max_value=1.0,
+                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
+                    "top_p", 0.5
+                ),
+                step=0.1,
+                key="top_p",
+                on_change=update_config_in_db_callback,
+                help=i18n(
+                    "Similar to 'temperature', but don't change it at the same time as temperature"
+                ),
+            )
+            if_stream = st.toggle(
+                label=i18n("Stream"),
+                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
+                    "stream", True
+                ),
+                key="if_stream",
+                on_change=update_config_in_db_callback,
+                help=i18n(
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                ),
+            )
+
+        # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
+        if select_box0 != "Llamafile":
+
+            def get_selected_non_llamafile_model_index(model_type) -> int:
+                try:
+                    model = st.session_state.agent_chat_config_list[0].get("model")
+                    logger.debug(f"model get: {model}")
+                    if model:
+                        options = model_selector(model_type)
+                        if model in options:
+                            options_index = options.index(model)
+                            logger.debug(
+                                f"model {model} in options, index: {options_index}"
+                            )
+                            return options_index
+                        else:
+                            st.session_state.agent_chat_config_list[0].update(
+                                {"model": options[0]}
+                            )
+                            logger.debug(
+                                f"model {model} not in options, set model in config list to first option: {options[0]}"
+                            )
+                            return 0
+                except (ValueError, AttributeError, IndexError):
+                    logger.warning(
+                        f"Model {model} not found in model_selector for {model_type}, returning 0"
+                    )
+                    return 0
+
+            select_box1 = model_choosing_container.selectbox(
+                label=i18n("Model"),
+                options=model_selector(st.session_state["model_type"]),
+                key="model",
+                on_change=update_config_in_db_callback,
+            )
+        elif select_box0 == "Llamafile":
+
+            def get_selected_llamafile_model() -> str:
+                if st.session_state.agent_chat_config_list:
+                    return st.session_state.agent_chat_config_list[0].get("model")
+                else:
+                    logger.warning("chat_config_list is empty, using default model")
+                    return oai_model_config_selector(
+                        st.session_state.oai_like_model_config_dict
+                    )[0]
+
+            select_box1 = model_choosing_container.text_input(
+                label=i18n("Model"),
+                value=get_selected_llamafile_model(),
+                key="model",
+                placeholder=i18n("Fill in custom model name. (Optional)"),
+            )
+            with model_choosing_container.popover(
+                label=i18n("Llamafile config"), use_container_width=True
             ):
-                with st.container(height=300):
-                    for tool_name in function_mutiple_selectbox:
-                        with st.container(height=150):
-                            st.write("#### " + tool_name.replace("tool_", ""))
-                            st.write(TO_TOOLS[tool_name]["description"])
 
-    model_choosing_container = st.expander(label=i18n("Model Choosing"), expanded=True)
-    select_box0 = model_choosing_container.selectbox(
-        label=i18n("Model type"),
-        options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
-        key="model_type",
-        # on_change=lambda: model_selector(st.session_state["model_type"])
-    )
+                def get_selected_llamafile_endpoint() -> str:
+                    try:
+                        return st.session_state.agent_chat_config_list[0].get("base_url")
+                    except:
+                        return oai_model_config_selector(
+                            st.session_state.oai_like_model_config_dict
+                        )[1]
 
-    if select_box0 != "Llamafile":
-        select_box1 = model_choosing_container.selectbox(
-            label=i18n("Model"),
-            options=model_selector(st.session_state["model_type"]),
-            key="model",
-        )
-    elif select_box0 == "Llamafile":
-        select_box1 = model_choosing_container.text_input(
-            label=i18n("Model"),
-            value=oai_model_config_selector(
-                st.session_state.oai_like_model_config_dict
-            )[0],
-            key="model",
-            placeholder=i18n("Fill in custom model name. (Optional)"),
-        )
-        with model_choosing_container.popover(
-            label=i18n("Llamafile config"), use_container_width=True
-        ):
-            llamafile_endpoint = st.text_input(
-                label=i18n("Llamafile endpoint"),
-                value=oai_model_config_selector(
-                    st.session_state.oai_like_model_config_dict
-                )[1],
-                key="llamafile_endpoint",
-            )
-            llamafile_api_key = st.text_input(
-                label=i18n("Llamafile API key"),
-                value=oai_model_config_selector(
-                    st.session_state.oai_like_model_config_dict
-                )[2],
-                key="llamafile_api_key",
-                placeholder=i18n("Fill in your API key. (Optional)"),
-            )
-            save_oai_like_config_button = st.button(
-                label=i18n("Save model config"),
-                on_click=oailike_config_processor.update_config,
-                args=(select_box1, llamafile_endpoint, llamafile_api_key),
-                use_container_width=True,
-            )
-
-            st.write("---")
-
-            oai_like_config_list = st.selectbox(
-                label=i18n("Select model config"),
-                options=oailike_config_processor.get_config(),
-            )
-            load_oai_like_config_button = st.button(
-                label=i18n("Load model config"),
-                use_container_width=True,
-                type="primary",
-            )
-            if load_oai_like_config_button:
-                st.session_state.oai_like_model_config_dict = (
-                    oailike_config_processor.get_model_config(oai_like_config_list)
+                llamafile_endpoint = st.text_input(
+                    label=i18n("Llamafile endpoint"),
+                    value=get_selected_llamafile_endpoint(),
+                    key="llamafile_endpoint",
+                    type="password",
                 )
-                # st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-                st.rerun()
 
-            delete_oai_like_config_button = st.button(
-                label=i18n("Delete model config"),
-                use_container_width=True,
-                on_click=oailike_config_processor.delete_model_config,
-                args=(oai_like_config_list,),
-            )
+                def get_selected_llamafile_api_key() -> str:
+                    try:
+                        return st.session_state.agent_chat_config_list[0].get("api_key")
+                    except:
+                        return oai_model_config_selector(
+                            st.session_state.oai_like_model_config_dict
+                        )[2]
 
-    reset_model_button = model_choosing_container.button(
-        label=i18n("Reset model info"),
-        on_click=lambda x: x.cache_clear(),
-        args=(model_selector,),
-        use_container_width=True,
-    )
+                llamafile_api_key = st.text_input(
+                    label=i18n("Llamafile API key"),
+                    value=get_selected_llamafile_api_key(),
+                    key="llamafile_api_key",
+                    type="password",
+                    placeholder=i18n("Fill in your API key. (Optional)"),
+                )
 
-    history_length = st.number_input(
-        label=i18n("History length"),
-        min_value=1,
-        value=32,
-        step=1,
-        key="history_length",
-    )
-
-    cols = st.columns(2)
-    export_button = cols[0].button(label=i18n("Export chat history"))
-    clear_button = cols[1].button(label=i18n("Clear chat history"))
-    if clear_button:
-        if agent_type == "Reflection":
-            st.session_state.agent_chat_history_displayed = []
-            st.session_state.agent_chat_history_total = []
-            initialize_agent_chat_history(
-                st.session_state.agent_chat_history_displayed,
-                st.session_state.agent_chat_history_total,
-            )
-        elif agent_type == "Function Call":
-            st.session_state.function_call_agent_chat_history_displayed = []
-            write_chat_history(
-                st.session_state.function_call_agent_chat_history_displayed
-            )
-    if export_button:
-        # 将聊天历史导出为Markdown
-        chat_history = "\n".join(
-            [
-                f"# {message['role']} \n\n{message['content']}\n\n"
-                for message in st.session_state.agent_chat_history_total
-            ]
-        )
-        # st.markdown(chat_history)
-
-        # 将Markdown保存到本地文件夹中
-        # 如果有同名文件，就为其编号
-        filename = "Agent_chat_history.md"
-        i = 1
-        while os.path.exists(filename):
-            filename = f"{i}_{filename}"
-            i += 1
-
-        with open(filename, "w") as f:
-            f.write(chat_history)
-        st.toast(body=i18n(f"Chat history exported to {filename}"), icon="🎉")
-
-
-# 根据选择的模型和类型，生成相应的 config_list
-if st.session_state["model_type"] == "AOAI":
-    config_list = aoai_config_generator(model=st.session_state["model"])
-if st.session_state["model_type"] == "OpenAI":
-    config_list = aoai_config_generator(
-        model=st.session_state["model"],
-        api_key=os.getenv("OPENAI_API_KEY"),
-        base_url="https://api.openai.com/v1",
-        api_type="openai",
-        api_version=None,
-    )
-if st.session_state["model_type"] == "Ollama":
-    config_list = ollama_config_generator(model=st.session_state["model"])
-elif st.session_state["model_type"] == "Groq":
-    config_list = groq_openai_config_generator(model=st.session_state["model"])
-elif st.session_state["model_type"] == "Llamafile":
-    if st.session_state["llamafile_api_key"] == "":
-        custom_api_key = "noneed"
-    else:
-        custom_api_key = st.session_state["llamafile_api_key"]
-    config_list = llamafile_config_generator(
-        model=st.session_state["model"],
-        base_url=st.session_state["llamafile_endpoint"],
-        api_key=custom_api_key,
-    )
-elif st.session_state["model_type"] == "LiteLLM":
-    config_list = litellm_config_generator(model=st.session_state["model"])
-# logger.debug(f"Config List: {config_list}")
-
-
-agentchat_processor = AgentChatProcessor(
-    requesthandler=requesthandler,
-    model_type=select_box0,
-    llm_config=config_list[0],
-)
-
-if agent_type == "Reflection":
-    # 初始化代理聊天历史
-    initialize_agent_chat_history(
-        st.session_state.agent_chat_history_displayed,
-        st.session_state.agent_chat_history_total,
-    )
-    # 初始化各个 Agent
-    user_proxy, writing_assistant, reflection_assistant = (
-        reflection_agent_with_nested_chat(
-            config_list=config_list, max_message=history_length
-        )
-    )
-elif agent_type == "Function Call":
-    write_chat_history(st.session_state.function_call_agent_chat_history_displayed)
-
-# st.write(type(user_proxy))
-
-if prompt := st.chat_input("What is up?"):
-    if agent_type == "Reflection":
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Add user message to chat history
-        st.session_state.agent_chat_history_displayed.append(
-            {"role": "user", "content": prompt}
-        )
-
-        # Use Cache.disk to cache the generated responses.
-        # This is useful when the same request to the LLM is made multiple times.
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                with Cache.disk(cache_seed=42) as cache:
-                    result = user_proxy.initiate_chat(
-                        writing_assistant,
-                        message=prompt,
-                        max_turns=2,
-                        cache=cache,
+                def save_oai_like_config_button_callback():
+                    config_id = oailike_config_processor.update_config(
+                        model=select_box1,
+                        base_url=llamafile_endpoint,
+                        api_key=llamafile_api_key,
+                        description=st.session_state.get("config_description", ""),
                     )
-                # result = fake_agent_chat_completion(prompt)
-            # result 是一个 list[dict]，取出并保存
-            result_chat_his = result.chat_history
-            # 为其中每一个字典添加一个 "if_thought" 字段，用于判断是否是thought
-            # 第一个和最后一个为0,其他为1，剩下的内容均完全保留
-            annotated_chat_history = annotate_agent_thoughts(result_chat_his)
-            st.session_state.agent_chat_history_total.extend(annotated_chat_history)
+                    st.toast(i18n("Model config saved successfully"), icon="✅")
+                    return config_id
 
-            # 展示Agent的详细thought
-            display_agent_thoughts(st.session_state.agent_chat_history_total)
+                config_description = st.text_input(
+                    label=i18n("Config Description"),
+                    key="config_description",
+                    placeholder=i18n("Enter a description for this configuration"),
+                )
 
-            # 仅在 initial_chat 的参数 `summary_method='last_msg'`
-            # result.summary 用作对话展示，添加到display中
-            st.session_state.agent_chat_history_displayed.append(
-                {"role": "assistant", "content": result.summary}
-            )
-            st.write(result.summary)
+                save_oai_like_config_button = st.button(
+                    label=i18n("Save model config"),
+                    on_click=save_oai_like_config_button_callback,
+                    use_container_width=True,
+                )
 
-    elif agent_type == "Function Call":
-        with st.chat_message("user"):
-            st.markdown(prompt)
+                st.write("---")
 
-        # Add user message to chat history
-        st.session_state.function_call_agent_chat_history_displayed.append(
-            {"role": "user", "content": prompt}
-        )
+                config_list = oailike_config_processor.list_model_configs()
+                config_options = [
+                    f"{config['model']} - {config['description']}"
+                    for config in config_list
+                ]
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = (
-                    agentchat_processor.create_function_call_agent_response_noapi(
-                        message=prompt, tools=function_mutiple_selectbox
+                selected_config = st.selectbox(
+                    label=i18n("Select model config"),
+                    options=config_options,
+                    format_func=lambda x: x,
+                    on_change=lambda: st.toast(
+                        i18n("Click the Load button to apply the configuration"),
+                        icon="🚨",
+                    ),
+                    key="selected_config",
+                )
+
+                def load_oai_like_config_button_callback():
+                    selected_index = config_options.index(
+                        st.session_state.selected_config
                     )
-                )
-                # 返回的是一个完整的chat_history，包含了"None"和""
-                # 需要将"None"和""去除
-                answer = reverse_traversal(response)
+                    selected_config_id = config_list[selected_index]["id"]
 
-                # 将回答添加入 st.sesstion
-                st.session_state.function_call_agent_chat_history_displayed.append(
-                    {"role": "assistant", "content": answer["content"]}
+                    logger.info(f"Loading model config: {selected_config_id}")
+                    config = oailike_config_processor.get_model_config(
+                        config_id=selected_config_id
+                    )
+
+                    if config:
+                        config_data = config  # 不再需要 next(iter(config.values()))
+                        st.session_state.oai_like_model_config_dict = {
+                            config_data["model"]: config_data
+                        }
+                        st.session_state.model = config_data["model"]
+                        st.session_state.llamafile_endpoint = config_data["base_url"]
+                        st.session_state.llamafile_api_key = config_data["api_key"]
+                        st.session_state.config_description = config_data.get(
+                            "description", ""
+                        )
+
+                        logger.info(
+                            f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
+                        )
+
+                        # 更新chat_config_list
+                        st.session_state["agent_chat_config_list"][0]["model"] = config_data["model"]
+                        st.session_state["agent_chat_config_list"][0]["api_key"] = config_data["api_key"]
+                        st.session_state["agent_chat_config_list"][0]["base_url"] = config_data["base_url"]
+
+                        logger.info(
+                            f"Chat config list updated: {st.session_state.agent_chat_config_list}"
+                        )
+                        st.toast(i18n("Model config loaded successfully"), icon="✅")
+                    else:
+                        st.toast(i18n("Failed to load model config"), icon="❌")
+
+                load_oai_like_config_button = st.button(
+                    label=i18n("Load model config"),
+                    use_container_width=True,
+                    type="primary",
+                    on_click=load_oai_like_config_button_callback,
                 )
 
-                # 展示回答
-                st.write(answer["content"])
+                def delete_oai_like_config_button_callback():
+                    selected_index = config_options.index(
+                        st.session_state.selected_config
+                    )
+                    selected_config_id = config_list[selected_index]["id"]
+                    oailike_config_processor.delete_model_config(selected_config_id)
+                    st.toast(i18n("Model config deleted successfully"), icon="🗑️")
+                    # st.rerun()
+
+                delete_oai_like_config_button = st.button(
+                    label=i18n("Delete model config"),
+                    use_container_width=True,
+                    on_click=delete_oai_like_config_button_callback,
+                )
+
+        reset_model_button = model_choosing_container.button(
+            label=i18n("Reset model info"),
+            on_click=lambda x: x.cache_clear(),
+            args=(model_selector,),
+            use_container_width=True,
+        )
+        st.write(st.session_state.agent_chat_config_list)
+
+write_chat_history(st.session_state.agent_chat_history)
+
+if prompt := st.chat_input(placeholder="Enter your message here"):
+    # 用户输入
+    user_task = TextMessage(source="user", content=prompt)
+    st.session_state.agent_chat_history.append(user_task)
+    with st.chat_message(name="user", avatar="🧑‍💻"):
+        st.write(user_task.content)
+    
+    # 思考
+    with st.spinner(text="Thinking..."):
+        response = create_and_run_reflection_team(user_task)
+    
+        # 输出
+        try:
+            result = asyncio.run(write_chunks_or_coroutine(response))
+            if result and isinstance(result, TaskResult):
+                st.session_state.agent_chat_history.append(result)
+        except Exception as e:
+            st.error(f"Error writing response: {e}")
+            result = response
