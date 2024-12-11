@@ -16,10 +16,9 @@ from core.llm.litellm.completion import litellm_config_generator
 from utils.basic_utils import (
     model_selector,
     split_list_by_key_value,
+    list_length_transform,
     oai_model_config_selector,
     reverse_traversal,
-)
-from utils.st_utils import (
     write_chat_history,
 )
 from core.llm.aoai.tools.tools import TO_TOOLS

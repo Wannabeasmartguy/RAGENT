@@ -19,22 +19,24 @@ from core.processors import (
     DialogProcessor,
 )
 from core.storage.db.sqlite import SqlAssistantStorage
-from modules.chat.transform import MessageHistoryTransform
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
+    write_chat_history,
     config_list_postprocess,
     user_input_constructor,
+    get_style,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
 )
 from utils.log.logger_config import (
     setup_logger,
     log_dict_changes,
 )
+
 try:
     from utils.st_utils import (
         float_chat_input_with_audio_recorder,
-        write_chat_history,
-        get_style,
         back_to_top,
         back_to_bottom,
         export_dialog,
@@ -52,8 +54,6 @@ from config.constants import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     CHAT_HISTORY_DB_TABLE,
-    USER_AVATAR_SVG,
-    AI_AVATAR_SVG,
 )
 from tools.toolkits import (
     filter_out_selected_tools_dict,
@@ -63,6 +63,7 @@ from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 import streamlit as st
 from streamlit_float import *
+from autogen.agentchat.contrib.capabilities import transforms
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -90,11 +91,13 @@ def generate_response(
             function_map=tools_map_selected,
         )
     else:
-        response = chatprocessor.create_completion(
-            messages=processed_messages,
-            stream=st.session_state.if_stream,
-        )
-
+        # AutoGen在v0.2版本中，没有找到创建流式输出的方法，所以分开处理
+        if st.session_state.if_stream:
+            response = chatprocessor.create_completion_stream(
+                messages=processed_messages
+            )
+        else:
+            response = chatprocessor.create_completion(messages=processed_messages)
     return response
 
 
@@ -247,48 +250,20 @@ def update_config_in_db_callback():
     Update config in db.
     """
     origin_config_list = deepcopy(st.session_state.chat_config_list)
-    if st.session_state["model_type"] == "Llamafile":
-        # 先获取模型配置
-        model_config = oailike_config_processor.get_model_config(
-            model=st.session_state.model
-        )
-        if model_config and len(model_config) > 1:
-            for model_id, model_config_detail in model_config.items():
-                if st.session_state.model in model_config_detail.get("model"):
-                    selected_model_config = model_config_detail
-                    break
-        elif model_config and len(model_config) == 1:
-            selected_model_config = next(iter(model_config.values()))
-        else:
-            selected_model_config = {}
-
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=(
-                    st.session_state.model
-                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
-                    else "Not given"
-                ),
-                api_key=selected_model_config.get("api_key", "Not given"),
-                base_url=selected_model_config.get("base_url", "Not given"),
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
-    else:
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=st.session_state.model,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
+    config_list = [
+        generate_client_config(
+            source=st.session_state["model_type"].lower(),
+            model=(
+                st.session_state.model
+                if st.session_state["model_type"].lower() != "llamafile"
+                else "Not given"
+            ),
+            temperature=st.session_state.temperature,
+            top_p=st.session_state.top_p,
+            max_tokens=st.session_state.max_tokens,
+            stream=st.session_state.if_stream,
+        ).model_dump()
+    ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
     dialog_processor.update_dialog_config(
@@ -351,10 +326,10 @@ def create_and_display_chat_round(
             with st.spinner("Thinking..."):
                 # 对消息的数量进行限制
                 # 根据历史对话消息数，创建 MessageHistoryLimiter
-                max_msg_transfrom = MessageHistoryTransform(
-                    max_size=history_length
+                max_msg_transfrom = transforms.MessageHistoryLimiter(
+                    max_messages=history_length
                 )
-                processed_messages = max_msg_transfrom.transform(
+                processed_messages = max_msg_transfrom.apply_transform(
                     deepcopy(st.session_state.chat_history)
                 )
 
@@ -397,6 +372,11 @@ def create_and_display_chat_round(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
                             )
                         )
+
+                        try:
+                            st.write(f"response cost: ${response.cost}")
+                        except:
+                            pass
 
                         st.session_state.chat_history.append(
                             {"role": "assistant", "content": response_content}

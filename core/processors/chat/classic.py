@@ -9,9 +9,11 @@ import uuid
 import requests
 import copy
 
+from autogen import OpenAIWrapper
 from loguru import logger
 
-from api.dependency import APIRequestHandler
+from api.dependency import APIRequestHandler, SUPPORTED_SOURCES
+from core.model.llm import LLMParams
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import OPENAI_SUPPORTED_CLIENTS
 from core.strategy import (
@@ -54,20 +56,58 @@ class ChatProcessor(ChatProcessStrategy):
     
     def create_completion(
         self,
-        messages: List[Dict[str, str]],
-        stream: bool = False
-    ) -> Dict | Generator:
+        messages: List[dict]
+    ):
         '''
-        创建一个 LLM 响应，支持普通输出和流式输出。
+        创建一个 LLM 模型，并使用该模型生成一个响应。
         
         Args:
-            messages (List[Dict[str, str]]): 完整的对话消息列表
-            stream (bool, optional): 是否使用流式输出。默认为 False
+            llm_config (LLMConfig): LLM 模型的配置信息。
+            llm_params (LLMParams, optional): LLM 模型的参数信息，包括 temperature、top_p 和 max_tokens。
+            messages (List[dict]): 完整的对话消息列表。
             
         Returns:
-            Dict | Generator: 根据 stream 参数返回不同类型的响应
+            Dict: 生成的响应。
         '''
+        llm_params = LLMParams(**self.llm_config.get("params", {}))
+        llm_config = deepcopy(self.llm_config)
+        llm_config.pop("params")
+        
+        # 检查 source 是否在支持列表中
         source = self.model_type.lower()
+
+        if source not in SUPPORTED_CLIENTS:
+            raise ValueError(f"Unsupported source: {source}")
+        
+        # 根据 source 选择不同的处理逻辑
+        if source in OPENAI_SUPPORTED_CLIENTS:
+            try:
+                client = OpenAIWrapper(
+                    **llm_config,
+                    # 禁用缓存
+                    cache = None,
+                    cache_seed = None
+                )
+                response = client.create(
+                    messages = messages,
+                    model = llm_config.get("model"),
+                    temperature = llm_params.temperature,
+                    top_p = llm_params.top_p,
+                    max_tokens = llm_params.max_tokens
+                )
+                return response
+            except Exception as e:
+                raise ValueError(f"Error creating completion: {str(e)}") from e
+
+    def create_completion_stream(
+            self, 
+            messages: List[Dict[str, str]],
+        ) -> Generator:
+        """
+        创建流式输出
+        """
+        source = self.model_type.lower()
+
         if source not in SUPPORTED_CLIENTS:
             raise ValueError(f"Unsupported source: {source}")
         
@@ -79,6 +119,15 @@ class ChatProcessor(ChatProcessStrategy):
                         api_key=self.llm_config.get("api_key"),
                         base_url=self.llm_config.get("base_url"),
                     )
+                    response = client.chat.completions.create(
+                        model=self.llm_config.get("model"),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
+                
                 else:
                     from openai import AzureOpenAI
                     client = AzureOpenAI(
@@ -86,21 +135,19 @@ class ChatProcessor(ChatProcessStrategy):
                         azure_endpoint=self.llm_config.get("base_url"),
                         api_version=self.llm_config.get("api_version"),
                     )
-                    
-                params = {
-                    "model": self.llm_config.get("model").replace(".", "") if self.llm_config.get("api_type") == "azure" else self.llm_config.get("model"),
-                    "messages": messages,
-                    "temperature": self.llm_config.get("params", {}).get("temperature", 0.5),
-                    "top_p": self.llm_config.get("params", {}).get("top_p", 0.1),
-                    "max_tokens": self.llm_config.get("params", {}).get("max_tokens", 4096),
-                    "stream": stream
-                }
-                
-                response = client.chat.completions.create(**params)
+                    response = client.chat.completions.create(
+                        # TODO: Azure 的模型名称是 deployment name ，可能需要自定义
+                        model=self.llm_config.get("model").replace(".", ""),
+                        messages=messages,
+                        temperature=self.llm_config.get("params", {}).get("temperature", 0.5),
+                        top_p=self.llm_config.get("params", {}).get("top_p", 0.1),
+                        max_tokens=self.llm_config.get("params", {}).get("max_tokens", 4096),
+                        stream=True
+                    )
+
                 return response
-                
             except Exception as e:
-                raise ValueError(f"Error creating completion: {str(e)}") from e
+                raise ValueError(f"Error creating completion stream: {str(e)}") from e
 
 
 @deprecated("AgentChatProcessor is deprecated. Use AgentChatProcessor in core.processors.chat.agent instead.")
@@ -205,7 +252,7 @@ class AgentChatProcessor(AgentChatProcessStrategy):
         try:
             knowledge_bases = embedding_config.get("knowledge_bases", [])
             collection_config = next((kb for kb in knowledge_bases if kb.get("name") == collection_name), None)
-            # 实际要传入的collection_name是collection_name的���，而不是collection_name的key
+            # 实际要传入的collection_name是collection_name的值，而不是collection_name的key
             collection_id = collection_config.get("id")
 
             if not collection_config:

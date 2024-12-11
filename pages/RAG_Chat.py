@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Union
 from uuid import uuid4
 from functools import lru_cache
-from copy import deepcopy
 
 from config.constants import (
     VERSION,
@@ -16,8 +15,6 @@ from config.constants import (
     CHAT_HISTORY_DB_FILE,
     EMBEDDING_CONFIG_FILE_PATH,
     RAG_CHAT_HISTORY_DB_TABLE,
-    USER_AVATAR_SVG,
-    AI_AVATAR_SVG,
 )
 from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors import (
@@ -34,9 +31,14 @@ from core.storage.db.sqlite import SqlAssistantStorage
 from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
     model_selector,
+    list_length_transform,
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
+    get_style,
+    get_combined_style,
+    USER_AVATAR_SVG,
+    AI_AVATAR_SVG,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
@@ -44,14 +46,11 @@ from utils.st_utils import (
     back_to_top,
     back_to_bottom,
     float_chat_input_with_audio_recorder,
-    get_style,
-    get_combined_style,
 )
 
 from api.dependency import APIRequestHandler
 
 from modules.types.rag import BaseRAGResponse
-from modules.chat.transform import MessageHistoryTransform
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
 import streamlit as st
@@ -440,49 +439,20 @@ def update_rag_config_in_db_callback():
     from copy import deepcopy
 
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
-
-    if st.session_state["model_type"] == "Llamafile":
-        # 先获取模型配置
-        model_config = oailike_config_processor.get_model_config(
-            model=st.session_state.model
-        )
-        if model_config and len(model_config) > 1:
-            for model_id, model_config_detail in model_config.items():
-                if st.session_state.model in model_config_detail.get("model"):
-                    selected_model_config = model_config_detail
-                    break
-        elif model_config and len(model_config) == 1:
-            selected_model_config = next(iter(model_config.values()))
-        else:
-            selected_model_config = {}
-
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=(
-                    st.session_state.model
-                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
-                    else "Not given"
-                ),
-                api_key=selected_model_config.get("api_key", "Not given"),
-                base_url=selected_model_config.get("base_url", "Not given"),
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
-    else:
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=st.session_state.model,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
+    config_list = [
+        generate_client_config(
+            source=st.session_state["model_type"].lower(),
+            model=(
+                st.session_state.model
+                if st.session_state["model_type"].lower() != "llamafile"
+                else "Not given"
+            ),
+            temperature=st.session_state.temperature,
+            top_p=st.session_state.top_p,
+            max_tokens=st.session_state.max_tokens,
+            stream=st.session_state.if_stream,
+        ).model_dump()
+    ]
     st.session_state["rag_chat_config_list"] = config_list
     log_dict_changes(origin_config_list[0], config_list[0])
     dialog_processor.update_dialog_config(
@@ -514,12 +484,8 @@ def create_and_display_rag_chat_round(
     # Add user message to chat history
     st.session_state.custom_rag_chat_history.append({"role": "user", "content": prompt})
 
-    # 对消息的数量进行限制
-    max_msg_transfrom = MessageHistoryTransform(
-        max_size=history_length
-    )
-    processed_messages = max_msg_transfrom.transform(
-        deepcopy(st.session_state.custom_rag_chat_history)
+    processed_messages = list_length_transform(
+        history_length, st.session_state.custom_rag_chat_history
     )
     # 在 invoke 的 messages 中去除 response_id
     processed_messages = [
