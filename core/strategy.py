@@ -66,17 +66,9 @@ class ChatProcessStrategy(ABC):
         pass
 
 
-class AgentChatProcessStrategy(ABC):
+class RAGChatProcessStrategy(ABC):
     @abstractmethod
-    def create_reflection_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_rag_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_base_chat_agent_response(self) -> Dict:
+    def create_custom_rag_response(self):
         pass
 
 

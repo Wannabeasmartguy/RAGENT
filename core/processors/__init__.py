@@ -1,5 +1,5 @@
 from .chat.classic import ChatProcessor
-from .chat.agent import AgentChatProcessor
+from .chat.agent import RAGChatProcessor
 from .config.llm import OAILikeConfigProcessor
 from .dialog.dialog_processors import DialogProcessor, RAGChatDialogProcessor
 from .vector.chroma.kb_processors import (
@@ -10,7 +10,7 @@ from .vector.chroma.kb_processors import (
 
 __all__ = [
     'ChatProcessor',
-    'AgentChatProcessor',
+    'RAGChatProcessor',
     'OAILikeConfigProcessor',
     'DialogProcessor',
     'RAGChatDialogProcessor',

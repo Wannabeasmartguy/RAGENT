@@ -21,7 +21,7 @@ from config.constants import (
 )
 from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors import (
-    AgentChatProcessor,
+    RAGChatProcessor,
     RAGChatDialogProcessor,
     OAILikeConfigProcessor,
     ChromaVectorStoreProcessorWithNoApi,
@@ -62,9 +62,8 @@ from pydantic import ValidationError
 
 
 @lru_cache(maxsize=1)
-def get_agentchat_processor():
-    return AgentChatProcessor(
-        requesthandler=requesthandler,
+def get_ragchat_processor():
+    return RAGChatProcessor(
         model_type=st.session_state.model_type,
         llm_config=st.session_state.rag_chat_config_list[0],
     )
@@ -72,7 +71,7 @@ def get_agentchat_processor():
 
 # 在 create_custom_rag_response 调用之前添加
 def refresh_retriever():
-    get_agentchat_processor.cache_clear()
+    get_ragchat_processor.cache_clear()
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
 
@@ -543,9 +542,9 @@ def create_and_display_rag_chat_round(
         with response_placeholder.container():
             with st.spinner("Thinking..."):
                 refresh_retriever()
-                agentchat_processor = get_agentchat_processor()
+                ragchat_processor = get_ragchat_processor()
                 try:
-                    response = agentchat_processor.create_custom_rag_response(
+                    response = ragchat_processor.create_custom_rag_response(
                         collection_name=collection_name,
                         messages=processed_messages,
                         is_rerank=is_rerank,
