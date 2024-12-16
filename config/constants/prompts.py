@@ -17,7 +17,7 @@ Please summarize the conversation history in a concise manner.
 
 **Rules:**
 
-1. The summary should be concise and to the point without any additional explanation or punctuation mark.
+1. The summary should be concise and less than 10 words.
 2. The summary should be as short as possible.
 3. The summary should be in user's language.
 

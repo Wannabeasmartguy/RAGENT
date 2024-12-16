@@ -10,7 +10,11 @@ import requests
 from loguru import logger
 
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
-from core.llm._client_info import OPENAI_SUPPORTED_CLIENTS
+from core.llm._client_info import (
+    OPENAI_SUPPORTED_CLIENTS,
+    get_client_config,
+    validate_client_config
+)
 from core.strategy import (
     ChatProcessStrategy,
     OpenAILikeModelConfigProcessStrategy,
@@ -32,7 +36,7 @@ class ChatProcessor(ChatProcessStrategy):
             llm_config: Dict
         ) -> None:
         self.model_type = model_type
-        self.llm_config = llm_config
+        self.llm_config = validate_client_config(model_type, llm_config)
         self.create_tools_call_completion = partial(create_tools_call_completion, config_list=[llm_config])
     
     def create_completion(
