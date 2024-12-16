@@ -7,7 +7,11 @@ from .chat import (
     USER_AVATAR_SVG,
     AI_AVATAR_SVG,
 )
-from .prompts import DEFAULT_SYSTEM_PROMPT, ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT
+from .prompts import (
+    DEFAULT_SYSTEM_PROMPT, 
+    ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT,
+    SUMMARY_PROMPT,
+)
 from .databases import (
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
@@ -33,6 +37,7 @@ __all__ = [
     'EMBEDDING_DIR',
     'EMBEDDING_CONFIG_FILE_PATH',
     'RAG_CHAT_HISTORY_DB_TABLE',
+    'SUMMARY_PROMPT',
     'USER_AVATAR_SVG',
     'AI_AVATAR_SVG',
 ]

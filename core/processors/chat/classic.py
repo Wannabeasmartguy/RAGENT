@@ -1,22 +1,18 @@
 from typing import Literal, List, Dict, Any, Generator, Optional
 from functools import partial
 from uuid import uuid4
-from copy import deepcopy
 from deprecated import deprecated
 import os
 import json
 import uuid
 import requests
-import copy
 
 from loguru import logger
 
-from api.dependency import APIRequestHandler
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import OPENAI_SUPPORTED_CLIENTS
 from core.strategy import (
     ChatProcessStrategy,
-    RAGChatProcessStrategy,
     OpenAILikeModelConfigProcessStrategy,
     CozeChatProcessStrategy
 )
@@ -25,17 +21,6 @@ from core.encryption import FernetEncryptor
 from utils.tool_utils import create_tools_call_completion
 from utils.log.logger_config import setup_logger
 
-from modules.rag.builder.builder import RAGBuilder
-from modules.llm.openai import OpenAILLM
-from modules.llm.aoai import AzureOpenAILLM
-from modules.retrievers.vector.chroma import ChromaRetriever, ChromaContextualRetriever
-from modules.retrievers.bm25 import BM25Retriever
-from modules.rerank.bge import BgeRerank
-from modules.retrievers.emsemble import EnsembleRetriever
-from modules.retrievers.comtextual_compression import ContextualCompressionRetriever
-from modules.rag.builder.builder import RAGBuilder
-from modules.types.rag import BaseRAGResponse
-
 
 class ChatProcessor(ChatProcessStrategy):
     """
@@ -43,11 +28,9 @@ class ChatProcessor(ChatProcessStrategy):
     """
     def __init__(
             self, 
-            requesthandler: APIRequestHandler,
             model_type: str,
             llm_config: Dict
         ) -> None:
-        self.requesthandler = requesthandler
         self.model_type = model_type
         self.llm_config = llm_config
         self.create_tools_call_completion = partial(create_tools_call_completion, config_list=[llm_config])

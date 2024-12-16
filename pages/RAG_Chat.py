@@ -48,8 +48,6 @@ from utils.st_utils import (
     get_combined_style,
 )
 
-from api.dependency import APIRequestHandler
-
 from modules.types.rag import BaseRAGResponse
 from modules.chat.transform import MessageHistoryTransform
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
@@ -271,8 +269,6 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     response_sources = st.session_state.custom_rag_sources[response_id]
     display_rag_sources(response_sources, response_id)
 
-
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 

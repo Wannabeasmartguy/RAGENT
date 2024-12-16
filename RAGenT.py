@@ -6,8 +6,6 @@ from uuid import uuid4
 from copy import deepcopy
 from io import BytesIO
 
-from api.dependency import APIRequestHandler
-
 from core.llm._client_info import generate_client_config
 from core.basic_config import (
     I18nAuto,
@@ -121,8 +119,6 @@ def create_default_dialog(dialog_processor: DialogProcessor):
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(i18n_dir=I18N_DIR, language=SUPPORTED_LANGUAGES[language])
-
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
@@ -370,7 +366,6 @@ def create_and_display_chat_round(
                 )
 
                 chatprocessor = ChatProcessor(
-                    requesthandler=requesthandler,
                     model_type=st.session_state["model_type"],
                     llm_config=st.session_state.chat_config_list[0],
                 )

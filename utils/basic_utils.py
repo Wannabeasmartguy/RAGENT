@@ -10,7 +10,7 @@ from functools import lru_cache
 from core.llm.ollama.completion import get_ollama_model_list
 from core.llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto
-from core.processors.chat.classic import OAILikeConfigProcessor
+from core.processors.config.llm import OAILikeConfigProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from utils.log.logger_config import setup_logger
 
