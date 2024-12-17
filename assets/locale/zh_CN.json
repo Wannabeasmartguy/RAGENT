@@ -177,5 +177,12 @@
     "Transcribed": "识别完成",
     "System prompt updated": "系统提示已更新",
     "Interrupt": "中断",
-    "Relevance Score by reranker": "重排序相关度"
+    "Relevance Score by reranker": "重排序相关度",
+    "Load model setting": "加载模型设置",
+    "Model setting loaded successfully": "模型设置加载成功",
+    "Model configuration": "模型配置",
+    "Create Agent Team": "创建 Agent 团队",
+    "Create Agent": "创建 Agent",
+    "Agent List": "Agent 列表",
+    "Setting up LLM model": "设置 LLM 模型"
 }

@@ -60,3 +60,10 @@ def get_client_config(config: Dict) -> str:
         except:
             continue
     raise ValueError("Invalid configuration")
+
+
+def get_client_config_model(config: Dict) -> LLMConfigType:
+    """从配置自动选择模型"""
+    model_type = get_client_config(config)
+    model_class = SUPPORTED_SOURCES[model_type.lower()]
+    return model_class.from_env(**config)

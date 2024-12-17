@@ -177,5 +177,12 @@
     "Transcribed": "Transcribed",
     "System prompt updated": "System prompt updated",
     "Interrupt": "Interrupt",
-    "Relevance Score by reranker": "Relevance Score by reranker"
+    "Relevance Score by reranker": "Relevance Score by reranker",
+    "Load model setting": "Load model setting",
+    "Model setting loaded successfully": "Model setting loaded successfully",
+    "Model configuration": "Model configuration",
+    "Create Agent Team": "Create Agent Team",
+    "Create Agent": "Create Agent",
+    "Agent List": "Agent List",
+    "Setting up LLM model": "Setting up LLM model"
 }

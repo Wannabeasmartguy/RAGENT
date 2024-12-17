@@ -222,10 +222,10 @@ with st.sidebar:
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
-    st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+    # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link(
-        "pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting"))
+        "pages/Agent_Setting.py", label=(i18n("⚙️ Agent Setting"))
     )
     st.write("---")
 
