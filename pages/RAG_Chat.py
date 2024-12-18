@@ -108,7 +108,7 @@ def display_rag_sources(
         st.toast(i18n("No sources found for this response."))
         return
 
-    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
+    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // num_columns)]
 
     @st.dialog(title=i18n("Cited Source"), width="large")
     def show_source_content(
@@ -942,7 +942,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_rag_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             # if_tools_call = st.toggle(

@@ -4,9 +4,12 @@ from config.constants.paths import ROOT_DIR
 # 数据库目录
 DATABASE_DIR = os.path.join(ROOT_DIR, "databases")
 
+# 用户手动创建的配置
+DYNAMIC_CONFIGS_DIR = os.path.join(ROOT_DIR, "dynamic_configs")
+
 # 知识库及嵌入模型配置信息
 EMBEDDING_CONFIG_FILE_PATH = os.path.join(
-    ROOT_DIR, "dynamic_configs", "embedding_config.json"
+    DYNAMIC_CONFIGS_DIR, "embedding_config.json"
 )
 
 # 聊天记录目录

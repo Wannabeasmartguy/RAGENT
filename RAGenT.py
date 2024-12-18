@@ -541,7 +541,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             if_tools_call = st.toggle(

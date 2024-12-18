@@ -1,4 +1,7 @@
 import os
+import json
+import uuid
+import asyncio
 
 from config.constants import (
     LOGO_DIR, 
@@ -17,10 +20,14 @@ from utils.basic_utils import (
     oai_model_config_selector
 )
 from utils.log.logger_config import setup_logger
-from ext.autogen.models.agent import ReflectionAgentTeamTemplate
+from ext.autogen.models.agent import ReflectionAgentTeamTemplate, AgentTemplateType
+from ext.autogen.manager.template import AgentTemplateFileManager
 
 import streamlit as st
 from loguru import logger
+
+
+agent_template_file_manager = AgentTemplateFileManager()
 
 
 def update_llm_config_list():
@@ -34,6 +41,194 @@ def update_llm_config_list():
     )
     st.session_state.llm_config_list = [llm_config.model_dump()]
 
+
+def create_agent_template():
+    try:
+        st.session_state.agent_team_template = agent_template_file_manager.create_agent_template(
+            agent_template_config={
+                "id": str(uuid.uuid4()),
+                "name": st.session_state.agent_team_name,
+                "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
+                "llm": get_client_config_model(st.session_state.llm_config_list[0]),
+                "primary_agent_system_message": st.session_state.primary_agent_system_message,
+                "critic_agent_system_message": st.session_state.critic_agent_system_message,
+                "max_messages": st.session_state.max_messages,
+                "termination_text": st.session_state.termination_text,
+                "template_type": st.session_state.agent_team_type.lower(),
+            }
+        )
+    except Exception as e:
+        st.toast(i18n(f"Failed to create Reflection Agent team, please check the input: {e}"), icon="❌")
+        logger.error(f"Failed to create Reflection Agent team: {e}")
+
+
+def create_agent_team_form(
+    form_key: str = "create_agent_team",
+    template_id: str = None,
+):
+    reflection_agent_team_form = st.form(i18n("Create Agent Team") + f"_{form_key}")
+    
+    if template_id:
+        template = agent_template_file_manager.agent_templates.get(template_id)
+        if template:
+            st.session_state[f"agent_team_type_{form_key}"] = template["team_type"].capitalize()
+            st.session_state[f"agent_team_name_{form_key}"] = template["name"]
+            st.session_state[f"agent_team_description_{form_key}"] = template["description"]
+            st.session_state[f"primary_agent_system_message_{form_key}"] = template["primary_agent_system_message"]
+            st.session_state[f"critic_agent_system_message_{form_key}"] = template["critic_agent_system_message"]
+            st.session_state[f"max_messages_{form_key}"] = template["max_messages"]
+            st.session_state[f"termination_text_{form_key}"] = template["termination_text"]
+    
+    team_type_column, team_name_column = reflection_agent_team_form.columns([0.5, 0.5])
+    with team_type_column:
+        agent_team_type = team_type_column.selectbox(
+            i18n("Team type"), 
+            options=["Reflection"],
+            key=f"agent_team_type_{form_key}"
+        )
+    with team_name_column:
+        agent_team_name = team_name_column.text_input(
+            i18n("Team name"), 
+            key=f"agent_team_name_{form_key}"
+        )
+    agent_team_description = reflection_agent_team_form.text_input(
+        i18n("Team description"), 
+        key=f"agent_team_description_{form_key}"
+    )
+    primary_agent_system_message = reflection_agent_team_form.text_input(
+        i18n("Primary agent system message"), 
+        key=f"primary_agent_system_message_{form_key}"
+    )
+    critic_agent_system_message = reflection_agent_team_form.text_input(
+        i18n("Critic agent system message"), 
+        key=f"critic_agent_system_message_{form_key}"
+    )
+    max_messages = reflection_agent_team_form.number_input(
+        i18n("Max messages"), 
+        min_value=1,
+        value=10,
+        key=f"max_messages_{form_key}"
+    )
+    termination_text = reflection_agent_team_form.text_input(
+        i18n("Termination text"), 
+        key=f"termination_text_{form_key}"
+    )
+    
+    def submit_and_create_template_button_callback():
+        if (
+            st.session_state[f"agent_team_name_{form_key}"] == "" 
+            or st.session_state[f"primary_agent_system_message_{form_key}"] == "" 
+            or st.session_state[f"critic_agent_system_message_{form_key}"] == "" 
+            or st.session_state[f"termination_text_{form_key}"] == ""
+        ):
+            st.toast(i18n("Please fill in all fields"), icon="❌")
+            return
+            
+        st.session_state.agent_team_name = st.session_state[f"agent_team_name_{form_key}"]
+        st.session_state.agent_team_description = st.session_state[f"agent_team_description_{form_key}"]
+        st.session_state.primary_agent_system_message = st.session_state[f"primary_agent_system_message_{form_key}"]
+        st.session_state.critic_agent_system_message = st.session_state[f"critic_agent_system_message_{form_key}"]
+        st.session_state.max_messages = st.session_state[f"max_messages_{form_key}"]
+        st.session_state.termination_text = st.session_state[f"termination_text_{form_key}"]
+        st.session_state.agent_team_type = st.session_state[f"agent_team_type_{form_key}"]
+        
+        try:
+            st.session_state.agent_team_template = agent_template_file_manager.create_agent_template(
+                agent_template_config={
+                    "id": template_id if template_id else str(uuid.uuid4()),
+                    "name": st.session_state.agent_team_name,
+                    "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
+                    "llm": get_client_config_model(st.session_state.llm_config_list[0]),
+                    "primary_agent_system_message": st.session_state.primary_agent_system_message,
+                    "critic_agent_system_message": st.session_state.critic_agent_system_message,
+                    "max_messages": st.session_state.max_messages,
+                    "termination_text": st.session_state.termination_text,
+                    "template_type": st.session_state.agent_team_type.lower(),
+                }
+            )
+            agent_template_file_manager.add_agent_template_to_file(st.session_state.agent_team_template)
+            st.toast(i18n("Agent team updated successfully") if template_id else i18n("Agent team created successfully"), icon="✅")
+            
+            if template_id:
+                st.session_state[f"edit_mode_{template_id}"] = False
+            
+            st.session_state[f"agent_team_name_{form_key}"] = ""
+            st.session_state[f"agent_team_description_{form_key}"] = ""
+            st.session_state[f"primary_agent_system_message_{form_key}"] = ""
+            st.session_state[f"critic_agent_system_message_{form_key}"] = ""
+            st.session_state[f"max_messages_{form_key}"] = 10
+            st.session_state[f"termination_text_{form_key}"] = ""
+            
+        except Exception as e:
+            st.toast(i18n(f"Failed to {'update' if template_id else 'create'} agent team: {str(e)}"), icon="❌")
+            logger.error(f"Failed to {'update' if template_id else 'create'} agent team: {e}")
+
+    submit_and_create_template_button = reflection_agent_team_form.form_submit_button(
+        i18n("Submit"),
+        on_click=submit_and_create_template_button_callback,
+    )
+
+
+async def create_agent_template_card_gallery(
+    columns: int = 3
+):
+    """
+    创建一个包含所有模板配置的卡片画廊。
+    
+    :param columns: 每行显示的卡片数量
+    """
+    # 读取模板配置文件
+    agent_template_config = agent_template_file_manager.agent_templates
+
+    if not agent_template_config:
+        st.info(i18n("No agent templates found. Please create one first."))
+        return
+        
+    # 多于3个卡片时，每行显示3个卡片，少于3个卡片时，显示全部
+    num_columns = min(columns, len(agent_template_config))
+    rows = [st.columns(num_columns) for _ in range((len(agent_template_config) + 2) // num_columns)]
+    
+    # 遍历所有模板配置
+    for (template_id, template), (row_idx, col) in zip(
+        agent_template_config.items(),
+        [(i,j) for i,row in enumerate(rows) for j in range(len(row))]
+    ):
+        with rows[row_idx][col].container(border=True):
+            st.subheader(template["name"] if template["name"] else i18n("Unnamed Template"))
+            
+            if template["description"]:
+                st.write(template["description"])
+                
+            with st.expander(i18n("Template Details")):
+                st.write(f"**{i18n('Team Type')}:** {template['team_type']}")
+                st.write(f"**{i18n('Model')}:** {template['llm']['model']}")
+                st.write(f"**{i18n('Primary Agent System Message')}:** {template['primary_agent_system_message']}")
+                st.write(f"**{i18n('Critic Agent System Message')}:** {template['critic_agent_system_message']}")
+                st.write(f"**{i18n('Max Messages')}:** {template['max_messages']}")
+                st.write(f"**{i18n('Termination Text')}:** {template['termination_text']}")
+                
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(i18n("Delete"), key=f"delete_{template_id}", use_container_width=True):
+                    agent_template_file_manager.delete_agent_template_in_file(template_id)
+                    st.rerun()
+            with col2:
+                if st.button(i18n("Edit"), key=f"edit_{template_id}", use_container_width=True):
+                    st.session_state[f"edit_mode_{template_id}"] = True
+                    st.rerun()
+
+            # 编辑模式下显示编辑表单
+            if st.session_state.get(f"edit_mode_{template_id}", False):
+                # 关闭其他所有卡片
+                for key in st.session_state.keys():
+                    if key.startswith("edit_mode_") and key != f"edit_mode_{template_id}":
+                        st.session_state[key] = False
+                create_agent_team_form(form_key=f"edit_{template_id}", template_id=template_id)
+                close_button = st.button(i18n("Close Edit"), key=f"close_{template_id}", use_container_width=True)
+                if close_button:
+                    st.session_state[f"edit_mode_{template_id}"] = False
+                    st.rerun()
+                
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -72,7 +267,7 @@ st.title(i18n("Agent Setting"))
 agent_list_tab, create_agent_form_tab = st.tabs([i18n("Agent List"), i18n("Create Agent")])
 
 with agent_list_tab:
-    st.write(i18n("Agent List"))
+    asyncio.run(create_agent_template_card_gallery(2))
 
 with create_agent_form_tab:
     st.write("## " + i18n("Setting up LLM model"))
@@ -141,7 +336,7 @@ with create_agent_form_tab:
                 key="if_stream",
                 on_change=update_llm_config_list,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
         
@@ -356,67 +551,4 @@ with create_agent_form_tab:
     
     st.write("## " + i18n("Create Agent Team"))
     with st.container(border=True):
-        reflection_agent_team_form = st.form(i18n("Create Agent Team"))
-        team_type_column, team_name_column = reflection_agent_team_form.columns([0.5, 0.5])
-        with team_type_column:
-            agent_team_type = team_type_column.selectbox(
-                i18n("Team type"), 
-                options=["Reflection"],
-                key="agent_team_type"
-            )
-        with team_name_column:
-            agent_team_name = team_name_column.text_input(
-                i18n("Team name"), 
-                key="agent_team_name"
-            )
-        agent_team_description = reflection_agent_team_form.text_input(
-            i18n("Team description"), 
-            key="agent_team_description"
-        )
-        primary_agent_system_message = reflection_agent_team_form.text_input(
-            i18n("Primary agent system message"), 
-            key="primary_agent_system_message"
-        )
-        critic_agent_system_message = reflection_agent_team_form.text_input(
-            i18n("Critic agent system message"), 
-            key="critic_agent_system_message"
-        )
-        max_messages = reflection_agent_team_form.number_input(
-            i18n("Max messages"), 
-            min_value=1,
-            value=10,
-            key="max_messages"
-        )
-        termination_text = reflection_agent_team_form.text_input(
-            i18n("Termination text"), 
-            key="termination_text"
-        )
-        def submit_and_create_template_button_callback():
-            # 检查是否为空字符串
-            if (
-                st.session_state.agent_team_name == "" 
-                or st.session_state.primary_agent_system_message == "" 
-                or st.session_state.critic_agent_system_message == "" 
-                or st.session_state.termination_text == ""
-            ):
-                st.toast(i18n("Please fill in all fields"), icon="❌")
-                return
-            if st.session_state.agent_team_type == "Reflection":
-                st.session_state.agent_team_template = ReflectionAgentTeamTemplate(
-                    name=st.session_state.agent_team_name,
-                    description=st.session_state.agent_team_description,
-                    llm=get_client_config_model(st.session_state.llm_config_list[0]),
-                    primary_agent_system_message=st.session_state.primary_agent_system_message,
-                    critic_agent_system_message=st.session_state.critic_agent_system_message,
-                    max_messages=st.session_state.max_messages,
-                    termination_text=st.session_state.termination_text,
-                )
-            st.toast(i18n("Agent team created successfully"), icon="✅")
-            
-        submit_and_create_template_button = reflection_agent_team_form.form_submit_button(
-            i18n("Submit"),
-            on_click=submit_and_create_template_button_callback,
-        )
-        if submit_and_create_template_button:
-            if "agent_team_template" in st.session_state:
-                st.write(st.session_state.agent_team_template.model_dump_json())
+        create_agent_team_form(form_key="new")
