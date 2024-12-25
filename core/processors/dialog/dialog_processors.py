@@ -208,12 +208,15 @@ class DialogProcessor(DialogProcessStrategy):
     def get_all_dialogs(self) -> List[AssistantRun]:
         """获取所有对话（同步操作）"""
         try:
+            # 等待所有操作完成
+            self.operation_queue.join()
+            
             with self.lock:
                 dialogs = self.storage.get_all_runs()
-                logger.debug(f"Retrieved {len(dialogs)} dialogs")
+                self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
                 return dialogs
         except Exception as e:
-            logger.error(f"Error getting dialogs: {e}")
+            self._logger.error(f"Error getting dialogs: {e}")
             return []
     
     def shutdown(self):

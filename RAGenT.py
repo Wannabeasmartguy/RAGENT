@@ -849,6 +849,8 @@ with st.sidebar:
                         ]
                         st.session_state.chat_history = []
                     else:
+                        while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
+                            st.session_state.current_run_id_index -= 1
                         st.session_state.run_id = dialog_processor.get_all_dialogs()[
                             st.session_state.current_run_id_index
                         ].run_id
