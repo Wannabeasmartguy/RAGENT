@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import asyncio
+from uuid import uuid4
 from typing import List, Union, Coroutine, AsyncGenerator
 from copy import deepcopy
 from loguru import logger
@@ -15,91 +16,20 @@ from utils.basic_utils import (
 from config.constants import (
     VERSION,
     LOGO_DIR,
+    DEFAULT_DIALOG_TITLE,
 )
 from core.llm._client_info import generate_client_config
 from core.processors.config.llm import OAILikeConfigProcessor
+from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from utils.basic_utils import config_list_postprocess, oai_model_config_selector
+from core.storage.db.sqlite import SqlAssistantStorage
+from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT_HISTORY_DB_FILE
+from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 from ext.autogen.teams.reflect import ReflectionTeamBuilder
+from ext.autogen.manager.template import AgentTemplateFileManager
 
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import TextMessage, MultiModalMessage
-
-
-def update_config_in_db_callback():
-    """
-    Update config in db.
-    """
-    origin_config_list = deepcopy(st.session_state.agent_chat_config_list)
-
-    st.session_state.model = model_selector(st.session_state["model_type"])[0]
-    if st.session_state["model_type"] == "Llamafile":
-        # 先获取模型配置
-        model_config = oailike_config_processor.get_model_config(
-            model=st.session_state.model
-        )
-        if model_config and len(model_config) > 1:
-            for model_id, model_config_detail in model_config.items():
-                if st.session_state.model in model_config_detail.get("model"):
-                    selected_model_config = model_config_detail
-                    break
-        elif model_config and len(model_config) == 1:
-            selected_model_config = next(iter(model_config.values()))
-        else:
-            selected_model_config = {}
-
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=(
-                    st.session_state.model
-                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
-                    else "Not given"
-                ),
-                api_key=selected_model_config.get("api_key", "Not given"),
-                base_url=selected_model_config.get("base_url", "Not given"),
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
-    else:
-        config_list = [
-            generate_client_config(
-                source=st.session_state["model_type"].lower(),
-                model=st.session_state.model,
-                temperature=st.session_state.temperature,
-                top_p=st.session_state.top_p,
-                max_tokens=st.session_state.max_tokens,
-                stream=st.session_state.if_stream,
-            ).model_dump()
-        ]
-    st.session_state["agent_chat_config_list"] = config_list
-
-
-def create_and_run_reflection_team(user_task: TextMessage):
-    reflection_team = (
-        ReflectionTeamBuilder()
-        .set_model_client(
-            source=st.session_state["model_type"].lower(), 
-            config_list=st.session_state.agent_chat_config_list
-        ).set_primary_agent(
-            system_message="You are a helpful AI assistant."
-        ).set_critic_agent(
-            system_message="Provide constructive feedback. Respond with 'APPROVE' to when your feedbacks are addressed."
-        ).set_max_messages(
-            max_messages=5
-        ).set_termination_text(
-            text="APPROVE"
-        ).build()
-    )
-    if st.session_state.if_stream:
-        response = reflection_team.run_stream(task=user_task)
-        return response
-    else:
-        response = reflection_team.run(task=user_task)
-        return response
 
 
 def write_task_result(
@@ -190,7 +120,38 @@ def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
                 with st.chat_message(name="user", avatar="🧑‍💻"):
                     st.write(message.content)
 
+
+def create_blank_dialog(dialog_processor: AgenChatDialogProcessor) -> str:
+    """
+    创建默认对话
+
+    Args:
+        dialog_processor: 对话处理器
+
+    Returns:
+        对话ID
+    """
+    new_run_id = str(uuid4())
+    dialog_processor.create_dialog(
+        run_id=new_run_id,
+        run_name=DEFAULT_DIALOG_TITLE,
+        llm_config={},
+        assistant_data={},
+    )
+    return new_run_id
+
+
+if not os.path.exists(CHAT_HISTORY_DIR):
+    os.makedirs(CHAT_HISTORY_DIR)
+chat_history_storage = SqlAssistantStorage(
+    table_name=AGENT_CHAT_HISTORY_DB_TABLE,
+    db_file=CHAT_HISTORY_DB_FILE,
+)
+if not chat_history_storage.table_exists():
+    chat_history_storage.create()
+dialog_processor = AgenChatDialogProcessor(storage=chat_history_storage)
 oailike_config_processor = OAILikeConfigProcessor()
+team_template_manager = AgentTemplateFileManager()
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -200,13 +161,26 @@ i18n = I18nAuto(
 
 # initialize config
 if "agent_chat_config_list" not in st.session_state:
-    st.session_state.agent_chat_config_list = [generate_client_config(
-        source="openai",
-        model=model_selector("OpenAI")[0]
-    ).model_dump()]
-# initialize chat history
+    st.session_state.agent_chat_config_list = team_template_manager.agent_templates
 if "agent_chat_history" not in st.session_state:
     st.session_state.agent_chat_history = []
+
+run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+if len(run_id_list) == 0:
+    create_blank_dialog(dialog_processor)
+    run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+
+if "agent_chat_current_run_id_index" not in st.session_state:
+    st.session_state.agent_chat_current_run_id_index = 0
+while st.session_state.agent_chat_current_run_id_index > len(run_id_list):
+    st.session_state.agent_chat_current_run_id_index -= 1
+if "agent_chat_run_id" not in st.session_state:
+    st.session_state.agent_chat_run_id = run_id_list[st.session_state.agent_chat_current_run_id_index]
+
+if "agent_chat_history" not in st.session_state:
+    st.session_state.agent_chat_history = dialog_processor.get_dialog(
+        st.session_state.agent_chat_run_id
+    ).memory["chat_history"]
 
 
 logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
@@ -229,273 +203,181 @@ with st.sidebar:
     )
     st.write("---")
 
-    dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
-        [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
+    dialog_settings_tab, team_settings_tab, multimodal_settings_tab = st.tabs(
+        [i18n("Dialog Settings"), i18n("Team Settings"), i18n("Multimodal Settings")],
     )
 
-    with model_settings_tab:
-        model_choosing_container = st.expander(
-            label=i18n("Model Choosing"), expanded=True
+    with dialog_settings_tab:
+        dialogs_list_tab, dialog_details_tab = st.tabs(
+            [i18n("Dialogues list"), i18n("Dialogues details")]
         )
 
-        select_box0 = model_choosing_container.selectbox(
-            label=i18n("Model type"),
-            options=["OpenAI", "Ollama", "Groq", "Llamafile"],
-            key="model_type",
-            on_change=update_config_in_db_callback,
-        )
+        # 管理已有对话
+        with dialogs_list_tab:
+            dialogs_container = st.container(height=400, border=True)
 
-        with st.expander(label=i18n("Model config"), expanded=True):
-            max_tokens = st.number_input(
-                label=i18n("Max tokens"),
-                min_value=1,
-                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
-                    "max_tokens", 1900
-                ),
-                step=1,
-                key="max_tokens",
-                on_change=update_config_in_db_callback,
-                help=i18n(
-                    "Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000)."
-                ),
-            )
-            temperature = st.slider(
-                label=i18n("Temperature"),
-                min_value=0.0,
-                max_value=1.0,
-                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
-                    "temperature", 0.5
-                ),
-                step=0.1,
-                key="temperature",
-                on_change=update_config_in_db_callback,
-                help=i18n(
-                    "'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5."
-                ),
-            )
-            top_p = st.slider(
-                label=i18n("Top p"),
-                min_value=0.0,
-                max_value=1.0,
-                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
-                    "top_p", 0.5
-                ),
-                step=0.1,
-                key="top_p",
-                on_change=update_config_in_db_callback,
-                help=i18n(
-                    "Similar to 'temperature', but don't change it at the same time as temperature"
-                ),
-            )
-            if_stream = st.toggle(
-                label=i18n("Stream"),
-                value=config_list_postprocess(st.session_state.agent_chat_config_list)[0].get(
-                    "stream", True
-                ),
-                key="if_stream",
-                on_change=update_config_in_db_callback,
-                help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
-                ),
-            )
-
-        # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
-        if select_box0 != "Llamafile":
-
-            def get_selected_non_llamafile_model_index(model_type) -> int:
+            def saved_dialog_change_callback():
+                """对话切换回调函数"""
                 try:
-                    model = st.session_state.agent_chat_config_list[0].get("model")
-                    logger.debug(f"model get: {model}")
-                    if model:
-                        options = model_selector(model_type)
-                        if model in options:
-                            options_index = options.index(model)
-                            logger.debug(
-                                f"model {model} in options, index: {options_index}"
-                            )
-                            return options_index
-                        else:
-                            st.session_state.agent_chat_config_list[0].update(
-                                {"model": options[0]}
-                            )
-                            logger.debug(
-                                f"model {model} not in options, set model in config list to first option: {options[0]}"
-                            )
-                            return 0
-                except (ValueError, AttributeError, IndexError):
-                    logger.warning(
-                        f"Model {model} not found in model_selector for {model_type}, returning 0"
+                    # 获取当前选中的对话
+                    selected_run = st.session_state.agent_chat_saved_dialog
+
+                    # 如果是同一个对话，不进行更新
+                    if selected_run.run_id == st.session_state.agent_chat_run_id:
+                        logger.debug(f"Same dialog selected, skipping update")
+                        return
+
+                    # 更新session state
+                    st.session_state.agent_chat_run_id = selected_run.run_id
+                    st.session_state.agent_chat_current_run_id_index = run_id_list.index(
+                        st.session_state.agent_chat_run_id
                     )
-                    return 0
 
-            select_box1 = model_choosing_container.selectbox(
-                label=i18n("Model"),
-                options=model_selector(st.session_state["model_type"]),
-                key="model",
-                on_change=update_config_in_db_callback,
-            )
-        elif select_box0 == "Llamafile":
+                    # 更新聊天历史
+                    st.session_state.agent_chat_history = selected_run.memory[
+                        "chat_history"
+                    ]
 
-            def get_selected_llamafile_model() -> str:
-                if st.session_state.agent_chat_config_list:
-                    return st.session_state.agent_chat_config_list[0].get("model")
-                else:
-                    logger.warning("chat_config_list is empty, using default model")
-                    return oai_model_config_selector(
-                        st.session_state.oai_like_model_config_dict
-                    )[0]
-
-            select_box1 = model_choosing_container.text_input(
-                label=i18n("Model"),
-                value=get_selected_llamafile_model(),
-                key="model",
-                placeholder=i18n("Fill in custom model name. (Optional)"),
-            )
-            with model_choosing_container.popover(
-                label=i18n("Llamafile config"), use_container_width=True
-            ):
-
-                def get_selected_llamafile_endpoint() -> str:
-                    try:
-                        return st.session_state.agent_chat_config_list[0].get("base_url")
-                    except:
-                        return oai_model_config_selector(
-                            st.session_state.oai_like_model_config_dict
-                        )[1]
-
-                llamafile_endpoint = st.text_input(
-                    label=i18n("Llamafile endpoint"),
-                    value=get_selected_llamafile_endpoint(),
-                    key="llamafile_endpoint",
-                    type="password",
-                )
-
-                def get_selected_llamafile_api_key() -> str:
-                    try:
-                        return st.session_state.agent_chat_config_list[0].get("api_key")
-                    except:
-                        return oai_model_config_selector(
-                            st.session_state.oai_like_model_config_dict
-                        )[2]
-
-                llamafile_api_key = st.text_input(
-                    label=i18n("Llamafile API key"),
-                    value=get_selected_llamafile_api_key(),
-                    key="llamafile_api_key",
-                    type="password",
-                    placeholder=i18n("Fill in your API key. (Optional)"),
-                )
-
-                def save_oai_like_config_button_callback():
-                    config_id = oailike_config_processor.update_config(
-                        model=select_box1,
-                        base_url=llamafile_endpoint,
-                        api_key=llamafile_api_key,
-                        description=st.session_state.get("config_description", ""),
+                    logger.info(
+                        f"Chat dialog changed, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.agent_chat_run_id}"
                     )
-                    st.toast(i18n("Model config saved successfully"), icon="✅")
-                    return config_id
 
-                config_description = st.text_input(
-                    label=i18n("Config Description"),
-                    key="config_description",
-                    placeholder=i18n("Enter a description for this configuration"),
-                )
+                except Exception as e:
+                    logger.error(f"Error during dialog change: {e}")
+                    st.error(i18n("Failed to change dialog"))
 
-                save_oai_like_config_button = st.button(
-                    label=i18n("Save model config"),
-                    on_click=save_oai_like_config_button_callback,
+            saved_dialog = dialogs_container.radio(
+                label=i18n("Saved dialog"),
+                options=dialog_processor.get_all_dialogs(),
+                format_func=lambda x: (
+                    x.run_name[:15] + "..." if len(x.run_name) > 15 else x.run_name
+                ),
+                index=st.session_state.agent_chat_current_run_id_index,
+                label_visibility="collapsed",
+                key="agent_chat_saved_dialog",
+                on_change=saved_dialog_change_callback,
+            )
+            # 自定义radio外观为对话列表卡片样式
+            st.markdown(CUSTOM_RADIO_STYLE, unsafe_allow_html=True)
+
+            add_dialog_column, delete_dialog_column = st.columns([1, 1])
+            with add_dialog_column:
+
+                def add_dialog_button_callback():
+                    new_run_id = create_blank_dialog(dialog_processor)
+                    new_run = dialog_processor.get_dialog(new_run_id)
+                    st.session_state.agent_chat_run_id = new_run_id
+                    st.session_state.agent_chat_run_name = new_run.run_name
+                    st.session_state.agent_chat_chat_history = new_run.memory.get("chat_history", [])
+                    st.session_state.agent_chat_current_run_id_index = 0
+                    logger.info(
+                        f"Add a new chat dialog, added dialog name: {st.session_state.agent_chat_run_name}, added dialog id: {st.session_state.agent_chat_run_id}"
+                    )
+
+                add_dialog_button = st.button(
+                    label=i18n("Add a new dialog"),
                     use_container_width=True,
+                    on_click=add_dialog_button_callback,
                 )
+            with delete_dialog_column:
 
-                st.write("---")
-
-                config_list = oailike_config_processor.list_model_configs()
-                config_options = [
-                    f"{config['model']} - {config['description']}"
-                    for config in config_list
-                ]
-
-                selected_config = st.selectbox(
-                    label=i18n("Select model config"),
-                    options=config_options,
-                    format_func=lambda x: x,
-                    on_change=lambda: st.toast(
-                        i18n("Click the Load button to apply the configuration"),
-                        icon="🚨",
-                    ),
-                    key="selected_config",
-                )
-
-                def load_oai_like_config_button_callback():
-                    selected_index = config_options.index(
-                        st.session_state.selected_config
-                    )
-                    selected_config_id = config_list[selected_index]["id"]
-
-                    logger.info(f"Loading model config: {selected_config_id}")
-                    config = oailike_config_processor.get_model_config(
-                        config_id=selected_config_id
-                    )
-
-                    if config:
-                        config_data = config  # 不再需要 next(iter(config.values()))
-                        st.session_state.oai_like_model_config_dict = {
-                            config_data["model"]: config_data
-                        }
-                        st.session_state.model = config_data["model"]
-                        st.session_state.llamafile_endpoint = config_data["base_url"]
-                        st.session_state.llamafile_api_key = config_data["api_key"]
-                        st.session_state.config_description = config_data.get(
-                            "description", ""
-                        )
-
-                        logger.info(
-                            f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
-                        )
-
-                        # 更新chat_config_list
-                        st.session_state["agent_chat_config_list"][0]["model"] = config_data["model"]
-                        st.session_state["agent_chat_config_list"][0]["api_key"] = config_data["api_key"]
-                        st.session_state["agent_chat_config_list"][0]["base_url"] = config_data["base_url"]
-
-                        logger.info(
-                            f"Chat config list updated: {st.session_state.agent_chat_config_list}"
-                        )
-                        st.toast(i18n("Model config loaded successfully"), icon="✅")
+                def delete_dialog_callback():
+                    dialog_processor.delete_dialog(st.session_state.agent_chat_run_id)
+                    if len(dialog_processor.get_all_dialogs()) == 0:
+                        st.session_state.agent_chat_run_id = create_blank_dialog(dialog_processor)
+                        st.session_state.agent_chat_history = []
                     else:
-                        st.toast(i18n("Failed to load model config"), icon="❌")
-
-                load_oai_like_config_button = st.button(
-                    label=i18n("Load model config"),
-                    use_container_width=True,
-                    type="primary",
-                    on_click=load_oai_like_config_button_callback,
-                )
-
-                def delete_oai_like_config_button_callback():
-                    selected_index = config_options.index(
-                        st.session_state.selected_config
+                        st.session_state.agent_chat_run_id = dialog_processor.get_all_dialogs()[
+                            st.session_state.agent_chat_current_run_id_index
+                        ].run_id
+                        current_run = dialog_processor.get_dialog(st.session_state.agent_chat_run_id)
+                        st.session_state.agent_chat_history = current_run.memory["chat_history"]
+                    logger.info(
+                        f"Delete a chat dialog, deleted dialog name: {st.session_state.agent_chat_saved_dialog.run_name}, deleted dialog id: {st.session_state.agent_chat_run_id}"
                     )
-                    selected_config_id = config_list[selected_index]["id"]
-                    oailike_config_processor.delete_model_config(selected_config_id)
-                    st.toast(i18n("Model config deleted successfully"), icon="🗑️")
-                    # st.rerun()
 
-                delete_oai_like_config_button = st.button(
-                    label=i18n("Delete model config"),
+                delete_dialog_button = st.button(
+                    label=i18n("Delete selected dialog"),
                     use_container_width=True,
-                    on_click=delete_oai_like_config_button_callback,
+                    on_click=delete_dialog_callback,
                 )
 
-        reset_model_button = model_choosing_container.button(
-            label=i18n("Reset model info"),
-            on_click=lambda x: x.cache_clear(),
-            args=(model_selector,),
-            use_container_width=True,
+        with dialog_details_tab:
+            dialog_details_settings_popover = st.expander(
+                label=i18n("Dialogues details"), expanded=True
+            )
+
+            def dialog_name_change_callback():
+                """对话名称更改回调"""
+                dialog_processor.update_dialog_name(
+                    run_id=st.session_state.agent_chat_run_id, new_name=st.session_state.agent_chat_run_name
+                )
+
+            dialog_name = dialog_details_settings_popover.text_input(
+                label=i18n("Dialog name"),
+                value=dialog_processor.get_dialog(st.session_state.agent_chat_run_id).run_name,
+                key="agent_chat_run_name",
+                on_change=dialog_name_change_callback,
+            )
+
+            delete_previous_round_button_col, clear_button_col = (
+                dialog_details_tab.columns(2)
+            )
+
+            def clear_chat_history_callback():
+                st.session_state.agent_chat_chat_history = []
+                dialog_processor.update_chat_history(
+                    run_id=st.session_state.agent_chat_run_id,
+                    chat_history=st.session_state.agent_chat_history,
+                )
+                st.session_state.agent_chat_current_run_id_index = run_id_list.index(
+                    st.session_state.agent_chat_run_id
+                )
+                st.toast(body=i18n("Chat history cleared"), icon="🧹")
+
+            def delete_previous_round_callback():
+                # 删除最后一轮对话
+                # 如果前一条是用户消息，后一条是助手消息，则两条都删除
+                # 如果后一条是用户消息，则只删除用户消息
+                if (
+                    len(st.session_state.agent_chat_history) >= 2
+                    and st.session_state.agent_chat_history[-1]["role"] == "assistant"
+                    and st.session_state.agent_chat_history[-2]["role"] == "user"
+                ):
+                    st.session_state.agent_chat_history = st.session_state.agent_chat_history[:-2]
+                elif len(st.session_state.agent_chat_history) > 0:  # 确保至少有一条消息
+                    st.session_state.agent_chat_history = st.session_state.agent_chat_history[:-1]
+                dialog_processor.update_chat_history(
+                    run_id=st.session_state.agent_chat_run_id,
+                    chat_history=st.session_state.agent_chat_history,
+                )
+
+            delete_previous_round_button = delete_previous_round_button_col.button(
+                label=i18n("Delete previous round"),
+                on_click=delete_previous_round_callback,
+                use_container_width=True,
+            )
+
+            clear_button = clear_button_col.button(
+                label=i18n("Clear chat history"),
+                on_click=clear_chat_history_callback,
+                use_container_width=True,
+            )
+
+
+    with team_settings_tab:
+        team_template_dict = team_template_manager.agent_templates
+        templates = [template for template in team_template_dict.values()]
+        team_template = st.selectbox(
+            i18n("Select a team template"),
+            options=templates,
+            format_func=lambda x: x.get("name"),
+            index=0
         )
+        st.write(team_template.get("id"))
         st.write(st.session_state.agent_chat_config_list)
 
+st.title(st.session_state.agent_chat_run_name)
 write_chat_history(st.session_state.agent_chat_history)
 
 if prompt := st.chat_input(placeholder="Enter your message here"):

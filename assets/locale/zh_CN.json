@@ -187,6 +187,8 @@
     "Setting up LLM model": "设置 LLM 模型",
     "Template Details": "模板详情",
     "Team Type": "团队类型",
+    "Team Name": "团队名称",
+    "Team Description": "团队描述",
     "Primary Agent System Message": "主 Agent 系统提示词",
     "Critic Agent System Message": "审查 Agent 系统提示词",
     "Max Messages": "最大消息数",

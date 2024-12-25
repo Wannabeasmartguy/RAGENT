@@ -82,35 +82,35 @@ def create_agent_team_form(
     team_type_column, team_name_column = reflection_agent_team_form.columns([0.5, 0.5])
     with team_type_column:
         agent_team_type = team_type_column.selectbox(
-            i18n("Team type"), 
+            i18n("Team Type"), 
             options=["Reflection"],
             key=f"agent_team_type_{form_key}"
         )
     with team_name_column:
         agent_team_name = team_name_column.text_input(
-            i18n("Team name"), 
+            i18n("Team Name"), 
             key=f"agent_team_name_{form_key}"
         )
     agent_team_description = reflection_agent_team_form.text_input(
-        i18n("Team description"), 
+        i18n("Team Description"), 
         key=f"agent_team_description_{form_key}"
     )
     primary_agent_system_message = reflection_agent_team_form.text_input(
-        i18n("Primary agent system message"), 
+        i18n("Primary Agent System Message"), 
         key=f"primary_agent_system_message_{form_key}"
     )
     critic_agent_system_message = reflection_agent_team_form.text_input(
-        i18n("Critic agent system message"), 
+        i18n("Critic Agent System Message"), 
         key=f"critic_agent_system_message_{form_key}"
     )
     max_messages = reflection_agent_team_form.number_input(
-        i18n("Max messages"), 
+        i18n("Max Messages"), 
         min_value=1,
         value=10,
         key=f"max_messages_{form_key}"
     )
     termination_text = reflection_agent_team_form.text_input(
-        i18n("Termination text"), 
+        i18n("Termination Text"), 
         key=f"termination_text_{form_key}"
     )
     

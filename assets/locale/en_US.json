@@ -187,6 +187,8 @@
     "Setting up LLM model": "Setting up LLM model",
     "Template Details": "Template Details",
     "Team Type": "Team Type",
+    "Team Name": "Team Name",
+    "Team Description": "Team Description",
     "Primary Agent System Message": "Primary Agent System Message",
     "Critic Agent System Message": "Critic Agent System Message",
     "Max Messages": "Max Messages",
