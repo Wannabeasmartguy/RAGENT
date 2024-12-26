@@ -2,7 +2,7 @@ import os
 import base64
 import asyncio
 from datetime import datetime
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict, Union, Literal
 from uuid import uuid4
 from copy import deepcopy
 from io import BytesIO
@@ -99,10 +99,19 @@ def generate_response(
     return response
 
 
-def create_default_dialog(dialog_processor: DialogProcessor):
+def create_default_dialog(
+    dialog_processor: DialogProcessor,
+    priority: Literal["high", "normal"] = "high",
+):
     """
     创建默认对话
     """
+    from core.processors.dialog.dialog_processors import OperationPriority
+    if priority == "high":
+        priority = OperationPriority.HIGH
+    elif priority == "normal":
+        priority = OperationPriority.NORMAL
+
     new_run_id = str(uuid4())
     dialog_processor.create_dialog(
         run_id=new_run_id,
@@ -116,6 +125,7 @@ def create_default_dialog(dialog_processor: DialogProcessor):
             "model_type": "AOAI",
             "system_prompt": DEFAULT_SYSTEM_PROMPT,
         },
+        priority=priority,
     )
     return new_run_id
 
@@ -158,7 +168,7 @@ except:
 if "last_dialog_change_time" not in st.session_state:
     st.session_state.last_dialog_change_time = 0
 if "debounce_delay" not in st.session_state:
-    st.session_state.debounce_delay = 0.5  # 500毫秒的防抖延迟
+    st.session_state.debounce_delay = 0.5  # 防抖延迟，延迟越长，对用户操作的响应越慢
 
 if "prompt_disabled" not in st.session_state:
     st.session_state.prompt_disabled = False
@@ -171,7 +181,7 @@ if "oai_like_model_config_dict" not in st.session_state:
 
 run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 if len(run_id_list) == 0:
-    create_default_dialog(dialog_processor)
+    create_default_dialog(dialog_processor, priority="normal")
     run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 
 if "current_run_id_index" not in st.session_state:
@@ -213,31 +223,38 @@ if "if_auto_generate_dialog_title" not in st.session_state:
 
 def debounced_dialog_change():
     """
-    改进的防抖函数，增加锁机制
+    改进的防抖函数，主要用于性能优化和用户体验提升
     """
     import time
-
+    
     current_time = time.time()
-
+    
     # 如果当前有锁，直接返回 False
     if st.session_state.dialog_lock:
-        st.toast(i18n("Please wait, processing the last dialog switch..."), icon="🔄")
+        st.toast(i18n("Please wait..."), icon="🔄")
         return False
-
+        
     # 检查是否满足防抖延迟
-    if (
-        current_time - st.session_state.last_dialog_change_time
-        > st.session_state.debounce_delay
-    ):
+    if (current_time - st.session_state.last_dialog_change_time 
+        > st.session_state.debounce_delay):
         try:
-            # 设置锁定状态
             st.session_state.dialog_lock = True
             st.session_state.last_dialog_change_time = current_time
             return True
         finally:
             # 确保锁一定会被释放
             st.session_state.dialog_lock = False
-
+            
+    # 如果间隔太短，给出提示
+    else:
+        remaining = st.session_state.debounce_delay - (
+            current_time - st.session_state.last_dialog_change_time
+        )
+        if remaining > 0.1: # 只在延迟较明显时提示
+            st.toast(
+                i18n("Please slow down a bit..."), 
+                icon="⏳"
+            )
     return False
 
 
@@ -793,45 +810,41 @@ with st.sidebar:
 
             def saved_dialog_change_callback():
                 """对话切换回调函数"""
-                if debounced_dialog_change():
-                    try:
-                        # 获取当前选中的对话
-                        selected_run = st.session_state.saved_dialog
-
-                        # 如果是同一个对话，不进行更新
-                        if selected_run.run_id == st.session_state.run_id:
-                            logger.debug(f"Same dialog selected, skipping update")
-                            return
-
-                        # 更新session state
-                        st.session_state.run_id = selected_run.run_id
-                        st.session_state.current_run_id_index = run_id_list.index(
-                            st.session_state.run_id
+                # 暂时取消防抖，防止频繁切换对话时，出现卡顿
+                # if debounced_dialog_change():
+                try:
+                    selected_run = st.session_state.saved_dialog
+                    current_run_id = st.session_state.run_id
+                    
+                    # 如果是同一个对话，不进行更新
+                    if selected_run.run_id == current_run_id:
+                        logger.debug(f"Same dialog selected, skipping update") 
+                        return
+                        
+                    # 先保存当前对话的状态
+                    if current_run_id:
+                        dialog_processor.update_dialog_config(
+                            run_id=current_run_id,
+                            llm_config=st.session_state.chat_config_list[0],
+                            assistant_data={
+                                "model_type": st.session_state.model_type,
+                                "system_prompt": st.session_state.system_prompt
+                            },
+                            updated_at=datetime.now()
                         )
+                        
+                    # 再加载新对话的状态    
+                    st.session_state.run_id = selected_run.run_id
+                    st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
+                    st.session_state.chat_config_list = [selected_run.llm] if selected_run.llm else []
+                    st.session_state.chat_history = selected_run.memory["chat_history"]
+                    st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt", "")
 
-                        # 更新chat_config_list
-                        new_chat_config = selected_run.llm
-                        st.session_state.chat_config_list = (
-                            [new_chat_config] if new_chat_config else []
-                        )
+                    logger.info(f"Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
 
-                        # 更新聊天历史
-                        st.session_state.chat_history = selected_run.memory[
-                            "chat_history"
-                        ]
-
-                        # 更新system prompt，但不触发回调
-                        st.session_state.system_prompt = (
-                            selected_run.assistant_data.get("system_prompt", "")
-                        )
-
-                        logger.info(
-                            f"Chat dialog changed, selected dialog name: {selected_run.run_name}, selected dialog id: {st.session_state.run_id}"
-                        )
-
-                    except Exception as e:
-                        logger.error(f"Error during dialog change: {e}")
-                        st.error(i18n("Failed to change dialog"))
+                except Exception as e:
+                    logger.error(f"Error during dialog change: {e}")
+                    st.error(i18n("Failed to change dialog"))
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
@@ -851,7 +864,7 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_dialog_button_callback():
-                    new_run_id = create_default_dialog(dialog_processor)
+                    new_run_id = create_default_dialog(dialog_processor, priority="normal")
                     new_run = dialog_processor.get_dialog(new_run_id)
                     st.session_state.run_id = new_run_id
                     st.session_state.run_name = new_run.run_name
@@ -873,20 +886,16 @@ with st.sidebar:
                 def delete_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.run_id = create_default_dialog(dialog_processor)
-                        st.session_state.chat_config_list = [
-                            dialog_processor.get_dialog(st.session_state.run_id).llm
-                        ]
-                        st.session_state.chat_history = []
+                        st.session_state.run_id = create_default_dialog(dialog_processor, priority="high")
                     else:
                         while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
                             st.session_state.current_run_id_index -= 1
                         st.session_state.run_id = dialog_processor.get_all_dialogs()[
                             st.session_state.current_run_id_index
                         ].run_id
-                        current_run = dialog_processor.get_dialog(st.session_state.run_id)
-                        st.session_state.chat_history = current_run.memory["chat_history"]
-                        st.session_state.chat_config_list = [current_run.llm]
+                    current_run = dialog_processor.get_dialog(st.session_state.run_id)
+                    st.session_state.chat_history = current_run.memory["chat_history"]
+                    st.session_state.chat_config_list = [current_run.llm]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.saved_dialog.run_name}, deleted dialog id: {st.session_state.run_id}"
                     )
