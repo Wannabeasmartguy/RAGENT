@@ -2,7 +2,7 @@ import os
 import json
 import base64
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, Literal
 from uuid import uuid4
 from functools import lru_cache
 from copy import deepcopy
@@ -11,6 +11,7 @@ from config.constants import (
     VERSION,
     I18N_DIR,
     SUPPORTED_LANGUAGES,
+    DEFAULT_DIALOG_TITLE,
     LOGO_DIR,
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
@@ -74,6 +75,33 @@ def get_agentchat_processor():
 def refresh_retriever():
     get_agentchat_processor.cache_clear()
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
+
+
+def create_default_rag_dialog(
+    dialog_processor: RAGChatDialogProcessor,
+    priority: Literal["high", "normal"] = "high",
+):
+    from core.processors.dialog.dialog_processors import OperationPriority
+    if priority == "high":
+        priority = OperationPriority.HIGH
+    elif priority == "normal":
+        priority = OperationPriority.NORMAL
+
+    new_run_id = str(uuid4())
+    dialog_processor.create_dialog(
+        run_id=new_run_id,
+        run_name=DEFAULT_DIALOG_TITLE,
+        llm_config=generate_client_config(
+            source="aoai",
+            model=model_selector("AOAI")[0],
+            stream=True,
+        ).model_dump(),
+        task_data={
+            "source_documents": {},
+        },
+        priority=priority,
+    )
+    return new_run_id
 
 
 def save_rag_chat_history():
@@ -326,20 +354,9 @@ rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 
 # 如果没有对话，创建一个默认对话
 if len(rag_run_id_list) == 0:
-    new_run_id = str(uuid4())
-    dialog_processor.create_dialog(
-        name="assistant",
-        run_id=new_run_id,
-        llm_config=generate_client_config(
-            source="aoai",
-            model=model_selector("AOAI")[0],
-            stream=True,
-        ).model_dump(),
-        run_name="New dialog",
-        task_data={"source_documents": {}},
-        assistant_data={
-            "model_type": "AOAI",
-        },
+    create_default_rag_dialog(
+        dialog_processor=dialog_processor,
+        priority="normal"
     )
     # 重新获取对话列表
     rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
@@ -752,18 +769,9 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_rag_dialog_callback():
-                    st.session_state.rag_run_id = str(uuid4())
-                    dialog_processor.create_dialog(
-                        run_id=st.session_state.rag_run_id,
-                        run_name="New dialog",
-                        llm_config=generate_client_config(
-                            source="aoai",
-                            model=model_selector("AOAI")[0],
-                            stream=True
-                        ).model_dump(),
-                        task_data={
-                            "source_documents": {},
-                        },
+                    st.session_state.rag_run_id = create_default_rag_dialog(
+                        dialog_processor=dialog_processor,
+                        priority="normal"
                     )
                     st.session_state.rag_current_run_id_index = 0
                     st.session_state.rag_chat_config_list = [
@@ -785,43 +793,29 @@ with st.sidebar:
                 def delete_rag_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.rag_run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.rag_run_id = str(uuid4())
-                        dialog_processor.create_dialog(
-                            run_id=st.session_state.rag_run_id,
-                            run_name="New dialog",
-                            llm_config=generate_client_config(
-                                source="aoai",
-                                model=model_selector("AOAI")[0],
-                                stream=True,
-                            ).model_dump(),
-                            task_data={
-                                "source_documents": {},
-                            },
+                        st.session_state.rag_run_id = create_default_rag_dialog(
+                            dialog_processor=dialog_processor,
+                            priority="high"
                         )
-                        st.session_state.rag_chat_config_list = [
-                            dialog_processor.get_dialog(st.session_state.rag_run_id).llm
-                        ]
-                        st.session_state.custom_rag_chat_history = []
-                        st.session_state.custom_rag_sources = {}
                     else:
                         while st.session_state.rag_current_run_id_index >= len(dialog_processor.get_all_dialogs()):
                             st.session_state.rag_current_run_id_index -= 1
                         st.session_state.rag_run_id = [
                             run.run_id for run in dialog_processor.get_all_dialogs()
                         ][st.session_state.rag_current_run_id_index]
-                        st.session_state.rag_chat_config_list = [
-                            dialog_processor.get_dialog(st.session_state.rag_run_id).llm
-                        ]
-                        st.session_state.custom_rag_chat_history = (
-                            dialog_processor.get_dialog(
-                                st.session_state.rag_run_id
-                            ).memory["chat_history"]
-                        )
-                        st.session_state.custom_rag_sources = (
-                            dialog_processor.get_dialog(
-                                st.session_state.rag_run_id
-                            ).task_data["source_documents"]
-                        )
+                    st.session_state.rag_chat_config_list = [
+                        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
+                    ]
+                    st.session_state.custom_rag_chat_history = (
+                        dialog_processor.get_dialog(
+                            st.session_state.rag_run_id
+                        ).memory["chat_history"]
+                    )
+                    st.session_state.custom_rag_sources = (
+                        dialog_processor.get_dialog(
+                            st.session_state.rag_run_id
+                        ).task_data["source_documents"]
+                    )
                     logger.info(
                         f"Delete a RAG dialog, deleted dialog name: {st.session_state.rag_run_name}, deleted dialog id: {st.session_state.rag_run_id}"
                     )

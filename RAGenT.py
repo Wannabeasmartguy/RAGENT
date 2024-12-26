@@ -1,7 +1,7 @@
 import os
 import base64
 from datetime import datetime
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict, Union, Literal
 from uuid import uuid4
 from copy import deepcopy
 from io import BytesIO
@@ -98,10 +98,19 @@ def generate_response(
     return response
 
 
-def create_default_dialog(dialog_processor: DialogProcessor):
+def create_default_dialog(
+    dialog_processor: DialogProcessor,
+    priority: Literal["high", "normal"] = "high",
+):
     """
     创建默认对话
     """
+    from core.processors.dialog.dialog_processors import OperationPriority
+    if priority == "high":
+        priority = OperationPriority.HIGH
+    elif priority == "normal":
+        priority = OperationPriority.NORMAL
+
     new_run_id = str(uuid4())
     dialog_processor.create_dialog(
         run_id=new_run_id,
@@ -115,6 +124,7 @@ def create_default_dialog(dialog_processor: DialogProcessor):
             "model_type": "AOAI",
             "system_prompt": DEFAULT_SYSTEM_PROMPT,
         },
+        priority=priority,
     )
     return new_run_id
 
@@ -172,7 +182,7 @@ if "oai_like_model_config_dict" not in st.session_state:
 
 run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 if len(run_id_list) == 0:
-    create_default_dialog(dialog_processor)
+    create_default_dialog(dialog_processor, priority="normal")
     run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
 
 if "current_run_id_index" not in st.session_state:
@@ -821,7 +831,7 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_dialog_button_callback():
-                    new_run_id = create_default_dialog(dialog_processor)
+                    new_run_id = create_default_dialog(dialog_processor, priority="normal")
                     new_run = dialog_processor.get_dialog(new_run_id)
                     st.session_state.run_id = new_run_id
                     st.session_state.run_name = new_run.run_name
@@ -843,20 +853,16 @@ with st.sidebar:
                 def delete_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.run_id = create_default_dialog(dialog_processor)
-                        st.session_state.chat_config_list = [
-                            dialog_processor.get_dialog(st.session_state.run_id).llm
-                        ]
-                        st.session_state.chat_history = []
+                        st.session_state.run_id = create_default_dialog(dialog_processor, priority="high")
                     else:
                         while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
                             st.session_state.current_run_id_index -= 1
                         st.session_state.run_id = dialog_processor.get_all_dialogs()[
                             st.session_state.current_run_id_index
                         ].run_id
-                        current_run = dialog_processor.get_dialog(st.session_state.run_id)
-                        st.session_state.chat_history = current_run.memory["chat_history"]
-                        st.session_state.chat_config_list = [current_run.llm]
+                    current_run = dialog_processor.get_dialog(st.session_state.run_id)
+                    st.session_state.chat_history = current_run.memory["chat_history"]
+                    st.session_state.chat_config_list = [current_run.llm]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.saved_dialog.run_name}, deleted dialog id: {st.session_state.run_id}"
                     )

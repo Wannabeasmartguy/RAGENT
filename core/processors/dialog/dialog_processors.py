@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any, List, Type
+from enum import IntEnum
 from datetime import datetime
 from queue import Queue
 from threading import Lock, Thread
@@ -9,6 +10,20 @@ from loguru._logger import Logger
 from core.strategy import DialogProcessStrategy
 from core.storage.db.base import Sqlstorage
 from core.model.app import AssistantRun
+
+
+class OperationPriority(IntEnum):
+    """对话处理器的操作优先级"""
+    NORMAL = 0
+    HIGH = 1  # 高优先级操作将跳过防抖
+
+
+class Operation:
+    def __init__(self, method, priority=OperationPriority.NORMAL, *args, **kwargs):
+        self.method = method
+        self.priority = priority
+        self.args = args
+        self.kwargs = kwargs
 
 
 class DialogProcessor(DialogProcessStrategy):
@@ -36,7 +51,7 @@ class DialogProcessor(DialogProcessStrategy):
         self._logger = logger
     
     def _process_queue(self):
-        """处理操作队列的后台线程"""
+        """处理后端操作队列"""
         while True:
             try:
                 # 获取下一个操作
@@ -45,21 +60,21 @@ class DialogProcessor(DialogProcessStrategy):
                     break
                 
                 # 解包操作信息
-                method, args, kwargs = operation
+                method, args, kwargs = operation.method, operation.args, operation.kwargs
                 
                 # 执行操作
                 with self.lock:
                     current_time = time.time()
                     time_diff = current_time - self.last_operation_time
                     
-                    # 检查防抖
-                    if time_diff >= self.debounce_delay:
+                    # 高优先级操作跳过防抖检查
+                    if time_diff >= self.debounce_delay or operation.priority == OperationPriority.HIGH:
                         try:
                             method(*args, **kwargs)
                             self.last_operation_time = current_time
                             self._logger.info(f"Successfully executed operation: {method.__name__}")
                         except Exception as e:
-                            self._logger.error(f"Error executing operation {method.__name__}: {e}")
+                            self._logger.error(f"Error executing operation: {e}")
                     else:
                         self._logger.debug(f"Operation {method.__name__} debounced")
                 
@@ -68,11 +83,12 @@ class DialogProcessor(DialogProcessStrategy):
             except Exception as e:
                 self._logger.error(f"Error in operation processing thread: {e}")
     
-    def _enqueue_operation(self, method, *args, **kwargs):
+    def _enqueue_operation(self, method, priority=OperationPriority.NORMAL, *args, **kwargs):
         """将操作添加到队列"""
         try:
-            self.operation_queue.put((method, args, kwargs))
-            self._logger.debug(f"Operation {method.__name__} enqueued")
+            operation = Operation(method, priority, *args, **kwargs)
+            self.operation_queue.put(operation)
+            self._logger.debug(f"Operation {method.__name__} enqueued with priority {priority}")
         except Exception as e:
             self._logger.error(f"Error enqueueing operation: {e}")
             raise
@@ -160,7 +176,8 @@ class DialogProcessor(DialogProcessStrategy):
         name: str = "assistant",
         run_data: Optional[Dict[str, Any]] = None,
         assistant_data: Optional[Dict[str, Any]] = None,
-        task_data: Optional[Dict[str, Any]] = None
+        task_data: Optional[Dict[str, Any]] = None,
+        priority: OperationPriority = OperationPriority.NORMAL
     ):
         """创建新对话"""
         def _create():
@@ -187,12 +204,7 @@ class DialogProcessor(DialogProcessStrategy):
                 self._logger.error(f"Failed to create dialog: {e}")
                 raise
         
-        try:
-            self._enqueue_operation(_create)
-            self._logger.debug("Create dialog operation enqueued")
-        except Exception as e:
-            self._logger.error(f"Failed to enqueue create dialog operation: {e}")
-            raise
+        self._enqueue_operation(_create, priority=priority)
     
     def delete_dialog(self, run_id: str):
         """删除对话"""
