@@ -15,8 +15,7 @@ from typing import Optional, List, Literal, Any, Dict
 from loguru import logger
 from sqlalchemy.schema import Table
 from tenacity import retry, stop_after_attempt, wait_exponential
-from core.model.memory import MemoryRow
-from core.model.app import AssistantRun
+from core.model.memory import MemoryRow, AssistantRun
 from core.storage.db.base import Sqlstorage
 from utils.log.logger_config import setup_logger
 from core.encryption import FernetEncryptor
