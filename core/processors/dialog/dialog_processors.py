@@ -332,11 +332,11 @@ class AgenChatDialogProcessor(DialogProcessor):
             logger=logger
         )
         
-    def update_template_config(
+    def update_template(
         self, 
         *, 
         run_id: str, 
-        template_config: Dict[str, Any]
+        template: Dict[str, Any]
     ):
         """
         更新当前对话指向的 Agent team 模板配置
@@ -351,9 +351,9 @@ class AgenChatDialogProcessor(DialogProcessor):
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
 
-                # 更新run_data中的template_config
+                # 更新run_data中的template
                 current_assistant_data = current_run.assistant_data or {}
-                current_assistant_data["template_config"] = template_config
+                current_assistant_data["template"] = template
 
                 self.storage.upsert(
                     AssistantRun(
