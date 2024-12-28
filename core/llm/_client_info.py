@@ -1,5 +1,5 @@
 from typing import Literal
-from core.model.llm import *
+from core.models.llm import *
 
 SUPPORTED_SOURCES = {
     "openai": OpenAIConfig,
