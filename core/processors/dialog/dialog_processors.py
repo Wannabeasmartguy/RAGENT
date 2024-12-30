@@ -314,4 +314,75 @@ class RAGChatDialogProcessor(DialogProcessor):
             except Exception as e:
                 self._logger.error(f"Error getting knowledge base config: {e}")
                 return {}
+
+
+class AgenChatDialogProcessor(DialogProcessor):
+    """AgentChat对话处理器"""
+    def __init__(
+        self,
+        storage: Sqlstorage,
+        debounce_delay: float = 0.5,
+        max_queue_size: int = 100,
+        logger: Logger = logger
+    ):
+        super().__init__(
+            storage=storage,
+            debounce_delay=debounce_delay,
+            max_queue_size=max_queue_size,
+            logger=logger
+        )
         
+    def update_template(
+        self, 
+        *, 
+        run_id: str, 
+        template: Dict[str, Any]
+    ):
+        """
+        更新当前对话指向的 Agent team 模板配置
+
+        Args:
+            run_id (str): 对话ID
+            template_config (Dict[str, Any]): 模板配置
+        """
+        def _update():
+            try:
+                current_run = self.storage.get_specific_run(run_id)
+                if not current_run:
+                    raise ValueError(f"Dialog with run_id {run_id} not found")
+
+                # 更新run_data中的template
+                current_assistant_data = current_run.assistant_data or {}
+                current_assistant_data["template"] = template
+
+                self.storage.upsert(
+                    AssistantRun(
+                        run_id=run_id,
+                        name=current_run.name,
+                        run_name=current_run.run_name,
+                        llm=current_run.llm,
+                        memory=current_run.memory,
+                        run_data=current_run.run_data,
+                        assistant_data=current_assistant_data,
+                        task_data=current_run.task_data,
+                        updated_at=datetime.now()
+                    )
+                )
+                self._logger.info(f"Successfully updated template config for dialog: {run_id}")
+            except Exception as e:
+                self._logger.error(f"Failed to update template config: {e}")
+                raise
+            
+        self._enqueue_operation(_update)
+
+    def get_template_config(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """获取当前对话指向的 Agent team 模板配置"""
+        with self.lock:
+            try:
+                run = self.storage.get_specific_run(run_id)
+                if run and run.assistant_data:
+                    return run.assistant_data.get("template_config", {})
+                return {}
+            except Exception as e:
+                self._logger.error(f"Error getting template config: {e}")
+                return {}

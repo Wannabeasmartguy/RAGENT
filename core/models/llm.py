@@ -1,16 +1,29 @@
 import os
+from typing import TypeVar
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, Field
 
+
 class LLMParams(BaseModel):
     """LLM 参数配置"""
-    temperature: float = Field(default=0.5, ge=0, le=1, description="Sampling temperature")
-    top_p: float = Field(default=1.0, ge=0, le=1, description="Nucleus sampling threshold") 
-    max_tokens: int = Field(default=4096, gt=0, description="Maximum number of tokens to generate")
-    stream: bool = Field(default=False, description="If true, the LLM will stream the response")
+
+    temperature: float = Field(
+        default=0.5, ge=0, le=1, description="Sampling temperature"
+    )
+    top_p: float = Field(
+        default=1.0, ge=0, le=1, description="Nucleus sampling threshold"
+    )
+    max_tokens: int = Field(
+        default=4096, gt=0, description="Maximum number of tokens to generate"
+    )
+    stream: bool = Field(
+        default=False, description="If true, the LLM will stream the response"
+    )
+
 
 class LLMBaseConfig(BaseModel, ABC):
     """LLM 配置"""
+    
     model: str = Field(..., description="Model name")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
 
@@ -20,8 +33,13 @@ class LLMBaseConfig(BaseModel, ABC):
         """从环境变量和kwargs创建配置"""
         pass
 
+
+LLMConfigType = TypeVar("LLMConfigType", bound=LLMBaseConfig)
+
+
 class AzureOpenAIConfig(LLMBaseConfig):
     """Azure OpenAI配置"""
+
     api_key: str = Field(..., description="API key")
     base_url: str = Field(..., description="API endpoint")
     api_type: str = Field(default="azure", description="API type")
@@ -78,17 +96,22 @@ class OllamaConfig(LLMBaseConfig):
         return cls(
             model=kwargs.get("model", "nogiven"),
             api_key=os.getenv("OLLAMA_API_KEY", kwargs.get("api_key", "noollamakey")),
-            base_url=os.getenv("OLLAMA_API_ENDPOINT", kwargs.get("base_url", "http://localhost:11434/v1")),
+            base_url=os.getenv(
+                "OLLAMA_API_ENDPOINT",
+                kwargs.get("base_url", "http://localhost:11434/v1"),
+            ),
             params=LLMParams(
                 temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0), 
+                top_p=kwargs.get("top_p", 1.0),
                 max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False)
-            )
+                stream=kwargs.get("stream", False),
+            ),
         )
+
 
 class GroqConfig(LLMBaseConfig):
     """Groq配置"""
+
     api_key: str = Field(..., description="API key")
     base_url: str = Field(..., description="API endpoint")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
@@ -99,11 +122,14 @@ class GroqConfig(LLMBaseConfig):
         return cls(
             model=kwargs.get("model", "llama3-8b-8192"),
             api_key=os.getenv("GROQ_API_KEY", kwargs.get("api_key", "nogroqkey")),
-            base_url=os.getenv("GROQ_API_ENDPOINT", kwargs.get("base_url", "https://api.groq.com/openai/v1")),
+            base_url=os.getenv(
+                "GROQ_API_ENDPOINT",
+                kwargs.get("base_url", "https://api.groq.com/openai/v1"),
+            ),
             params=LLMParams(
                 temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0), 
+                top_p=kwargs.get("top_p", 1.0),
                 max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False)
-            )
+                stream=kwargs.get("stream", False),
+            ),
         )

@@ -417,7 +417,8 @@ def generate_markdown_chat(
     if exclude_indexes is None:
         exclude_indexes = []
 
-    formatted_history.append(f"# {chat_name}\n\n")
+    if chat_name:
+        formatted_history.append(f"# {chat_name}\n\n")
 
     for i in range(include_range[0], include_range[1] + 1):
         if i in exclude_indexes:
@@ -752,7 +753,7 @@ def export_dialog(
         )
     
     if export_type == "markdown":
-        from utils.basic_utils import generate_markdown_chat
+        from utils.st_utils import generate_markdown_chat
         # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_markdown_chat(
             chat_history=chat_history,
@@ -763,7 +764,7 @@ def export_dialog(
         with st.expander(i18n("Preview")):
             content_preview = st.markdown(preview_content)
     elif export_type == "html":
-        from utils.basic_utils import generate_html_chat
+        from utils.st_utils import generate_html_chat
         # 传入的值从1开始，但要求传入的值从0开始
         preview_content = generate_html_chat(
             chat_history=chat_history,

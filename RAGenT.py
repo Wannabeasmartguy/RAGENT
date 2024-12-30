@@ -1,12 +1,13 @@
 import os
 import base64
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Union, Literal
 from uuid import uuid4
 from copy import deepcopy
 from io import BytesIO
 
-from api.dependency import APIRequestHandler
+import streamlit as st
 
 from core.llm._client_info import generate_client_config
 from core.basic_config import (
@@ -50,6 +51,7 @@ from config.constants import (
     DEFAULT_DIALOG_TITLE,
     DEFAULT_SYSTEM_PROMPT,
     ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT,
+    SUMMARY_PROMPT,
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     CHAT_HISTORY_DB_TABLE,
@@ -62,7 +64,6 @@ from tools.toolkits import (
 )
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
-import streamlit as st
 from streamlit_float import *
 from loguru import logger
 from dotenv import load_dotenv
@@ -140,8 +141,6 @@ def create_default_dialog(
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(i18n_dir=I18N_DIR, language=SUPPORTED_LANGUAGES[language])
-
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
@@ -406,7 +405,6 @@ def create_and_display_chat_round(
                 )
 
                 chatprocessor = ChatProcessor(
-                    requesthandler=requesthandler,
                     model_type=st.session_state["model_type"],
                     llm_config=st.session_state.chat_config_list[0],
                 )
@@ -459,6 +457,38 @@ def create_and_display_chat_round(
                 interrupt_button_placeholder.empty()
 
 
+async def generate_new_run_name_with_llm_for_the_first_time(
+    chat_history: List[Dict[str, Union[str, Dict, List]]],
+    run_id: str,
+    dialog_processor: DialogProcessor,
+    summary_prompt: str = SUMMARY_PROMPT,
+) -> None:
+    """根据对话内容，为首次进行对话的对话生成一个内容摘要的新名称"""
+    summary_chat_history = chat_history.copy()
+
+    from utils.st_utils import generate_markdown_chat
+    chat_history_md = generate_markdown_chat(
+        chat_history=summary_chat_history
+    )
+    
+    chat_processor = ChatProcessor(
+        model_type=st.session_state.model_type,
+        llm_config=st.session_state.chat_config_list[0],
+    )
+    chat_history_summary = chat_processor.create_completion(
+        messages=[
+            {"role": "system", "content": summary_prompt},
+            {"role": "user", "content": chat_history_md},
+        ],
+    )
+    new_run_name = chat_history_summary.choices[0].message.content
+    dialog_processor.update_dialog_name(
+        run_id=run_id,
+        new_name=new_run_name,
+    )
+
+    st.rerun()
+    
 # ********** Sidebar **********
 
 with st.sidebar:
@@ -547,7 +577,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             if_tools_call = st.toggle(
@@ -1066,5 +1096,18 @@ if prompt and st.session_state.model:
         image_uploader=image_uploader,
         if_tools_call=if_tools_call,
     )
+    if (
+        st.session_state.run_name == DEFAULT_DIALOG_TITLE
+    ):
+        # 为使用默认对话名称的对话生成一个内容摘要的新名称
+        try:
+            asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
+                chat_history=st.session_state.chat_history,
+                run_id=st.session_state.run_id,
+                dialog_processor=dialog_processor,
+            ))
+        except Exception as e:
+            logger.error(f"Error during thread creation: {e}")
+
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

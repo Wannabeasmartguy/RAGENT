@@ -22,7 +22,7 @@ from config.constants import (
 )
 from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors import (
-    AgentChatProcessor,
+    RAGChatProcessor,
     RAGChatDialogProcessor,
     OAILikeConfigProcessor,
     ChromaVectorStoreProcessorWithNoApi,
@@ -50,8 +50,6 @@ from utils.st_utils import (
     get_combined_style,
 )
 
-from api.dependency import APIRequestHandler
-
 from modules.types.rag import BaseRAGResponse
 from modules.chat.transform import MessageHistoryTransform
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
@@ -64,9 +62,8 @@ from pydantic import ValidationError
 
 
 @lru_cache(maxsize=1)
-def get_agentchat_processor():
-    return AgentChatProcessor(
-        requesthandler=requesthandler,
+def get_ragchat_processor():
+    return RAGChatProcessor(
         model_type=st.session_state.model_type,
         llm_config=st.session_state.rag_chat_config_list[0],
     )
@@ -74,7 +71,7 @@ def get_agentchat_processor():
 
 # 在 create_custom_rag_response 调用之前添加
 def refresh_retriever():
-    get_agentchat_processor.cache_clear()
+    get_ragchat_processor.cache_clear()
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
 
@@ -149,7 +146,7 @@ def display_rag_sources(
         st.toast(i18n("No sources found for this response."))
         return
 
-    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
+    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // num_columns)]
 
     @st.dialog(title=i18n("Cited Source"), width="large")
     def show_source_content(
@@ -310,8 +307,6 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     response_sources = st.session_state.custom_rag_sources[response_id]
     display_rag_sources(response_sources, response_id)
 
-
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 
 oailike_config_processor = OAILikeConfigProcessor()
 
@@ -586,9 +581,9 @@ def create_and_display_rag_chat_round(
         with response_placeholder.container():
             with st.spinner("Thinking..."):
                 refresh_retriever()
-                agentchat_processor = get_agentchat_processor()
+                ragchat_processor = get_ragchat_processor()
                 try:
-                    response = agentchat_processor.create_custom_rag_response(
+                    response = ragchat_processor.create_custom_rag_response(
                         collection_name=collection_name,
                         messages=processed_messages,
                         is_rerank=is_rerank,
@@ -968,7 +963,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_rag_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             # if_tools_call = st.toggle(
