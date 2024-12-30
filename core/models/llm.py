@@ -23,7 +23,7 @@ class LLMParams(BaseModel):
 
 class LLMBaseConfig(BaseModel, ABC):
     """LLM 配置"""
-
+    
     model: str = Field(..., description="Model name")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
 
@@ -52,25 +52,19 @@ class AzureOpenAIConfig(LLMBaseConfig):
         return cls(
             model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=os.getenv("AZURE_OAI_KEY", kwargs.get("api_key", "noaoaikey")),
-            base_url=os.getenv(
-                "AZURE_OAI_ENDPOINT", kwargs.get("base_url", "noaoaiendpoint")
-            ),
+            base_url=os.getenv("AZURE_OAI_ENDPOINT", kwargs.get("base_url", "noaoaiendpoint")),
             api_type=os.getenv("API_TYPE", kwargs.get("api_type", "azure")),
-            api_version=os.getenv(
-                "API_VERSION", kwargs.get("api_version", "2024-02-15-preview")
-            ),
+            api_version=os.getenv("API_VERSION", kwargs.get("api_version", "2024-02-15-preview")),
             params=LLMParams(
                 temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0),
+                top_p=kwargs.get("top_p", 1.0), 
                 max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False),
-            ),
+                stream=kwargs.get("stream", False)
+            )
         )
-
 
 class OpenAIConfig(LLMBaseConfig):
     """OpenAI配置"""
-
     api_key: str = Field(..., description="API key")
     base_url: str = Field(..., description="API endpoint")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
@@ -81,21 +75,17 @@ class OpenAIConfig(LLMBaseConfig):
         return cls(
             model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=os.getenv("OPENAI_API_KEY", kwargs.get("api_key", "noopenaikey")),
-            base_url=os.getenv(
-                "OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")
-            ),
+            base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
             params=LLMParams(
                 temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0),
+                top_p=kwargs.get("top_p", 1.0), 
                 max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False),
-            ),
+                stream=kwargs.get("stream", False)
+            )
         )
-
 
 class OllamaConfig(LLMBaseConfig):
     """Ollama配置"""
-
     api_key: str = Field(..., description="API key, required but not used")
     base_url: str = Field(..., description="API endpoint")
     params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")

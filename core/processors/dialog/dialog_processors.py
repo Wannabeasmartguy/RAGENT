@@ -9,7 +9,7 @@ from loguru._logger import Logger
 
 from core.strategy import DialogProcessStrategy
 from core.storage.db.base import Sqlstorage
-from core.models.app import AssistantRun
+from core.models.memory import AssistantRun
 
 
 class OperationPriority(IntEnum):
