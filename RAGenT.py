@@ -18,6 +18,7 @@ from core.processors import (
     OAILikeConfigProcessor,
     DialogProcessor,
 )
+from core.models.app import ClassicChatState
 from core.storage.db.sqlite import SqlAssistantStorage
 from modules.chat.transform import MessageHistoryTransform
 from utils.basic_utils import (
@@ -112,21 +113,29 @@ def create_default_dialog(
         priority = OperationPriority.NORMAL
 
     new_run_id = str(uuid4())
-    dialog_processor.create_dialog(
-        run_id=new_run_id,
+    new_chat_state = ClassicChatState(
+        current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
-        llm_config=generate_client_config(
+        config_list=[generate_client_config(
             source="aoai",
             model=model_selector("AOAI")[0],
             stream=True,
-        ).model_dump(),
+        ).model_dump()],
+        llm_model_type="AOAI",
+        system_prompt=DEFAULT_SYSTEM_PROMPT,
+        chat_history=[],
+    )
+    dialog_processor.create_dialog(
+        run_id=new_chat_state.current_run_id,
+        run_name=new_chat_state.run_name,
+        llm_config=new_chat_state.config_list[0],
         assistant_data={
-            "model_type": "AOAI",
-            "system_prompt": DEFAULT_SYSTEM_PROMPT,
+            "model_type": new_chat_state.llm_model_type,
+            "system_prompt": new_chat_state.system_prompt,
         },
         priority=priority,
     )
-    return new_run_id
+    return new_chat_state
 
 
 language = os.getenv("LANGUAGE", "简体中文")
@@ -308,15 +317,25 @@ def update_config_in_db_callback():
         ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
+    
+    current_chat_state = ClassicChatState(
+        current_run_id=st.session_state.run_id,
+        run_name=st.session_state.run_name,
+        config_list=config_list,
+        system_prompt=st.session_state["system_prompt"],
+        llm_model_type=st.session_state["model_type"],
+    )
+    
     dialog_processor.update_dialog_config(
-        run_id=st.session_state.run_id,
-        llm_config=config_list[0],
+        run_id=current_chat_state.current_run_id,
+        llm_config=current_chat_state.config_list[0],
         assistant_data={
-            "model_type": st.session_state["model_type"],
-            "system_prompt": st.session_state["system_prompt"],
+            "model_type": current_chat_state.llm_model_type,
+            "system_prompt": current_chat_state.system_prompt,
         },
         updated_at=datetime.now(),
     )
+    logger.info(f"Dialog {current_chat_state.current_run_id} updated")
 
 
 def interrupt_reply_generating_callback():
@@ -640,6 +659,7 @@ with st.sidebar:
                         api_key=llamafile_api_key,
                         description=st.session_state.get("config_description", ""),
                     )
+                    logger.info(f"OpenAI Model config saved, config_id: {config_id}")
                     st.toast(i18n("Model config saved successfully"), icon="✅")
                     return config_id
 
@@ -712,16 +732,25 @@ with st.sidebar:
                         logger.info(
                             f"Chat config list updated: {st.session_state.chat_config_list}"
                         )
-                        # chat_history_storage.upsert(
+                        
+                        current_chat_state = ClassicChatState(
+                            current_run_id=st.session_state.run_id,
+                            config_list=st.session_state.chat_config_list,
+                            system_prompt=st.session_state.system_prompt,
+                            llm_model_type=st.session_state.model_type,
+                            run_name=st.session_state.run_name,
+                        )
+
                         dialog_processor.update_dialog_config(
-                            run_id=st.session_state.run_id,
-                            llm_config=st.session_state["chat_config_list"][0],
+                            run_id=current_chat_state.current_run_id,
+                            llm_config=current_chat_state.config_list[0],
                             assistant_data={
-                                "model_type": st.session_state["model_type"],
-                                "system_prompt": st.session_state["system_prompt"],
+                                "model_type": current_chat_state.llm_model_type,
+                                "system_prompt": current_chat_state.system_prompt,
                             },
                             updated_at=datetime.now(),
                         )
+                        logger.info(f"Dialog {st.session_state.run_id} llm config updated with OpenAI-like model {current_chat_state.config_list[0]['model']}")
                         st.toast(i18n("Model config loaded successfully"), icon="✅")
                     else:
                         st.toast(i18n("Failed to load model config"), icon="❌")
@@ -739,6 +768,7 @@ with st.sidebar:
                     )
                     selected_config_id = config_list[selected_index]["id"]
                     oailike_config_processor.delete_model_config(selected_config_id)
+                    logger.info(f"OpenAI-like model {st.session_state.model}'s config deleted")
                     st.toast(i18n("Model config deleted successfully"), icon="🗑️")
                     # st.rerun()
 
@@ -784,21 +814,28 @@ with st.sidebar:
                 # if debounced_dialog_change():
                 try:
                     selected_run = st.session_state.saved_dialog
-                    current_run_id = st.session_state.run_id
+                    current_chat_state = ClassicChatState(
+                        config_list=st.session_state.chat_config_list,
+                        system_prompt=st.session_state.system_prompt,
+                        llm_model_type=st.session_state.model_type,
+                        current_run_id=st.session_state.run_id,
+                        run_name=st.session_state.run_name,
+                    )
                     
                     # 如果是同一个对话，不进行更新
-                    if selected_run.run_id == current_run_id:
+                    if selected_run.run_id == current_chat_state.current_run_id:
                         logger.debug(f"Same dialog selected, skipping update") 
                         return
                         
                     # 先保存当前对话的状态
-                    if current_run_id:
+                    if current_chat_state.current_run_id:
+                        
                         dialog_processor.update_dialog_config(
-                            run_id=current_run_id,
-                            llm_config=st.session_state.chat_config_list[0],
+                            run_id=current_chat_state.current_run_id,
+                            llm_config=current_chat_state.config_list[0],
                             assistant_data={
-                                "model_type": st.session_state.model_type,
-                                "system_prompt": st.session_state.system_prompt
+                                "model_type": current_chat_state.llm_model_type,
+                                "system_prompt": current_chat_state.system_prompt
                             },
                             updated_at=datetime.now()
                         )
@@ -810,7 +847,7 @@ with st.sidebar:
                     st.session_state.chat_history = selected_run.memory["chat_history"]
                     st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt", "")
 
-                    logger.info(f"Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
+                    logger.info(f"Chat dialog changed, from {current_chat_state.current_run_id} to {selected_run.run_id}")
 
                 except Exception as e:
                     logger.error(f"Error during dialog change: {e}")
@@ -834,14 +871,13 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_dialog_button_callback():
-                    new_run_id = create_default_dialog(dialog_processor, priority="normal")
-                    new_run = dialog_processor.get_dialog(new_run_id)
-                    st.session_state.run_id = new_run_id
-                    st.session_state.run_name = new_run.run_name
-                    st.session_state.system_prompt = new_run.assistant_data.get("system_prompt")
-                    st.session_state.chat_history = new_run.memory.get("chat_history", [])
+                    new_chat_state = create_default_dialog(dialog_processor, priority="normal")
+                    st.session_state.run_id = new_chat_state.current_run_id
+                    st.session_state.run_name = new_chat_state.run_name
+                    st.session_state.system_prompt = new_chat_state.system_prompt
+                    st.session_state.chat_history = new_chat_state.chat_history
                     st.session_state.current_run_id_index = 0
-                    st.session_state.chat_config_list = [new_run.llm]
+                    st.session_state.chat_config_list = new_chat_state.config_list
                     logger.info(
                         f"Add a new chat dialog, added dialog name: {st.session_state.run_name}, added dialog id: {st.session_state.run_id}"
                     )
@@ -856,7 +892,8 @@ with st.sidebar:
                 def delete_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.run_id = create_default_dialog(dialog_processor, priority="high")
+                        new_chat_state = create_default_dialog(dialog_processor, priority="high")
+                        st.session_state.run_id = new_chat_state.current_run_id
                     else:
                         while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
                             st.session_state.current_run_id_index -= 1
@@ -886,17 +923,26 @@ with st.sidebar:
                 dialog_processor.update_dialog_name(
                     run_id=st.session_state.run_id, new_name=st.session_state.run_name
                 )
+                logger.info(f"Dialog {st.session_state.run_id} name updated to {st.session_state.run_name}")
 
             def system_prompt_change_callback():
                 """系统提示更改回调"""
+                current_chat_state = ClassicChatState(
+                    config_list=st.session_state.chat_config_list,
+                    system_prompt=st.session_state.system_prompt,
+                    llm_model_type=st.session_state.model_type,
+                    current_run_id=st.session_state.run_id,
+                    run_name=st.session_state.run_name,
+                )
                 dialog_processor.update_dialog_config(
-                    run_id=st.session_state.run_id,
-                    llm_config=st.session_state.chat_config_list[0],
+                    run_id=current_chat_state.current_run_id,
+                    llm_config=current_chat_state.config_list[0],
                     assistant_data={
                         "model_type": st.session_state.model_type,
                         "system_prompt": st.session_state.system_prompt,
                     },
                 )
+                logger.info(f"Dialog {st.session_state.run_id} system prompt updated, length: {len(st.session_state.system_prompt)}")
                 st.toast(i18n("System prompt updated"), icon="✅")
 
             dialog_name = dialog_details_settings_popover.text_input(
@@ -938,6 +984,7 @@ with st.sidebar:
                 st.session_state.current_run_id_index = run_id_list.index(
                     st.session_state.run_id
                 )
+                logger.info(f"Dialog {st.session_state.run_id} chat history cleared")
                 st.toast(body=i18n("Chat history cleared"), icon="🧹")
 
             def delete_previous_round_callback():
@@ -956,6 +1003,7 @@ with st.sidebar:
                     run_id=st.session_state.run_id,
                     chat_history=st.session_state.chat_history,
                 )
+                logger.info(f"Dialog {st.session_state.run_id} chat history deleted")
 
             delete_previous_round_button = delete_previous_round_button_col.button(
                 label=i18n("Delete previous round"),

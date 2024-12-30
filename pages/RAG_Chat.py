@@ -31,6 +31,7 @@ from core.processors import (
 from core.models.embeddings import (
     EmbeddingConfiguration,
 )
+from core.models.app import RAGChatState
 from core.storage.db.sqlite import SqlAssistantStorage
 from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
@@ -88,20 +89,29 @@ def create_default_rag_dialog(
         priority = OperationPriority.NORMAL
 
     new_run_id = str(uuid4())
-    dialog_processor.create_dialog(
-        run_id=new_run_id,
+    new_chat_state = RAGChatState(
+        current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
-        llm_config=generate_client_config(
+        config_list=[generate_client_config(
             source="aoai",
             model=model_selector("AOAI")[0],
             stream=True,
-        ).model_dump(),
+        ).model_dump()],
+        llm_model_type="AOAI",
+        chat_history=[],
+        source_documents={},
+    )
+    dialog_processor.create_dialog(
+        run_id=new_chat_state.current_run_id,
+        run_name=new_chat_state.run_name,
+        llm_config=new_chat_state.config_list[0],
         task_data={
-            "source_documents": {},
+            "source_documents": new_chat_state.source_documents,
         },
         priority=priority,
     )
-    return new_run_id
+
+    return new_chat_state
 
 
 def save_rag_chat_history():
@@ -509,11 +519,20 @@ def update_rag_config_in_db_callback():
         ]
     st.session_state["rag_chat_config_list"] = config_list
     log_dict_changes(origin_config_list[0], config_list[0])
+
+    current_chat_state = RAGChatState(
+        current_run_id=st.session_state.rag_run_id,
+        run_name=st.session_state.rag_run_name,
+        current_run_index=st.session_state.rag_current_run_id_index,
+        config_list=config_list,
+        llm_model_type=st.session_state["model_type"],
+    )
+    
     dialog_processor.update_dialog_config(
-        run_id=st.session_state.rag_run_id,
-        llm_config=config_list[0],
+        run_id=current_chat_state.current_run_id,
+        llm_config=current_chat_state.config_list[0],
         assistant_data={
-            "model_type": st.session_state["model_type"],
+            "model_type": current_chat_state.llm_model_type,
             # "system_prompt": st.session_state["system_prompt"],
         },
         updated_at=datetime.now(),
@@ -713,14 +732,21 @@ with st.sidebar:
                         
                     # 先保存当前对话的状态
                     if current_run_id:
+                        current_chat_state = RAGChatState(
+                            current_run_id=current_run_id,
+                            run_name=st.session_state.rag_run_name,
+                            config_list=st.session_state.rag_chat_config_list,
+                            llm_model_type=st.session_state.model_type,
+                            source_documents=st.session_state.custom_rag_sources,
+                        )
                         dialog_processor.update_dialog_config(
                             run_id=current_run_id,
-                            llm_config=st.session_state.rag_chat_config_list[0],
+                            llm_config=current_chat_state.config_list[0],
                             assistant_data={
-                                "model_type": st.session_state.model_type,
+                                "model_type": current_chat_state.llm_model_type,
                             },
                             task_data={
-                                "source_documents": st.session_state.custom_rag_sources
+                                "source_documents": current_chat_state.source_documents
                             },
                             updated_at=datetime.now()
                         )
@@ -768,16 +794,15 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_rag_dialog_callback():
-                    st.session_state.rag_run_id = create_default_rag_dialog(
+                    new_chat_state = create_default_rag_dialog(
                         dialog_processor=dialog_processor,
                         priority="normal"
                     )
-                    st.session_state.rag_current_run_id_index = 0
-                    st.session_state.rag_chat_config_list = [
-                        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
-                    ]
-                    st.session_state.custom_rag_chat_history = []
-                    st.session_state.custom_rag_sources = {}
+                    st.session_state.rag_run_id = new_chat_state.current_run_id
+                    st.session_state.rag_current_run_id_index = new_chat_state.current_run_index or 0
+                    st.session_state.rag_chat_config_list = new_chat_state.config_list
+                    st.session_state.custom_rag_chat_history = new_chat_state.chat_history
+                    st.session_state.custom_rag_sources = new_chat_state.source_documents
                     logger.info(
                         f"Add a new RAG dialog, added dialog name: {st.session_state.rag_run_name}, added dialog id: {st.session_state.rag_run_id}"
                     )
@@ -792,10 +817,11 @@ with st.sidebar:
                 def delete_rag_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.rag_run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.rag_run_id = create_default_rag_dialog(
+                        new_chat_state = create_default_rag_dialog(
                             dialog_processor=dialog_processor,
                             priority="high"
                         )
+                        st.session_state.rag_run_id = new_chat_state.current_run_id
                     else:
                         while st.session_state.rag_current_run_id_index >= len(dialog_processor.get_all_dialogs()):
                             st.session_state.rag_current_run_id_index -= 1
