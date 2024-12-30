@@ -28,7 +28,7 @@ from core.processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,
 )
-from core.model.embeddings import (
+from core.models.embeddings import (
     EmbeddingConfiguration,
 )
 from core.storage.db.sqlite import SqlAssistantStorage

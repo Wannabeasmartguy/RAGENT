@@ -1,5 +1,5 @@
 from typing import Literal, Dict
-from core.model.llm import *
+from core.models.llm import *
 
 from pydantic import ValidationError
 

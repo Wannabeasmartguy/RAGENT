@@ -19,7 +19,7 @@ from config.constants.paths import KNOWLEDGE_BASE_DIR
 from api.routers.knowledgebase import (
     EmbeddingModelConfig,
 )
-from core.model.embeddings import (
+from core.models.embeddings import (
     EmbeddingModelConfiguration,
     KnowledgeBaseConfiguration,
     GlobalSettings,

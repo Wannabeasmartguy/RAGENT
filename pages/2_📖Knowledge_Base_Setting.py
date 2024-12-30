@@ -27,7 +27,7 @@ from utils.text_splitter.text_splitter_utils import (
     url_text_split_execute,
 )
 from utils.basic_utils import datetime_serializer
-from core.model.embeddings import (
+from core.models.embeddings import (
     EmbeddingConfiguration,
     EmbeddingModelConfiguration,
     GlobalSettings,

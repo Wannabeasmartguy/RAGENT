@@ -5,7 +5,7 @@ from typing import Dict, List
 
 from core.basic_config import I18nAuto
 
-from core.model.coze.message import CozeBotResponse, Message
+from core.models.coze.message import CozeBotResponse, Message
 from utils.basic_utils import copy_to_clipboard
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 

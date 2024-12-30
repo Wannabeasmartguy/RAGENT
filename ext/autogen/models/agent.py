@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Literal, TypeVar
 from uuid import uuid4
 
-from core.model.llm import LLMBaseConfig, LLMConfigType
+from core.models.llm import LLMBaseConfig, LLMConfigType
 
 from pydantic import BaseModel, Field
 
