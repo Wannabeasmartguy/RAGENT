@@ -1,3 +1,4 @@
+from .base import BaseTeamBuilder
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
@@ -5,9 +6,9 @@ from autogen_agentchat.ui import Console
 from autogen_ext.models import OpenAIChatCompletionClient
 from utils.basic_utils import config_list_postprocess
 
-class ReflectionTeamBuilder:
+class ReflectionTeamBuilder(BaseTeamBuilder):
     def __init__(self):
-        self.model_client = None
+        super().__init__()
         self.primary_agent = None 
         self.critic_agent = None
         self.max_messages = 5
