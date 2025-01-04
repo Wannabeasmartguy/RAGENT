@@ -3,8 +3,6 @@ import os
 import asyncio
 from uuid import uuid4
 from typing import List, Union, Coroutine, AsyncGenerator, Literal
-from dataclasses import dataclass, asdict
-from copy import deepcopy
 from loguru import logger
 
 from core.basic_config import (
@@ -24,6 +22,7 @@ from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from core.storage.db.sqlite import SqlAssistantStorage
+from core.models.app import AgentChatState
 from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT_HISTORY_DB_FILE
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 from ext.autogen.teams.reflect import ReflectionTeamBuilder
@@ -149,22 +148,12 @@ def create_default_dialog(
     dialog_processor.create_dialog(
         run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
-        llm_config=default_template.get("llm", {}),
-        assistant_data={
-            "template": default_template,
-        },
+        template=default_template,
+        team_state={},
+        agent_state={},
         priority=priority,
     )
     return new_run_id
-
-
-@dataclass
-class AgentChatState:
-    """前端保存的当前AgentChat对话数据"""
-    run_id: str
-    run_name: str
-    chat_history: List[Union[TextMessage,TaskResult]]
-    template: dict
 
 
 if not os.path.exists(CHAT_HISTORY_DIR):
@@ -197,16 +186,14 @@ while st.session_state.agent_chat_current_run_id_index > len(run_id_list):
 if "agent_chat_run_id" not in st.session_state:
     st.session_state.agent_chat_run_id = run_id_list[st.session_state.agent_chat_current_run_id_index]
 
-if "agent_chat_history" not in st.session_state:
-    st.session_state.agent_chat_history = dialog_processor.get_dialog(
+if "agent_chat_team_state" not in st.session_state:
+    st.session_state.agent_chat_team_state = dialog_processor.get_dialog(
         st.session_state.agent_chat_run_id
-    ).memory["chat_history"]
-
-if "agent_chat_current_template" not in st.session_state:
-    _template = dialog_processor.get_dialog(
-        st.session_state.agent_chat_run_id
-    ).assistant_data["template"]
-    st.session_state.agent_chat_current_template = _template
+    ).assistant_data["team_state"]
+# if "agent_chat_history" not in st.session_state:
+#     st.session_state.agent_chat_history = dialog_processor.get_dialog(
+#         st.session_state.agent_chat_run_id
+#     ).memory["chat_history"]
 
 
 logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
@@ -245,24 +232,23 @@ with st.sidebar:
             def saved_dialog_change_callback():
                 try:
                     selected_run = st.session_state.agent_chat_saved_dialog
-                    current_run_id = st.session_state.agent_chat_run_id
+                    current_run_state = AgentChatState(
+                        current_run_id=st.session_state.agent_chat_run_id,
+                        run_name=st.session_state.agent_chat_run_name,
+                        template=st.session_state.agent_chat_team_template,
+                        team_state=st.session_state.agent_chat_team_state,
+                    )
 
-                    if selected_run.run_id == current_run_id:
+                    if selected_run.run_id == current_run_state.current_run_id:
                         logger.debug(f"Same dialog selected, skipping update")
                         return
 
                     # 保存当前对话状态
-                    if current_run_id:
-                        current_run_state = AgentChatState(
-                            run_id=current_run_id,
-                            run_name=selected_run.run_name,
-                            chat_history=st.session_state.agent_chat_history,
-                            template=st.session_state.agent_chat_current_template
-                        )
-                        dialog_processor.update_dialog_config(
-                            run_id=current_run_id,
-                            llm_config=current_run_state.template.get("llm", {}),
-                            assistant_data={"template": current_run_state.template}
+                    if current_run_state.current_run_id:
+                        dialog_processor.update_template_and_team_state(
+                            run_id=current_run_state.current_run_id,
+                            template=current_run_state.template,
+                            team_state=current_run_state.team_state
                         )
                     
                     # 加载新对话状态    
@@ -270,9 +256,9 @@ with st.sidebar:
                     st.session_state.agent_chat_current_run_id_index = [
                         run.run_id for run in dialog_processor.get_all_dialogs()
                     ].index(st.session_state.agent_chat_run_id)
-                    st.session_state.agent_chat_current_template = selected_run.assistant_data["template"]
                     st.session_state.agent_chat_team_template_index = get_team_template_index()
-                    st.session_state.agent_chat_history = selected_run.memory["chat_history"]
+                    st.session_state.agent_chat_team_template = selected_run.assistant_data["template"]
+                    # st.session_state.agent_chat_history = selected_run.memory["chat_history"]
 
                     logger.info(f"Chat dialog changed to: {selected_run.run_name} ({st.session_state.agent_chat_run_id})")
 
@@ -301,15 +287,15 @@ with st.sidebar:
                     new_run_id = create_default_dialog(dialog_processor, priority="normal")
                     new_run = dialog_processor.get_dialog(new_run_id)
                     new_run_state = AgentChatState(
-                        run_id=new_run_id,
+                        current_run_id=new_run_id,
                         run_name=new_run.run_name,
-                        chat_history=new_run.memory.get("chat_history", []),
                         template=new_run.assistant_data["template"],
+                        team_state=new_run.assistant_data["team_state"],
+                        agent_state=new_run.assistant_data["agent_state"],
                     )
-                    st.session_state.agent_chat_run_id = new_run_state.run_id
+                    st.session_state.agent_chat_run_id = new_run_state.current_run_id
                     st.session_state.agent_chat_run_name = new_run_state.run_name
-                    st.session_state.agent_chat_chat_history = new_run_state.chat_history
-                    st.session_state.agent_chat_current_template = new_run_state.template
+                    # st.session_state.agent_chat_chat_history = new_run_state.chat_history
                     st.session_state.agent_chat_current_run_id_index = 0
 
                     logger.info(
@@ -334,7 +320,7 @@ with st.sidebar:
                             st.session_state.agent_chat_current_run_id_index
                         ].run_id
                     current_run = dialog_processor.get_dialog(st.session_state.agent_chat_run_id)
-                    st.session_state.agent_chat_history = current_run.memory["chat_history"]
+                    # st.session_state.agent_chat_history = current_run.memory["chat_history"]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.agent_chat_saved_dialog.run_name}, deleted dialog id: {st.session_state.agent_chat_run_id}"
                     )
@@ -412,7 +398,6 @@ with st.sidebar:
 
         def team_template_change_callback():
             selected_template = st.session_state.agent_chat_team_template
-            st.session_state.agent_chat_current_template = selected_template
             dialog_processor.update_template(
                 run_id=st.session_state.agent_chat_run_id,
                 template={"template": selected_template}
@@ -422,8 +407,13 @@ with st.sidebar:
         def get_team_template_index():
             team_template_dict = team_template_manager.agent_templates
             templates = [template for template in team_template_dict.values()]
-            # 直接比较模板ID，因为current_template现在就是原始模板字典
-            return next((i for i, template in enumerate(templates) if template.get("id") == st.session_state.agent_chat_current_template.get("id")), 0)
+            current_dialog = dialog_processor.get_dialog(st.session_state.agent_chat_run_id)
+            if not current_dialog or not current_dialog.assistant_data:
+                return 0
+            current_template = current_dialog.assistant_data.get("template", {})
+            # 直接使用数据库中存储的模板进行比较
+            return next((i for i, template in enumerate(templates) 
+                        if template.get("id") == current_template.get("id")), 0)
         
         st.session_state.agent_chat_team_template_index = get_team_template_index()
         team_template = st.selectbox(
@@ -435,10 +425,10 @@ with st.sidebar:
             on_change=team_template_change_callback
         )
         st.write(team_template.get("id"))
-        st.write(st.session_state.agent_chat_current_template)
+        st.write(st.session_state.agent_chat_team_template)
 
 st.title(st.session_state.agent_chat_run_name)
-write_chat_history(st.session_state.agent_chat_history)
+# write_chat_history(st.session_state.agent_chat_history)
 
 if prompt := st.chat_input(placeholder="Enter your message here"):
     # 用户输入

@@ -4,12 +4,12 @@ from datetime import datetime
 from queue import Queue
 from threading import Lock, Thread
 import time
-from loguru import logger
 from loguru._logger import Logger
 
-from core.strategy import DialogProcessStrategy
+from core.strategy import BaseDialogProcessStrategy
 from core.storage.db.base import Sqlstorage
 from core.models.memory import AssistantRun
+from utils.log.logger_config import *
 
 
 class OperationPriority(IntEnum):
@@ -26,7 +26,7 @@ class Operation:
         self.kwargs = kwargs
 
 
-class DialogProcessor(DialogProcessStrategy):
+class BaseDialogProcessor(BaseDialogProcessStrategy):
     """
     对话处理器，用于管理对话相关的数据库操作
     """
@@ -92,6 +92,30 @@ class DialogProcessor(DialogProcessStrategy):
         except Exception as e:
             self._logger.error(f"Error enqueueing operation: {e}")
             raise
+    
+    def shutdown(self):
+        """关闭处理器"""
+        self.operation_queue.put(None)
+        self.processing_thread.join()
+
+
+class DialogProcessor(BaseDialogProcessor):
+    """
+    对话处理器，用于管理对话相关的数据库操作
+    """
+    def __init__(
+        self,
+        storage: Sqlstorage,
+        debounce_delay: float = 0.5,
+        max_queue_size: int = 100,
+        logger: Logger = logger
+    ):
+        super().__init__(
+            storage=storage,
+            debounce_delay=debounce_delay,
+            max_queue_size=max_queue_size,
+            logger=logger
+        )
     
     def update_dialog_name(self, *, run_id: str, new_name: str):
         """更新对话名称"""
@@ -230,11 +254,6 @@ class DialogProcessor(DialogProcessStrategy):
         except Exception as e:
             self._logger.error(f"Error getting dialogs: {e}")
             return []
-    
-    def shutdown(self):
-        """关闭处理器"""
-        self.operation_queue.put(None)
-        self.processing_thread.join() 
 
 
 class RAGChatDialogProcessor(DialogProcessor):
@@ -316,7 +335,7 @@ class RAGChatDialogProcessor(DialogProcessor):
                 return {}
 
 
-class AgenChatDialogProcessor(DialogProcessor):
+class AgenChatDialogProcessor(BaseDialogProcessor):
     """AgentChat对话处理器"""
     def __init__(
         self,
@@ -331,7 +350,98 @@ class AgenChatDialogProcessor(DialogProcessor):
             max_queue_size=max_queue_size,
             logger=logger
         )
+    
+    def create_dialog(
+        self,
+        *,
+        run_id: str,
+        run_name: str,
+        template: Dict[str, Any],
+        name: str = "assistant",
+        team_state: Optional[Dict[str, Any]] = None,
+        agent_state: Optional[Dict[str, Any]] = None,
+        run_data: Optional[Dict[str, Any]] = None,
+        task_data: Optional[Dict[str, Any]] = None,
+        priority: OperationPriority = OperationPriority.NORMAL
+    ):
+        """创建新对话"""
+        def _create():
+            try:
+                self._logger.debug(f"Creating new dialog with run_id: {run_id}")
+                self._logger.debug(f"Agent/Team config: {template}")
+                
+                assistant_data = {
+                    "template": template,
+                    "team_state": team_state if team_state else {},
+                    "agent_state": agent_state if agent_state else {}
+                }
+                self.storage.upsert(
+                    AssistantRun(
+                        name=name,
+                        run_id=run_id,
+                        run_name=run_name,
+                        llm=template.get("llm", {}),
+                        memory={"chat_history": []},
+                        run_data=run_data,
+                        assistant_data=assistant_data,
+                        task_data=task_data,
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+                )
+                self._logger.info(f"Successfully created dialog: {run_name} ({run_id})")
+            except Exception as e:
+                self._logger.error(f"Failed to create dialog: {e}")
+                raise
         
+        self._enqueue_operation(_create, priority=priority)
+
+    def delete_dialog(self, run_id: str):
+        """删除对话"""
+        def _delete():
+            self.storage.delete_run(run_id)
+        self._enqueue_operation(_delete)
+
+    def get_dialog(self, run_id: str) -> Optional[AssistantRun]:
+        """获取对话（同步操作）"""
+        with self.lock:
+            return self.storage.get_specific_run(run_id)
+        
+    def get_all_dialogs(self) -> List[AssistantRun]:
+        """获取所有对话（同步操作）"""
+        try:
+            # 等待所有操作完成
+            self.operation_queue.join()
+            
+            with self.lock:
+                dialogs = self.storage.get_all_runs()
+                self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
+                return dialogs
+        except Exception as e:
+            self._logger.error(f"Error getting dialogs: {e}")
+            return []
+
+    def update_dialog_name(self, *, run_id: str, new_name: str):
+        """更新对话名称"""
+        def _update():
+            try:
+                current_run = self.storage.get_specific_run(run_id)
+                if not current_run:
+                    raise ValueError(f"Dialog with run_id {run_id} not found")
+            
+                self.storage.upsert(
+                    AssistantRun(
+                        run_id=run_id,
+                        run_name=new_name,
+                        updated_at=datetime.now()
+                    )
+                )
+                self._logger.info(f"Successfully updated dialog name for: {run_id}")
+            except Exception as e:
+                self._logger.error(f"Failed to update dialog name: {e}")
+                raise
+        self._enqueue_operation(_update)
+
     def update_template(
         self, 
         *, 
@@ -339,11 +449,11 @@ class AgenChatDialogProcessor(DialogProcessor):
         template: Dict[str, Any]
     ):
         """
-        更新当前对话指向的 Agent team 模板配置
+        更新当前对话指向的 Agent team 模板
 
         Args:
             run_id (str): 对话ID
-            template_config (Dict[str, Any]): 模板配置
+            template (Dict[str, Any]): 模板
         """
         def _update():
             try:
@@ -368,21 +478,92 @@ class AgenChatDialogProcessor(DialogProcessor):
                         updated_at=datetime.now()
                     )
                 )
-                self._logger.info(f"Successfully updated template config for dialog: {run_id}")
+                self._logger.info(f"Successfully updated template for dialog: {run_id}")
             except Exception as e:
-                self._logger.error(f"Failed to update template config: {e}")
+                self._logger.error(f"Failed to update template: {e}")
                 raise
             
         self._enqueue_operation(_update)
 
-    def get_template_config(self, run_id: str) -> Optional[Dict[str, Any]]:
-        """获取当前对话指向的 Agent team 模板配置"""
+    def get_template(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """获取当前对话指向的 Agent team 模板"""
         with self.lock:
             try:
                 run = self.storage.get_specific_run(run_id)
                 if run and run.assistant_data:
-                    return run.assistant_data.get("template_config", {})
+                    return run.assistant_data.get("template", {})
                 return {}
             except Exception as e:
-                self._logger.error(f"Error getting template config: {e}")
+                self._logger.error(f"Error getting template: {e}")
                 return {}
+    
+    def update_team_state(self, run_id: str, team_state: Dict[str, Any]):
+        """更新团队状态"""
+        def _update():
+            try:
+                current_run = self.storage.get_specific_run(run_id)
+                if not current_run:
+                    raise ValueError(f"Dialog with run_id {run_id} not found")
+            
+                current_assistant_data = current_run.assistant_data or {}
+                current_assistant_data["team_state"] = team_state
+                
+                self.storage.upsert(
+                    AssistantRun(
+                        run_id=run_id, 
+                        assistant_data=current_assistant_data
+                    )
+                )
+                self._logger.info(f"Successfully updated team state for dialog: {run_id}")
+            except Exception as e:
+                self._logger.error(f"Failed to update team state: {e}")
+                raise
+        
+        self._enqueue_operation(_update)
+
+    def get_team_state(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """获取团队状态"""
+        with self.lock:
+            run = self.storage.get_specific_run(run_id)
+            if run and run.assistant_data:
+                return run.assistant_data.get("team_state", {})
+            return {}
+    
+    def update_run_name(self, run_id: str, run_name: str):
+        """更新对话名称"""
+        def _update():
+            try:
+                current_run = self.storage.get_specific_run(run_id)
+                if not current_run:
+                    raise ValueError(f"Dialog with run_id {run_id} not found")
+                
+                self.storage.upsert(AssistantRun(run_id=run_id, run_name=run_name))
+                self._logger.info(f"Successfully updated run name for: {run_id}")
+            except Exception as e:
+                self._logger.error(f"Failed to update run name: {e}")
+                raise
+        self._enqueue_operation(_update)
+
+    def update_template_and_team_state(self, run_id: str, template: Dict[str, Any], team_state: Dict[str, Any]):
+        """更新对话模板和团队状态"""
+        def _update():
+            try:
+                current_run = self.storage.get_specific_run(run_id)
+                if not current_run:
+                    raise ValueError(f"Dialog with run_id {run_id} not found")
+                
+                current_assistant_data = current_run.assistant_data or {}
+                current_assistant_data["template"] = template
+                current_assistant_data["team_state"] = team_state
+
+                self.storage.upsert(
+                    AssistantRun(
+                        run_id=run_id,
+                        assistant_data=current_assistant_data
+                    )
+                )
+                self._logger.info(f"Successfully updated template and team state for dialog: {run_id}")
+            except Exception as e:
+                self._logger.error(f"Failed to update template and team state: {e}")
+                raise
+        self._enqueue_operation(_update)

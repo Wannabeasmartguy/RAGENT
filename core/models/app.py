@@ -34,4 +34,6 @@ class RAGChatState(BaseChatState):
 class AgentChatState(BaseChatState):
     """Agent chat state used in streamlit Agent chat page"""
 
-    pass
+    template: Optional[Dict[str, Any]] = Field(default=None, description="Agent team template created by user")
+    agent_state: Optional[Dict[str, Any]] = Field(default=None, description="Agent state, generated during the conversation between user and agent")
+    team_state: Optional[Dict[str, Any]] = Field(default=None, description="Team state, generated during the conversation between user and agent team")
