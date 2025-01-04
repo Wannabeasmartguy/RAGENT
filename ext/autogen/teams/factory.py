@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Type
+from typing import Type, TypeVar, Dict, Generic, cast
 from .base import BaseTeamBuilder
 from .reflect import ReflectionTeamBuilder
 
@@ -15,8 +15,10 @@ class TeamType(Enum):
     # CODE_EXECUTION = "code_execution" 
     # DEBATE = "debate"
 
-class TeamBuilderFactory:
-    _builders = {
+B = TypeVar('B', bound=BaseTeamBuilder)
+
+class TeamBuilderFactory(Generic[B]):
+    _builders: Dict[TeamType, Type[BaseTeamBuilder]] = {
         TeamType.REFLECTION: ReflectionTeamBuilder,
         # 未来可以添加更多 builder
         # TeamType.CODE_EXECUTION: CodeExecutionTeamBuilder,
@@ -24,14 +26,14 @@ class TeamBuilderFactory:
     }
     
     @classmethod
-    def register_builder(cls, team_type: TeamType, builder_class: Type[BaseTeamBuilder]):
+    def register_builder(cls, team_type: TeamType, builder_class: Type[B]) -> None:
         """注册新的 builder"""
         cls._builders[team_type] = builder_class
     
     @classmethod
-    def create_builder(cls, team_type: TeamType) -> BaseTeamBuilder:
+    def create_builder(cls, team_type: TeamType) -> B:
         """创建指定类型的 builder"""
         builder_class = cls._builders.get(team_type)
         if not builder_class:
             raise ValueError(f"Unknown team type: {team_type}")
-        return builder_class() 
+        return cast(B, builder_class())  # 使用 cast 明确返回类型

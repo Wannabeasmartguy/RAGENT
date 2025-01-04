@@ -6,7 +6,7 @@ from autogen_agentchat.ui import Console
 from autogen_ext.models import OpenAIChatCompletionClient
 from utils.basic_utils import config_list_postprocess
 
-class ReflectionTeamBuilder(BaseTeamBuilder):
+class ReflectionTeamBuilder(BaseTeamBuilder[RoundRobinGroupChat]):
     def __init__(self):
         super().__init__()
         self.primary_agent = None 
@@ -14,7 +14,7 @@ class ReflectionTeamBuilder(BaseTeamBuilder):
         self.max_messages = 5
         self.termination_text = "APPROVE"
 
-    def set_model_client(self, source, config_list):
+    def set_model_client(self, source, config_list) -> "ReflectionTeamBuilder":
         config = config_list_postprocess(config_list)[0]
         if (
             source == "openai-like" 
@@ -62,7 +62,7 @@ class ReflectionTeamBuilder(BaseTeamBuilder):
         self.termination_text = text
         return self
 
-    def build(self):
+    def build(self) -> RoundRobinGroupChat:
         if not all([self.model_client, self.primary_agent, self.critic_agent]):
             raise ValueError("Missing required components")
 
