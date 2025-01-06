@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import asyncio
 from uuid import uuid4
-from typing import List, Union, Coroutine, AsyncGenerator, Literal
+from typing import List, Union, Coroutine, AsyncGenerator, Literal, Dict, Optional
 from loguru import logger
 
 from core.basic_config import (
@@ -25,11 +25,25 @@ from core.storage.db.sqlite import SqlAssistantStorage
 from core.models.app import AgentChatState
 from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT_HISTORY_DB_FILE
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
-from ext.autogen.teams.reflect import ReflectionTeamBuilder
-from ext.autogen.manager.template import AgentTemplateType, AgentTemplateFileManager
+from ext.autogen.teams.factory import TeamBuilderFactory, TeamType
+from ext.autogen.manager.template import AgentTemplateFileManager
 
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import TextMessage, MultiModalMessage
+from autogen_agentchat.teams import BaseGroupChat
+
+
+def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+    current_team_state = team.save_state()
+    st.session_state.agent_chat_team_state = current_team_state
+    dialog_processor.update_team_state(
+        run_id=run_id,
+        team_state=current_team_state,
+    )
+
+
+def load_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+    team.load_state(dialog_processor.get_dialog(run_id).assistant_data["team_state"])
 
 
 def write_task_result(
@@ -95,7 +109,7 @@ async def write_stream_result(
 
 
 async def write_chunks_or_coroutine(
-        agent_chat_result: Union[Coroutine, AsyncGenerator],
+        agent_chat_result: Union[Coroutine, AsyncGenerator, TaskResult],
         *,
         with_final_answer: bool = True,
         with_thought: bool = True
@@ -107,8 +121,10 @@ async def write_chunks_or_coroutine(
     elif isinstance(agent_chat_result, AsyncGenerator):
         # 如果是异步生成器，可知使用了run_stream
         return await write_stream_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+    elif isinstance(agent_chat_result, TaskResult):
+        return await write_task_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
     else:
-        raise ValueError("Invalid agent chat result type")
+        raise ValueError(f"Invalid agent chat result type: {type(agent_chat_result)}")
 
 
 def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
@@ -122,6 +138,65 @@ def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
             else:
                 with st.chat_message(name=message.source, avatar="🤖"):
                     st.write(message.content)
+
+
+def convert_message_thread_to_chat_history(message_thread: List[Dict]) -> List[TextMessage]:
+    chat_history = []
+    for message in message_thread:
+        # 跳过critic的APPROVE消息
+        if message["source"] == "critic" and message["content"] == "APPROVE":
+            continue
+        chat_history.append(TextMessage(
+            source=message["source"],
+            content=message["content"]
+        ))
+    return chat_history
+
+
+def get_group_chat_manager_key(agent_states: Dict) -> Optional[str]:
+    """
+    从agent_states中获取group_chat_manager的完整键名
+    
+    Args:
+        agent_states: 包含所有agent状态的字典
+    
+    Returns:
+        str: group_chat_manager的完整键名，如果未找到则返回None
+    """
+    for key in agent_states.keys():
+        if key.startswith("group_chat_manager/"):
+            return key
+    return None
+
+
+def get_chat_history_from_team_state(dialog_processor: AgenChatDialogProcessor, run_id: str) -> List[TextMessage]:
+    """
+    从team_state中获取聊天历史
+    
+    Args:
+        dialog_processor: 对话处理器
+        run_id: 对话ID
+    
+    Returns:
+        List[TextMessage]: 转换后的聊天历史消息列表
+    """
+    try:
+        # 获取agent_states
+        agent_states = (dialog_processor.get_dialog(run_id)
+                       .assistant_data.get("team_state", {})
+                       .get("agent_states", {}))
+        
+        # 获取group_chat_manager的键名
+        manager_key = get_group_chat_manager_key(agent_states)
+        if not manager_key:
+            return []
+        
+        # 获取并转换message_thread
+        message_thread = agent_states[manager_key].get("message_thread", [])
+        return convert_message_thread_to_chat_history(message_thread)
+    except Exception as e:
+        logger.error(f"Error getting chat history: {e}")
+        return []
 
 
 def create_default_dialog(
@@ -261,6 +336,7 @@ with st.sidebar:
                     ].index(st.session_state.agent_chat_run_id)
                     st.session_state.agent_chat_team_template_index = get_team_template_index()
                     st.session_state.agent_chat_team_template = selected_run.assistant_data["template"]
+                    st.session_state.agent_chat_team_state = selected_run.assistant_data["team_state"]
                     # st.session_state.agent_chat_history = selected_run.memory["chat_history"]
 
                     logger.info(f"Chat dialog changed to: {selected_run.run_name} ({st.session_state.agent_chat_run_id})")
@@ -357,10 +433,12 @@ with st.sidebar:
             )
 
             def clear_chat_history_callback():
-                st.session_state.agent_chat_chat_history = []
-                dialog_processor.update_chat_history(
+                team.reset()
+                current_team_state = team.save_state()
+                st.session_state.agent_chat_team_state = current_team_state
+                dialog_processor.update_team_state(
                     run_id=st.session_state.agent_chat_run_id,
-                    chat_history=st.session_state.agent_chat_history,
+                    team_state=current_team_state,
                 )
                 st.session_state.agent_chat_current_run_id_index = run_id_list.index(
                     st.session_state.agent_chat_run_id
@@ -431,24 +509,45 @@ with st.sidebar:
         st.write(st.session_state.agent_chat_team_template)
 
 st.title(st.session_state.agent_chat_run_name)
-# write_chat_history(st.session_state.agent_chat_history)
+write_chat_history(get_chat_history_from_team_state(
+    dialog_processor=dialog_processor,
+    run_id=st.session_state.agent_chat_run_id
+))
+
+# 根据team_template创建team
+# 如果存了team_state，则加载team
+if st.session_state.agent_chat_team_state:
+    team_type = st.session_state.agent_chat_team_state.get("team_type")
+    builder = TeamBuilderFactory.create_builder(TeamType[team_type])
+    builder.set_model_client(source="openai", config_list=[st.session_state.agent_chat_team_state.get("llm")])
+    if team_type == TeamType.REFLECTION:
+        builder.set_primary_agent()
+        builder.set_critic_agent()
+        team = builder.build()
+        load_team_state(team=team, run_id=st.session_state.agent_chat_run_id, dialog_processor=dialog_processor)
+else:
+    template = st.session_state.agent_chat_team_template
+    builder = TeamBuilderFactory.create_builder(TeamType(template.get("team_type")))
+    builder.set_model_client(source="openai", config_list=[template.get("llm")])
+    if template.get("team_type") == TeamType.REFLECTION.value:
+        builder.set_primary_agent(system_message=st.session_state.agent_chat_team_state.get("primary_agent_system_message"))
+        builder.set_critic_agent(system_message=st.session_state.agent_chat_team_state.get("critic_agent_system_message"))
+    team = builder.build()
 
 if prompt := st.chat_input(placeholder="Enter your message here"):
     # 用户输入
     user_task = TextMessage(source="user", content=prompt)
-    st.session_state.agent_chat_history.append(user_task)
     with st.chat_message(name="user", avatar="🧑‍💻"):
         st.write(user_task.content)
     
     # 思考
     with st.spinner(text="Thinking..."):
-        response = create_and_run_reflection_team(user_task)
+        response = asyncio.run(team.run(task=user_task))
     
         # 输出
         try:
             result = asyncio.run(write_chunks_or_coroutine(response))
-            if result and isinstance(result, TaskResult):
-                st.session_state.agent_chat_history.append(result)
+            save_team_state(team=team, run_id=st.session_state.agent_chat_run_id, dialog_processor=dialog_processor)
         except Exception as e:
             st.error(f"Error writing response: {e}")
             result = response
