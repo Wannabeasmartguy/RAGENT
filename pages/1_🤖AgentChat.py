@@ -34,7 +34,7 @@ from autogen_agentchat.teams import BaseGroupChat
 
 
 def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
-    current_team_state = team.save_state()
+    current_team_state = asyncio.run(team.save_state())
     st.session_state.agent_chat_team_state = current_team_state
     dialog_processor.update_team_state(
         run_id=run_id,
@@ -43,7 +43,7 @@ def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChat
 
 
 def load_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
-    team.load_state(dialog_processor.get_dialog(run_id).assistant_data["team_state"])
+    asyncio.run(team.load_state(dialog_processor.get_dialog(run_id).assistant_data["team_state"]))
 
 
 def write_task_result(
@@ -66,7 +66,15 @@ def write_task_result(
             st.write(content[-1])
 
 
-async def write_coroutine(
+async def awrite_task_result(
+    task_result: TaskResult, 
+    *,
+    with_final_answer: bool = True,
+    with_thought: bool = True
+):
+    write_task_result(task_result, with_final_answer=with_final_answer, with_thought=with_thought)
+
+async def awrite_coroutine(
         agent_chat_result: Coroutine, 
         *,
         with_final_answer: bool = True,
@@ -79,7 +87,7 @@ async def write_coroutine(
         return result
 
 
-async def write_stream_result(
+async def awrite_stream_result(
     agent_chat_result: AsyncGenerator, 
     *,
     with_final_answer: bool = True,
@@ -117,12 +125,12 @@ async def write_chunks_or_coroutine(
     # 检查 agent_chat_result 是协程还是异步生成器
     # 如果是协程，可知使用了run
     if asyncio.iscoroutine(agent_chat_result):
-        return await write_coroutine(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+        return await awrite_coroutine(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
     elif isinstance(agent_chat_result, AsyncGenerator):
         # 如果是异步生成器，可知使用了run_stream
-        return await write_stream_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+        return await awrite_stream_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
     elif isinstance(agent_chat_result, TaskResult):
-        return await write_task_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
+        return await awrite_task_result(agent_chat_result, with_final_answer=with_final_answer, with_thought=with_thought)
     else:
         raise ValueError(f"Invalid agent chat result type: {type(agent_chat_result)}")
 
@@ -433,8 +441,8 @@ with st.sidebar:
             )
 
             def clear_chat_history_callback():
-                team.reset()
-                current_team_state = team.save_state()
+                asyncio.run(team.reset())
+                current_team_state = asyncio.run(team.save_state())
                 st.session_state.agent_chat_team_state = current_team_state
                 dialog_processor.update_team_state(
                     run_id=st.session_state.agent_chat_run_id,
@@ -481,7 +489,7 @@ with st.sidebar:
             selected_template = st.session_state.agent_chat_team_template
             dialog_processor.update_template(
                 run_id=st.session_state.agent_chat_run_id,
-                template={"template": selected_template}
+                template=selected_template
             )
 
 
@@ -514,25 +522,50 @@ write_chat_history(get_chat_history_from_team_state(
     run_id=st.session_state.agent_chat_run_id
 ))
 
+
 # 根据team_template创建team
 # 如果存了team_state，则加载team
-if st.session_state.agent_chat_team_state:
-    team_type = st.session_state.agent_chat_team_state.get("team_type")
-    builder = TeamBuilderFactory.create_builder(TeamType[team_type])
-    builder.set_model_client(source="openai", config_list=[st.session_state.agent_chat_team_state.get("llm")])
-    if team_type == TeamType.REFLECTION:
-        builder.set_primary_agent()
-        builder.set_critic_agent()
-        team = builder.build()
-        load_team_state(team=team, run_id=st.session_state.agent_chat_run_id, dialog_processor=dialog_processor)
-else:
-    template = st.session_state.agent_chat_team_template
-    builder = TeamBuilderFactory.create_builder(TeamType(template.get("team_type")))
+def create_or_load_team(
+    template: Dict,
+    team_state: Optional[Dict] = None,
+    run_id: Optional[str] = None,
+    dialog_processor: Optional[AgenChatDialogProcessor] = None
+) -> BaseGroupChat:
+    """
+    根据模板创建团队，如果有team_state则加载状态
+    
+    Args:
+        template: 团队模板
+        team_state: 团队状态，可选
+        run_id: 对话ID，可选，加载状态时需要
+        dialog_processor: 对话处理器，可选，加载状态时需要
+        
+    Returns:
+        BaseGroupChat: 创建或加载的团队
+    """
+    team_type = template.get("team_type")
+    builder = TeamBuilderFactory.create_builder(TeamType(team_type))
     builder.set_model_client(source="openai", config_list=[template.get("llm")])
-    if template.get("team_type") == TeamType.REFLECTION.value:
-        builder.set_primary_agent(system_message=st.session_state.agent_chat_team_state.get("primary_agent_system_message"))
-        builder.set_critic_agent(system_message=st.session_state.agent_chat_team_state.get("critic_agent_system_message"))
+    
+    if team_type == TeamType.REFLECTION.value or team_type == TeamType.REFLECTION:
+        builder.set_primary_agent(system_message=template.get("primary_agent_system_message"))
+        builder.set_critic_agent(system_message=template.get("critic_agent_system_message"))
+    
     team = builder.build()
+    
+    if team_state:
+        load_team_state(team=team, run_id=run_id, dialog_processor=dialog_processor)
+        
+    return team
+
+
+global team
+team = create_or_load_team(
+    template=st.session_state.agent_chat_team_template,
+    team_state=st.session_state.agent_chat_team_state,
+    run_id=st.session_state.agent_chat_run_id,
+    dialog_processor=dialog_processor
+)
 
 if prompt := st.chat_input(placeholder="Enter your message here"):
     # 用户输入
