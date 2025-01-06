@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic
 from autogen_agentchat.teams import BaseGroupChat
-from autogen_ext.models import OpenAIChatCompletionClient
+
 
 T = TypeVar('T', bound=BaseGroupChat)
 

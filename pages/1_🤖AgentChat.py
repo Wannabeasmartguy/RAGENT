@@ -119,6 +119,9 @@ def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
             if message.source == "user":
                 with st.chat_message(name="user", avatar="🧑‍💻"):
                     st.write(message.content)
+            else:
+                with st.chat_message(name=message.source, avatar="🤖"):
+                    st.write(message.content)
 
 
 def create_default_dialog(
