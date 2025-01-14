@@ -141,23 +141,39 @@ def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
             write_task_result(message)
         elif isinstance(message, TextMessage):
             if message.source == "user":
+                # 用户消息
                 with st.chat_message(name="user", avatar="🧑‍💻"):
                     st.write(message.content)
             else:
-                with st.chat_message(name=message.source, avatar="🤖"):
+                # AI消息: 同时显示在thought和answer中
+                # 在thought中显示详细过程
+                with st.chat_message(name="assistant thought", avatar="🤖"):
+                    with st.expander(label="Thought", expanded=True):
+                        with st.container(border=True):
+                            st.write(f"{message.source}: ")
+                            st.write(message.content)
+                # 在answer中显示最终回答
+                with st.chat_message(name="assistant", avatar="🤖"):
                     st.write(message.content)
 
 
 def convert_message_thread_to_chat_history(message_thread: List[Dict]) -> List[TextMessage]:
+    """
+    将`team_state`中的`message_thread`完整转换为`chat_history`
+    
+    Args:
+        message_thread: team_state中的`message_thread`字段
+    
+    Returns:
+        List[TextMessage]: 转换后的聊天历史消息列表
+    """
     chat_history = []
     for message in message_thread:
-        # 跳过critic的APPROVE消息
-        if message["source"] == "critic" and message["content"] == "APPROVE":
-            continue
-        chat_history.append(TextMessage(
-            source=message["source"],
-            content=message["content"]
-        ))
+        if message.get("type") == "TextMessage":
+            chat_history.append(TextMessage(
+                source=message.get("source"),
+                content=message.get("content")
+            ))
     return chat_history
 
 
