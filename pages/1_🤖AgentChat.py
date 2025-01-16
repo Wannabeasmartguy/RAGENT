@@ -148,13 +148,12 @@ def write_chat_history(chat_history: List[Union[TextMessage,TaskResult]]):
                 # AI消息: 同时显示在thought和answer中
                 # 在thought中显示详细过程
                 with st.chat_message(name="assistant thought", avatar="🤖"):
-                    with st.expander(label="Thought", expanded=True):
-                        with st.container(border=True):
-                            st.write(f"{message.source}: ")
-                            st.write(message.content)
+                    with st.container(border=True):
+                        st.write(f"{message.source}: ")
+                        st.write(message.content)
                 # 在answer中显示最终回答
-                with st.chat_message(name="assistant", avatar="🤖"):
-                    st.write(message.content)
+                # with st.chat_message(name="assistant", avatar="🤖"):
+                #     st.write(message.content)
 
 
 def convert_message_thread_to_chat_history(message_thread: List[Dict]) -> List[TextMessage]:

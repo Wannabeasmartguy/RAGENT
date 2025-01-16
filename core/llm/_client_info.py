@@ -1,10 +1,10 @@
-from typing import Literal, Dict
+from typing import Literal, Dict, Type
 from core.models.llm import *
 
 from pydantic import ValidationError
 
 
-SUPPORTED_SOURCES = {
+SUPPORTED_SOURCES: Dict[str, Type[LLMBaseConfig]] = {
     "openai": OpenAIConfig,
     "aoai": AzureOpenAIConfig,
     "llamafile": OpenAIConfig,
