@@ -195,5 +195,11 @@
     "Termination Text": "终止文本",
     "Unnamed Template": "未命名模板",
     "Delete": "删除",
-    "No description": "无描述"
+    "No description": "无描述",
+    "Edit": "编辑",
+    "Close Edit": "关闭编辑（不保存）",
+    "Please fill in team name": "请填写团队名称",
+    "Please fill in all required fields for Reflection team": "请填写所有必填字段",
+    "Agent team updated successfully": "Agent 团队更新成功",
+    "Agent team created successfully": "Agent 团队创建成功"
 }

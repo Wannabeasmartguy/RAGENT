@@ -1,5 +1,6 @@
 from typing import List, Dict, Any, Literal, TypeVar
 from uuid import uuid4
+from enum import Enum
 
 from core.models.llm import LLMBaseConfig, LLMConfigType
 
@@ -23,7 +24,7 @@ class BaseAgentTemplate(BaseModel):
     )
 
 
-AgentTemplateType = TypeVar("AgentTemplateType", bound=BaseAgentTemplate)
+AgentTemplate = TypeVar("AgentTemplate", bound=BaseAgentTemplate)
 
 
 class ReflectionAgentTeamTemplate(BaseAgentTemplate):
@@ -44,3 +45,12 @@ class ReflectionAgentTeamTemplate(BaseAgentTemplate):
     @classmethod
     def from_config(cls, config: Dict[str, Any]):
         return cls(**config)
+
+
+class AgentTemplateType(Enum):
+    """Agent团队类型的枚举"""
+    REFLECTION = "reflection"
+    # 未来可以添加更多类型
+    # DEBATE = "debate"
+    # QA = "qa"
+    # 等等...

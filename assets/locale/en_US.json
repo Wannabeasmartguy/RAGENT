@@ -195,5 +195,11 @@
     "Termination Text": "Termination Text",
     "Unnamed Template": "Unnamed Template",
     "Delete": "Delete",
-    "No description": "No description"
+    "No description": "No description",
+    "Edit": "Edit",
+    "Close Edit": "Close Edit(Not Save)",
+    "Please fill in team name": "Please fill in team name",
+    "Please fill in all required fields for Reflection team": "Please fill in all required fields for Reflection team",
+    "Agent team updated successfully": "Agent team updated successfully",
+    "Agent team created successfully": "Agent team created successfully"
 }

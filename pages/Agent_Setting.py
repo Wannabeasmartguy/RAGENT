@@ -42,31 +42,11 @@ def update_llm_config_list():
     st.session_state.llm_config_list = [llm_config.model_dump()]
 
 
-def create_agent_template():
-    try:
-        st.session_state.agent_team_template = agent_template_file_manager.create_agent_template(
-            agent_template_config={
-                "id": str(uuid.uuid4()),
-                "name": st.session_state.agent_team_name,
-                "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
-                "llm": get_client_config_model(st.session_state.llm_config_list[0]),
-                "primary_agent_system_message": st.session_state.primary_agent_system_message,
-                "critic_agent_system_message": st.session_state.critic_agent_system_message,
-                "max_messages": st.session_state.max_messages,
-                "termination_text": st.session_state.termination_text,
-                "template_type": st.session_state.agent_team_type.lower(),
-            }
-        )
-    except Exception as e:
-        st.toast(i18n(f"Failed to create Reflection Agent team, please check the input: {e}"), icon="❌")
-        logger.error(f"Failed to create Reflection Agent team: {e}")
-
-
 def create_agent_team_form(
     form_key: str = "create_agent_team",
     template_id: str = None,
 ):
-    reflection_agent_team_form = st.form(i18n("Create Agent Team") + f"_{form_key}")
+    agent_team_form = st.form(i18n("Create Agent Team") + f"_{form_key}")
     
     if template_id:
         template = agent_template_file_manager.agent_templates.get(template_id)
@@ -74,16 +54,19 @@ def create_agent_team_form(
             st.session_state[f"agent_team_type_{form_key}"] = template["team_type"].capitalize()
             st.session_state[f"agent_team_name_{form_key}"] = template["name"]
             st.session_state[f"agent_team_description_{form_key}"] = template["description"]
-            st.session_state[f"primary_agent_system_message_{form_key}"] = template["primary_agent_system_message"]
-            st.session_state[f"critic_agent_system_message_{form_key}"] = template["critic_agent_system_message"]
-            st.session_state[f"max_messages_{form_key}"] = template["max_messages"]
-            st.session_state[f"termination_text_{form_key}"] = template["termination_text"]
+            
+            # 根据团队类型加载特定字段
+            if template["team_type"].lower() == AgentTemplateType.REFLECTION.value:
+                st.session_state[f"primary_agent_system_message_{form_key}"] = template["primary_agent_system_message"]
+                st.session_state[f"critic_agent_system_message_{form_key}"] = template["critic_agent_system_message"]
+                st.session_state[f"max_messages_{form_key}"] = template["max_messages"]
+                st.session_state[f"termination_text_{form_key}"] = template["termination_text"]
     
-    team_type_column, team_name_column = reflection_agent_team_form.columns([0.5, 0.5])
+    team_type_column, team_name_column = agent_team_form.columns([0.5, 0.5])
     with team_type_column:
         agent_team_type = team_type_column.selectbox(
             i18n("Team Type"), 
-            options=["Reflection"],
+            options=[team_type.value.capitalize() for team_type in AgentTemplateType],
             key=f"agent_team_type_{form_key}"
         )
     with team_name_column:
@@ -91,60 +74,78 @@ def create_agent_team_form(
             i18n("Team Name"), 
             key=f"agent_team_name_{form_key}"
         )
-    agent_team_description = reflection_agent_team_form.text_input(
+    agent_team_description = agent_team_form.text_input(
         i18n("Team Description"), 
         key=f"agent_team_description_{form_key}"
     )
-    primary_agent_system_message = reflection_agent_team_form.text_input(
-        i18n("Primary Agent System Message"), 
-        key=f"primary_agent_system_message_{form_key}"
-    )
-    critic_agent_system_message = reflection_agent_team_form.text_input(
-        i18n("Critic Agent System Message"), 
-        key=f"critic_agent_system_message_{form_key}"
-    )
-    max_messages = reflection_agent_team_form.number_input(
-        i18n("Max Messages"), 
-        min_value=1,
-        value=10,
-        key=f"max_messages_{form_key}"
-    )
-    termination_text = reflection_agent_team_form.text_input(
-        i18n("Termination Text"), 
-        key=f"termination_text_{form_key}"
-    )
+
+    # 根据选择的团队类型显示不同的配置项
+    selected_team_type = st.session_state[f"agent_team_type_{form_key}"].lower()
+    
+    if selected_team_type == AgentTemplateType.REFLECTION.value:
+        primary_agent_system_message = agent_team_form.text_input(
+            i18n("Primary Agent System Message"), 
+            key=f"primary_agent_system_message_{form_key}"
+        )
+        critic_agent_system_message = agent_team_form.text_input(
+            i18n("Critic Agent System Message"), 
+            key=f"critic_agent_system_message_{form_key}"
+        )
+        max_messages = agent_team_form.number_input(
+            i18n("Max Messages"), 
+            min_value=1,
+            value=10,
+            key=f"max_messages_{form_key}"
+        )
+        termination_text = agent_team_form.text_input(
+            i18n("Termination Text"), 
+            key=f"termination_text_{form_key}"
+        )
+    # 未来可以添加其他类型的配置项
+    # elif selected_team_type == AgentTemplateType.DEBATE.value:
+    #     ...
     
     def submit_and_create_template_button_callback():
-        if (
-            st.session_state[f"agent_team_name_{form_key}"] == "" 
-            or st.session_state[f"primary_agent_system_message_{form_key}"] == "" 
-            or st.session_state[f"critic_agent_system_message_{form_key}"] == "" 
-            or st.session_state[f"termination_text_{form_key}"] == ""
-        ):
-            st.toast(i18n("Please fill in all fields"), icon="❌")
+        # 基础字段验证
+        if st.session_state[f"agent_team_name_{form_key}"] == "":
+            st.toast(i18n("Please fill in team name"), icon="❌")
             return
             
+        # 根据团队类型验证特定字段
+        if selected_team_type == AgentTemplateType.REFLECTION.value:
+            if (
+                st.session_state[f"primary_agent_system_message_{form_key}"] == "" 
+                or st.session_state[f"critic_agent_system_message_{form_key}"] == "" 
+                or st.session_state[f"termination_text_{form_key}"] == ""
+            ):
+                st.toast(i18n("Please fill in all required fields for Reflection team"), icon="❌")
+                return
+        
+        # 设置基础字段
         st.session_state.agent_team_name = st.session_state[f"agent_team_name_{form_key}"]
         st.session_state.agent_team_description = st.session_state[f"agent_team_description_{form_key}"]
-        st.session_state.primary_agent_system_message = st.session_state[f"primary_agent_system_message_{form_key}"]
-        st.session_state.critic_agent_system_message = st.session_state[f"critic_agent_system_message_{form_key}"]
-        st.session_state.max_messages = st.session_state[f"max_messages_{form_key}"]
-        st.session_state.termination_text = st.session_state[f"termination_text_{form_key}"]
         st.session_state.agent_team_type = st.session_state[f"agent_team_type_{form_key}"]
+        
+        # 根据团队类型设置特定字段
+        template_config = {
+            "id": template_id if template_id else str(uuid.uuid4()),
+            "name": st.session_state.agent_team_name,
+            "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
+            "llm": get_client_config_model(st.session_state.llm_config_list[0]),
+            "template_type": st.session_state.agent_team_type.lower(),
+        }
+        
+        if selected_team_type == AgentTemplateType.REFLECTION.value:
+            template_config.update({
+                "primary_agent_system_message": st.session_state[f"primary_agent_system_message_{form_key}"],
+                "critic_agent_system_message": st.session_state[f"critic_agent_system_message_{form_key}"],
+                "max_messages": st.session_state[f"max_messages_{form_key}"],
+                "termination_text": st.session_state[f"termination_text_{form_key}"],
+            })
         
         try:
             st.session_state.agent_team_template = agent_template_file_manager.create_agent_template(
-                agent_template_config={
-                    "id": template_id if template_id else str(uuid.uuid4()),
-                    "name": st.session_state.agent_team_name,
-                    "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
-                    "llm": get_client_config_model(st.session_state.llm_config_list[0]),
-                    "primary_agent_system_message": st.session_state.primary_agent_system_message,
-                    "critic_agent_system_message": st.session_state.critic_agent_system_message,
-                    "max_messages": st.session_state.max_messages,
-                    "termination_text": st.session_state.termination_text,
-                    "template_type": st.session_state.agent_team_type.lower(),
-                }
+                agent_template_config=template_config
             )
             agent_template_file_manager.add_agent_template_to_file(st.session_state.agent_team_template)
             st.toast(i18n("Agent team updated successfully") if template_id else i18n("Agent team created successfully"), icon="✅")
@@ -152,18 +153,21 @@ def create_agent_team_form(
             if template_id:
                 st.session_state[f"edit_mode_{template_id}"] = False
             
+            # 清空表单通用字段
             st.session_state[f"agent_team_name_{form_key}"] = ""
             st.session_state[f"agent_team_description_{form_key}"] = ""
-            st.session_state[f"primary_agent_system_message_{form_key}"] = ""
-            st.session_state[f"critic_agent_system_message_{form_key}"] = ""
-            st.session_state[f"max_messages_{form_key}"] = 10
-            st.session_state[f"termination_text_{form_key}"] = ""
+            # 清空特定字段
+            if selected_team_type == AgentTemplateType.REFLECTION.value:
+                st.session_state[f"primary_agent_system_message_{form_key}"] = ""
+                st.session_state[f"critic_agent_system_message_{form_key}"] = ""
+                st.session_state[f"max_messages_{form_key}"] = 10
+                st.session_state[f"termination_text_{form_key}"] = ""
             
         except Exception as e:
             st.toast(i18n(f"Failed to {'update' if template_id else 'create'} agent team: {str(e)}"), icon="❌")
             logger.error(f"Failed to {'update' if template_id else 'create'} agent team: {e}")
 
-    submit_and_create_template_button = reflection_agent_team_form.form_submit_button(
+    submit_and_create_template_button = agent_team_form.form_submit_button(
         i18n("Submit"),
         on_click=submit_and_create_template_button_callback,
     )
