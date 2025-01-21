@@ -12,7 +12,6 @@ from loguru import logger
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import (
     OPENAI_SUPPORTED_CLIENTS,
-    get_client_config,
     validate_client_config
 )
 from core.strategy import (

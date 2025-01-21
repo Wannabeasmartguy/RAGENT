@@ -20,6 +20,15 @@ class LLMParams(BaseModel):
         default=False, description="If true, the LLM will stream the response"
     )
 
+    @classmethod
+    def init_params(cls, **kwargs) -> "LLMParams":
+        return cls(
+            temperature=kwargs.get("temperature", 0.5),
+            top_p=kwargs.get("top_p", 1.0),
+            max_tokens=kwargs.get("max_tokens", 4096),
+            stream=kwargs.get("stream", False)
+        )
+
 
 class LLMBaseConfig(BaseModel, ABC):
     """LLM 配置"""
@@ -44,7 +53,6 @@ class AzureOpenAIConfig(LLMBaseConfig):
     base_url: str = Field(..., description="API endpoint")
     api_type: str = Field(default="azure", description="API type")
     api_version: str = Field(default="2024-02-15-preview", description="API version")
-    params: LLMParams = Field(default_factory=LLMParams, description="LLM parameters")
 
     @classmethod
     def from_env(cls, **kwargs) -> "AzureOpenAIConfig":
@@ -55,13 +63,12 @@ class AzureOpenAIConfig(LLMBaseConfig):
             base_url=os.getenv("AZURE_OAI_ENDPOINT", kwargs.get("base_url", "noaoaiendpoint")),
             api_type=os.getenv("API_TYPE", kwargs.get("api_type", "azure")),
             api_version=os.getenv("API_VERSION", kwargs.get("api_version", "2024-02-15-preview")),
-            params=LLMParams(
-                temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0), 
-                max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False)
-            )
+            params=LLMParams.init_params(**kwargs)
         )
+    
+    @staticmethod
+    def config_type() -> str:
+        return "AzureOpenAI"
 
 class OpenAIConfig(LLMBaseConfig):
     """OpenAI配置"""
@@ -76,13 +83,12 @@ class OpenAIConfig(LLMBaseConfig):
             model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=os.getenv("OPENAI_API_KEY", kwargs.get("api_key", "noopenaikey")),
             base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
-            params=LLMParams(
-                temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0), 
-                max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False)
-            )
+            params=LLMParams.init_params(**kwargs)
         )
+    
+    @staticmethod
+    def config_type() -> str:
+        return "OpenAI"
 
 class OllamaConfig(LLMBaseConfig):
     """Ollama配置"""
@@ -100,13 +106,12 @@ class OllamaConfig(LLMBaseConfig):
                 "OLLAMA_API_ENDPOINT",
                 kwargs.get("base_url", "http://localhost:11434/v1"),
             ),
-            params=LLMParams(
-                temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0),
-                max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False),
-            ),
+            params=LLMParams.init_params(**kwargs)
         )
+    
+    @staticmethod
+    def config_type() -> str:
+        return "Ollama"
 
 
 class GroqConfig(LLMBaseConfig):
@@ -126,10 +131,9 @@ class GroqConfig(LLMBaseConfig):
                 "GROQ_API_ENDPOINT",
                 kwargs.get("base_url", "https://api.groq.com/openai/v1"),
             ),
-            params=LLMParams(
-                temperature=kwargs.get("temperature", 0.5),
-                top_p=kwargs.get("top_p", 1.0),
-                max_tokens=kwargs.get("max_tokens", 4096),
-                stream=kwargs.get("stream", False),
-            ),
+            params=LLMParams.init_params(**kwargs)
         )
+    
+    @staticmethod
+    def config_type() -> str:
+        return "Groq"
