@@ -42,6 +42,11 @@ class LLMBaseConfig(BaseModel, ABC):
         """从环境变量和kwargs创建配置"""
         pass
 
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """将模型转换为字典，并进行后处理"""
+        pass
+
 
 LLMConfigType = TypeVar("LLMConfigType", bound=LLMBaseConfig)
 
@@ -66,6 +71,12 @@ class AzureOpenAIConfig(LLMBaseConfig):
             params=LLMParams.init_params(**kwargs)
         )
     
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并添加 config_type"""
+        raw_dict = self.model_dump()
+        raw_dict["config_type"] = self.config_type()
+        return raw_dict
+
     @staticmethod
     def config_type() -> str:
         return "AzureOpenAI"
@@ -85,6 +96,12 @@ class OpenAIConfig(LLMBaseConfig):
             base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
             params=LLMParams.init_params(**kwargs)
         )
+    
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并添加 config_type"""
+        raw_dict = self.model_dump()
+        raw_dict["config_type"] = self.config_type()
+        return raw_dict
     
     @staticmethod
     def config_type() -> str:
@@ -108,6 +125,12 @@ class OllamaConfig(LLMBaseConfig):
             ),
             params=LLMParams.init_params(**kwargs)
         )
+    
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并添加 config_type"""
+        raw_dict = self.model_dump()
+        raw_dict["config_type"] = self.config_type()
+        return raw_dict
     
     @staticmethod
     def config_type() -> str:
@@ -133,6 +156,12 @@ class GroqConfig(LLMBaseConfig):
             ),
             params=LLMParams.init_params(**kwargs)
         )
+    
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并添加 config_type"""
+        raw_dict = self.model_dump()
+        raw_dict["config_type"] = self.config_type()
+        return raw_dict
     
     @staticmethod
     def config_type() -> str:

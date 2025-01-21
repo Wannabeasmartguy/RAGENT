@@ -39,7 +39,7 @@ def update_llm_config_list():
         top_p=st.session_state.top_p,
         stream=st.session_state.if_stream,
     )
-    st.session_state.llm_config_list = [llm_config.model_dump()]
+    st.session_state.llm_config_list = [llm_config.to_dict()]
 
 
 def create_agent_team_form(
@@ -134,6 +134,7 @@ def create_agent_team_form(
             "llm": get_client_config_model(st.session_state.llm_config_list[0]),
             "template_type": st.session_state.agent_team_type.lower(),
         }
+        logger.debug(f"template_config: {template_config}")
         
         if selected_team_type == AgentTemplateType.REFLECTION.value:
             template_config.update({
@@ -219,6 +220,7 @@ async def create_agent_template_card_gallery(
             with col2:
                 if st.button(i18n("Edit"), key=f"edit_{template_id}", use_container_width=True):
                     st.session_state[f"edit_mode_{template_id}"] = True
+                    st.session_state.llm_config_list = [template["llm"]]
                     st.rerun()
 
             # 编辑模式下显示编辑表单
@@ -257,7 +259,7 @@ if "llm_config_list" not in st.session_state:
         model=model_selector("AOAI")[0],
         stream=True,
     )
-    st.session_state.llm_config_list = [llm_config.model_dump()]
+    st.session_state.llm_config_list = [llm_config.to_dict()]
 
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
@@ -265,6 +267,8 @@ with st.sidebar:
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+
+    st.write(st.session_state.llm_config_list)
 
 st.title(i18n("Agent Setting"))
 

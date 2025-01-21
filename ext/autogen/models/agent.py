@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Literal, TypeVar
 from uuid import uuid4
 from enum import Enum
-
+from abc import abstractmethod
 from core.models.llm import LLMBaseConfig, LLMConfigType
 
 from pydantic import BaseModel, Field
@@ -22,6 +22,11 @@ class BaseAgentTemplate(BaseModel):
         default="No description",
         description="Template description. It is used to describe the template for user, not used in generation.",
     )
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并在llm中添加config_type"""
+        pass
 
 
 AgentTemplate = TypeVar("AgentTemplate", bound=BaseAgentTemplate)
@@ -45,6 +50,12 @@ class ReflectionAgentTeamTemplate(BaseAgentTemplate):
     @classmethod
     def from_config(cls, config: Dict[str, Any]):
         return cls(**config)
+    
+    def to_dict(self) -> dict:
+        """将实例转换为字典，并在llm中添加config_type"""
+        raw_dict = self.model_dump()
+        raw_dict["llm"]["config_type"] = self.llm.config_type()
+        return raw_dict
 
 
 class AgentTemplateType(Enum):

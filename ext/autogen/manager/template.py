@@ -20,7 +20,7 @@ class AgentTemplateFileManager:
     def _add_or_update_template_in_file(self, agent_template: AgentTemplate) -> None:
         with open(self.template_file_path, "r") as f:
             original_agent_template_config = json.load(f)
-            original_agent_template_config[agent_template.id] = agent_template.model_dump()
+            original_agent_template_config[agent_template.id] = agent_template.to_dict()
             with open(self.template_file_path, "w") as f:
                 json.dump(original_agent_template_config, f, indent=4)
 
