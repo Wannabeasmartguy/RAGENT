@@ -30,16 +30,24 @@ from loguru import logger
 agent_template_file_manager = AgentTemplateFileManager()
 
 
-def update_llm_config_list():
+def update_llm_config_list(key_suffix: str = ""):
+    """更新llm配置列表，支持动态key
+    
+    Args:
+        key_suffix (str): key的后缀，用于区分不同的配置
+    """
     llm_config = generate_client_config(
-        source=st.session_state.model_type.lower(),
-        model=st.session_state.model,
-        max_tokens=st.session_state.max_tokens,
-        temperature=st.session_state.temperature,
-        top_p=st.session_state.top_p,
-        stream=st.session_state.if_stream,
+        source=st.session_state[f"model_type{key_suffix}"].lower(),
+        model=st.session_state[f"model{key_suffix}"],
+        max_tokens=st.session_state[f"max_tokens{key_suffix}"],
+        temperature=st.session_state[f"temperature{key_suffix}"],
+        top_p=st.session_state[f"top_p{key_suffix}"],
+        stream=st.session_state[f"if_stream{key_suffix}"],
     )
-    st.session_state.llm_config_list = [llm_config.to_dict()]
+    if f"llm_config_list{key_suffix}" not in st.session_state:
+        st.session_state[f"llm_config_list{key_suffix}"] = [llm_config.to_dict()]
+    else:
+        st.session_state[f"llm_config_list{key_suffix}"][0] = llm_config.to_dict()
 
 
 def create_agent_team_form(
@@ -131,7 +139,7 @@ def create_agent_team_form(
             "id": template_id if template_id else str(uuid.uuid4()),
             "name": st.session_state.agent_team_name,
             "description": st.session_state.agent_team_description if st.session_state.agent_team_description != "" else i18n("No description"),
-            "llm": get_client_config_model(st.session_state.llm_config_list[0]),
+            "llm": get_client_config_model(st.session_state[f"llm_config_list_{form_key}"][0]),
             "template_type": st.session_state.agent_team_type.lower(),
         }
         logger.debug(f"template_config: {template_config}")
@@ -213,14 +221,16 @@ async def create_agent_template_card_gallery(
                 st.write(f"**{i18n('Termination Text')}:** {template['termination_text']}")
                 
             col1, col2 = st.columns(2)
-            with col1:
+            with col2:
                 if st.button(i18n("Delete"), key=f"delete_{template_id}", use_container_width=True):
                     agent_template_file_manager.delete_agent_template_in_file(template_id)
                     st.rerun()
-            with col2:
+            with col1:
                 if st.button(i18n("Edit"), key=f"edit_{template_id}", use_container_width=True):
                     st.session_state[f"edit_mode_{template_id}"] = True
-                    st.session_state.llm_config_list = [template["llm"]]
+                    # 初始化 llm_config_list_edit_{template_id}
+                    if f"llm_config_list_edit_{template_id}" not in st.session_state:
+                        st.session_state[f"llm_config_list_edit_{template_id}"] = [template["llm"]]
                     st.rerun()
 
             # 编辑模式下显示编辑表单
@@ -229,13 +239,15 @@ async def create_agent_template_card_gallery(
                 for key in st.session_state.keys():
                     if key.startswith("edit_mode_") and key != f"edit_mode_{template_id}":
                         st.session_state[key] = False
-                # create_model_select_container(key_suffix=f"_edit_{template_id}")
+                # 使用 create_model_select_container 创建模型选择器
+                create_model_select_container(key_suffix=f"_edit_{template_id}")
+                # 创建编辑表单
                 create_agent_team_form(form_key=f"edit_{template_id}", template_id=template_id)
                 close_button = st.button(i18n("Close Edit"), key=f"close_{template_id}", use_container_width=True)
                 if close_button:
                     st.session_state[f"edit_mode_{template_id}"] = False
                     st.rerun()
-                
+
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -258,20 +270,30 @@ def create_model_select_container(key_suffix: str = ""):
             model_type = model_type_column.selectbox(
                 label=i18n("Model type"),
                 options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
                 key=f"model_type{key_suffix}"
             )
         with model_placeholder_column:
             model_placeholder = model_placeholder_column.empty()
         with st.expander(label=i18n("Model config"), expanded=True):
+            # 处理默认值
+            default_max_tokens = 1900
+            default_temperature = 0.5
+            default_top_p = 0.5
+            default_stream = True
+
+            if f"llm_config_list{key_suffix}" in st.session_state:
+                default_max_tokens = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("max_tokens", 1900)
+                default_temperature = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("temperature", 0.5)
+                default_top_p = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("top_p", 0.5)
+                default_stream = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("stream", True)
+
             max_tokens = llm_config_container.number_input(
                 label=i18n("Max tokens"),
                 min_value=1,
-                value=config_list_postprocess(st.session_state.llm_config_list)[0].get(
-                    "max_tokens", 1900
-                ),
+                value=default_max_tokens,
                 step=1,
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
                 key=f"max_tokens{key_suffix}",
                 help=i18n(
                     "Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000)."
@@ -282,12 +304,10 @@ def create_model_select_container(key_suffix: str = ""):
                 label=i18n("Temperature"),
                 min_value=0.0,
                 max_value=1.0,
-                value=config_list_postprocess(st.session_state.llm_config_list)[0].get(
-                    "temperature", 0.5
-                ),
+                value=default_temperature,
                 step=0.1,
                 key=f"temperature{key_suffix}",
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
                 help=i18n(
                     "'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5."
                 ),
@@ -296,23 +316,19 @@ def create_model_select_container(key_suffix: str = ""):
                 label=i18n("Top p"),
                 min_value=0.0,
                 max_value=1.0,
-                value=config_list_postprocess(st.session_state.llm_config_list)[0].get(
-                    "top_p", 0.5
-                ),
+                value=default_top_p,
                 step=0.1,
                 key=f"top_p{key_suffix}",
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
                 help=i18n(
                     "Similar to 'temperature', but don't change it at the same time as temperature"
                 ),
             )
             if_stream = llm_config_container.toggle(
                 label=i18n("Stream"),
-                value=config_list_postprocess(st.session_state.llm_config_list)[0].get(
-                    "stream", True
-                ),
+                value=default_stream,
                 key=f"if_stream{key_suffix}",
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
                 help=i18n(
                     "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
@@ -322,7 +338,7 @@ def create_model_select_container(key_suffix: str = ""):
 
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
-                    model = st.session_state.llm_config_list[0].get("model")
+                    model = st.session_state[f"llm_config_list{key_suffix}"][0].get("model")
                     logger.debug(f"model get: {model}")
                     if model:
                         options = model_selector(model_type)
@@ -333,7 +349,7 @@ def create_model_select_container(key_suffix: str = ""):
                             )
                             return options_index
                         else:
-                            st.session_state.llm_config_list[0].update(
+                            st.session_state[f"llm_config_list{key_suffix}"][0].update(
                                 {"model": options[0]}
                             )
                             logger.debug(
@@ -353,13 +369,13 @@ def create_model_select_container(key_suffix: str = ""):
                     st.session_state[f"model_type{key_suffix}"]
                 ),
                 key=f"model{key_suffix}",
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
             )
         elif model_type == "Llamafile":
 
             def get_selected_llamafile_model() -> str:
-                if st.session_state.llm_config_list:
-                    return st.session_state.llm_config_list[0].get("model")
+                if st.session_state[f"llm_config_list{key_suffix}"]:
+                    return st.session_state[f"llm_config_list{key_suffix}"][0].get("model")
                 else:
                     logger.warning("llm_config_list is empty, using default model")
                     return oai_model_config_selector(
@@ -371,7 +387,7 @@ def create_model_select_container(key_suffix: str = ""):
                 value=get_selected_llamafile_model(),
                 key=f"model{key_suffix}",
                 placeholder=i18n("Fill in custom model name. (Optional)"),
-                on_change=update_llm_config_list,
+                on_change=lambda: update_llm_config_list(key_suffix),
             )
             with llm_config_container.popover(
                 label=i18n("Llamafile config"), use_container_width=True
@@ -379,7 +395,7 @@ def create_model_select_container(key_suffix: str = ""):
 
                 def get_selected_llamafile_endpoint() -> str:
                     try:
-                        return st.session_state.llm_config_list[0].get("base_url")
+                        return st.session_state[f"llm_config_list{key_suffix}"][0].get("base_url")
                     except:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
@@ -390,12 +406,12 @@ def create_model_select_container(key_suffix: str = ""):
                     value=get_selected_llamafile_endpoint(),
                     key=f"llamafile_endpoint{key_suffix}",
                     type="password",
-                    on_change=update_llm_config_list,
+                    on_change=lambda: update_llm_config_list(key_suffix),
                 )
 
                 def get_selected_llamafile_api_key() -> str:
                     try:
-                        return st.session_state.llm_config_list[0].get("api_key")
+                        return st.session_state[f"llm_config_list{key_suffix}"][0].get("api_key")
                     except:
                         return oai_model_config_selector(
                             st.session_state.oai_like_model_config_dict
@@ -407,7 +423,7 @@ def create_model_select_container(key_suffix: str = ""):
                     key=f"llamafile_api_key{key_suffix}",
                     type="password",
                     placeholder=i18n("Fill in your API key. (Optional)"),
-                    on_change=update_llm_config_list,
+                    on_change=lambda: update_llm_config_list(key_suffix),
                 )
 
                 def save_oai_like_config_button_callback():
@@ -424,7 +440,7 @@ def create_model_select_container(key_suffix: str = ""):
                     label=i18n("Config Description"),
                     key=f"config_description{key_suffix}",
                     placeholder=i18n("Enter a description for this configuration"),
-                    on_change=update_llm_config_list,
+                    on_change=lambda: update_llm_config_list(key_suffix),
                 )
 
                 save_oai_like_config_button = st.button(
@@ -454,7 +470,7 @@ def create_model_select_container(key_suffix: str = ""):
 
                 def load_oai_like_config_button_callback():
                     selected_index = config_options.index(
-                        st.session_state.selected_config
+                        selected_config
                     )
                     selected_config_id = config_list[selected_index]["id"]
 
@@ -479,12 +495,12 @@ def create_model_select_container(key_suffix: str = ""):
                             f"Llamafile Model config loaded: {st.session_state.oai_like_model_config_dict}"
                         )
 
-                        st.session_state["llm_config_list"][0]["model"] = config_data["model"]
-                        st.session_state["llm_config_list"][0]["api_key"] = config_data["api_key"]
-                        st.session_state["llm_config_list"][0]["base_url"] = config_data["base_url"]
+                        st.session_state[f"llm_config_list{key_suffix}"][0]["model"] = config_data["model"]
+                        st.session_state[f"llm_config_list{key_suffix}"][0]["api_key"] = config_data["api_key"]
+                        st.session_state[f"llm_config_list{key_suffix}"][0]["base_url"] = config_data["base_url"]
 
                         logger.info(
-                            f"Agent team's llm config list updated: {st.session_state.llm_config_list}"
+                            f"Agent team's llm config list updated: {st.session_state[f'llm_config_list{key_suffix}']}"
                         )
                         st.toast(i18n("Model config loaded successfully"), icon="✅")
                     else:
@@ -521,7 +537,7 @@ def create_model_select_container(key_suffix: str = ""):
         )
         load_model_button = llm_config_container.button(
             label=i18n("Load model setting"),
-            on_click=update_llm_config_list,
+            on_click=lambda: update_llm_config_list(key_suffix),
             key=f"load_model_button{key_suffix}",
             use_container_width=True,
             type="primary",
@@ -541,22 +557,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-if "llm_config_list" not in st.session_state:
-    llm_config = generate_client_config(
-        source="aoai",
-        model=model_selector("AOAI")[0],
-        stream=True,
-    )
-    st.session_state.llm_config_list = [llm_config.to_dict()]
-
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("RAGenT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
-
-    st.write(st.session_state.llm_config_list)
 
 st.title(i18n("Agent Setting"))
 
@@ -566,7 +572,16 @@ with agent_list_tab:
     asyncio.run(create_agent_template_card_gallery(2))
 
 with create_agent_form_tab:
-    create_model_select_container()
+    # 初始化 llm_config_list_new
+    if "llm_config_list_new" not in st.session_state:
+        llm_config = generate_client_config(
+            source="aoai",
+            model=model_selector("AOAI")[0],
+            stream=True,
+        )
+        st.session_state["llm_config_list_new"] = [llm_config.to_dict()]
+    
+    create_model_select_container(key_suffix="_new")
     
     st.write("## " + i18n("Create Agent Team"))
     with st.container(border=True):
