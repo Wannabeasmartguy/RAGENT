@@ -229,6 +229,7 @@ async def create_agent_template_card_gallery(
                 for key in st.session_state.keys():
                     if key.startswith("edit_mode_") and key != f"edit_mode_{template_id}":
                         st.session_state[key] = False
+                # create_model_select_container(key_suffix=f"_edit_{template_id}")
                 create_agent_team_form(form_key=f"edit_{template_id}", template_id=template_id)
                 close_button = st.button(i18n("Close Edit"), key=f"close_{template_id}", use_container_width=True)
                 if close_button:
@@ -242,43 +243,12 @@ i18n = I18nAuto(
     language=SUPPORTED_LANGUAGES[language]
 )
 
-logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
-
-oailike_config_processor = OAILikeConfigProcessor()
-
-st.set_page_config(
-    page_title="Agent Setting",
-    page_icon=logo_path,
-    initial_sidebar_state="expanded",
-)
-
-if "llm_config_list" not in st.session_state:
-    llm_config = generate_client_config(
-        source="aoai",
-        model=model_selector("AOAI")[0],
-        stream=True,
-    )
-    st.session_state.llm_config_list = [llm_config.to_dict()]
-
-with st.sidebar:
-    st.logo(logo_text, icon_image=logo_path)
-
-    st.page_link("RAGenT.py", label="💭 Chat")
-    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
-
-    st.write(st.session_state.llm_config_list)
-
-st.title(i18n("Agent Setting"))
-
-agent_list_tab, create_agent_form_tab = st.tabs([i18n("Agent List"), i18n("Create Agent")])
-
-with agent_list_tab:
-    asyncio.run(create_agent_template_card_gallery(2))
-
-with create_agent_form_tab:
-    st.write("## " + i18n("Setting up LLM model"))
+def create_model_select_container(key_suffix: str = ""):
+    """创建模型选择容器
+    
+    Args:
+        key_suffix (str): key的后缀，用于避免重复key。例如在编辑模式下使用 '_edit_template_id' 作为后缀
+    """
     model_select_container = st.container(border=True)
     with model_select_container:
         llm_config_container = model_select_container.container()
@@ -289,7 +259,7 @@ with create_agent_form_tab:
                 label=i18n("Model type"),
                 options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
                 on_change=update_llm_config_list,
-                key="model_type"
+                key=f"model_type{key_suffix}"
             )
         with model_placeholder_column:
             model_placeholder = model_placeholder_column.empty()
@@ -302,7 +272,7 @@ with create_agent_form_tab:
                 ),
                 step=1,
                 on_change=update_llm_config_list,
-                key="max_tokens",
+                key=f"max_tokens{key_suffix}",
                 help=i18n(
                     "Maximum number of tokens to generate in the completion.Different models may have different constraints, e.g., the Qwen series of models require a range of [0,2000)."
                 ),
@@ -316,7 +286,7 @@ with create_agent_form_tab:
                     "temperature", 0.5
                 ),
                 step=0.1,
-                key="temperature",
+                key=f"temperature{key_suffix}",
                 on_change=update_llm_config_list,
                 help=i18n(
                     "'temperature' controls the randomness of the model. Lower values make the model more deterministic and conservative, while higher values make it more creative and diverse. The default value is 0.5."
@@ -330,7 +300,7 @@ with create_agent_form_tab:
                     "top_p", 0.5
                 ),
                 step=0.1,
-                key="top_p",
+                key=f"top_p{key_suffix}",
                 on_change=update_llm_config_list,
                 help=i18n(
                     "Similar to 'temperature', but don't change it at the same time as temperature"
@@ -341,7 +311,7 @@ with create_agent_form_tab:
                 value=config_list_postprocess(st.session_state.llm_config_list)[0].get(
                     "stream", True
                 ),
-                key="if_stream",
+                key=f"if_stream{key_suffix}",
                 on_change=update_llm_config_list,
                 help=i18n(
                     "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
@@ -378,11 +348,11 @@ with create_agent_form_tab:
 
             model = model_placeholder.selectbox(
                 label=i18n("Model"),
-                options=model_selector(st.session_state["model_type"]),
+                options=model_selector(st.session_state[f"model_type{key_suffix}"]),
                 index=get_selected_non_llamafile_model_index(
-                    st.session_state["model_type"]
+                    st.session_state[f"model_type{key_suffix}"]
                 ),
-                key="model",
+                key=f"model{key_suffix}",
                 on_change=update_llm_config_list,
             )
         elif model_type == "Llamafile":
@@ -399,7 +369,7 @@ with create_agent_form_tab:
             model = model_placeholder.text_input(
                 label=i18n("Model"),
                 value=get_selected_llamafile_model(),
-                key="model",
+                key=f"model{key_suffix}",
                 placeholder=i18n("Fill in custom model name. (Optional)"),
                 on_change=update_llm_config_list,
             )
@@ -418,7 +388,7 @@ with create_agent_form_tab:
                 llamafile_endpoint = st.text_input(
                     label=i18n("Llamafile endpoint"),
                     value=get_selected_llamafile_endpoint(),
-                    key="llamafile_endpoint",
+                    key=f"llamafile_endpoint{key_suffix}",
                     type="password",
                     on_change=update_llm_config_list,
                 )
@@ -434,7 +404,7 @@ with create_agent_form_tab:
                 llamafile_api_key = st.text_input(
                     label=i18n("Llamafile API key"),
                     value=get_selected_llamafile_api_key(),
-                    key="llamafile_api_key",
+                    key=f"llamafile_api_key{key_suffix}",
                     type="password",
                     placeholder=i18n("Fill in your API key. (Optional)"),
                     on_change=update_llm_config_list,
@@ -452,7 +422,7 @@ with create_agent_form_tab:
 
                 config_description = st.text_input(
                     label=i18n("Config Description"),
-                    key="config_description",
+                    key=f"config_description{key_suffix}",
                     placeholder=i18n("Enter a description for this configuration"),
                     on_change=update_llm_config_list,
                 )
@@ -479,7 +449,7 @@ with create_agent_form_tab:
                         i18n("Click the Load button to apply the configuration"),
                         icon="🚨",
                     ),
-                    key="selected_config",
+                    key=f"selected_config{key_suffix}",
                 )
 
                 def load_oai_like_config_button_callback():
@@ -546,16 +516,57 @@ with create_agent_form_tab:
             label=i18n("Reset model info"),
             on_click=lambda x: x.cache_clear(),
             args=(model_selector,),
+            key=f"reset_model_button{key_suffix}",
             use_container_width=True,
         )
         load_model_button = llm_config_container.button(
             label=i18n("Load model setting"),
             on_click=update_llm_config_list,
+            key=f"load_model_button{key_suffix}",
             use_container_width=True,
             type="primary",
         )
         if load_model_button:
             st.toast(i18n("Model setting loaded successfully"), icon="✅")
+
+
+logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+
+oailike_config_processor = OAILikeConfigProcessor()
+
+st.set_page_config(
+    page_title="Agent Setting",
+    page_icon=logo_path,
+    initial_sidebar_state="expanded",
+)
+
+if "llm_config_list" not in st.session_state:
+    llm_config = generate_client_config(
+        source="aoai",
+        model=model_selector("AOAI")[0],
+        stream=True,
+    )
+    st.session_state.llm_config_list = [llm_config.to_dict()]
+
+with st.sidebar:
+    st.logo(logo_text, icon_image=logo_path)
+
+    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+
+    st.write(st.session_state.llm_config_list)
+
+st.title(i18n("Agent Setting"))
+
+agent_list_tab, create_agent_form_tab = st.tabs([i18n("Agent List"), i18n("Create Agent")])
+
+with agent_list_tab:
+    asyncio.run(create_agent_template_card_gallery(2))
+
+with create_agent_form_tab:
+    create_model_select_container()
     
     st.write("## " + i18n("Create Agent Team"))
     with st.container(border=True):
