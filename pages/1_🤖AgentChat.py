@@ -315,7 +315,6 @@ with st.sidebar:
     st.page_link(
         "pages/Agent_Setting.py", label=(i18n("⚙️ Agent Setting"))
     )
-    st.write("---")
 
     dialog_settings_tab, team_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Team Settings"), i18n("Multimodal Settings")],
@@ -528,8 +527,13 @@ with st.sidebar:
             key="agent_chat_team_template",
             on_change=team_template_change_callback
         )
-        st.write(team_template.get("id"))
-        st.write(st.session_state.agent_chat_team_template)
+        with st.expander(label=i18n("Detail info"), expanded=True):
+            st.write(i18n("Model") + ": " + "{model}".format(model=team_template.get("llm").get("model")))
+            st.write(i18n("Team Type") + ": " + "{team_type}".format(team_type=team_template.get("team_type")))
+            if team_template.get("team_type") == "reflection":
+                st.write(i18n("Primary Agent System Message") + ": " + "{primary_agent_system_message}".format(primary_agent_system_message=team_template.get("primary_agent_system_message")))
+                st.write(i18n("Critic Agent System Message") + ": " + "{critic_agent_system_message}".format(critic_agent_system_message=team_template.get("critic_agent_system_message")))
+
 
 st.title(st.session_state.agent_chat_run_name)
 write_chat_history(get_chat_history_from_team_state(
