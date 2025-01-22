@@ -4,7 +4,7 @@
 
 Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 
-![image](https://github.com/user-attachments/assets/f50c9b86-55c8-4881-a7cf-b2ccf3b35ece)
+![image](https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMKZ5Bj6HCDNEk_vLk6cx5_GlFtd-wAArjAMRsUEYFU1f6bxbi4L58BAAMCAAN3AAM2BA.png)
 
 ## Features
 
@@ -22,7 +22,7 @@ Knowledgebase:
 - [x] **Native implementation** of Retrieval Augmentation Generation (RAG), lightweight and efficient
 - [x] Optional embedding models (Hugging Face/OpenAI)
 - [x] Easy-to-use knowledge base management
-- [x] Hybrid search, reranking, and specified file retrieval
+- [x] Multiple search methods available: Hybrid search, reranking, and specified file retrieval
 
 > If you like this project, please star it, it's the biggest encouragement for me!
 
@@ -30,15 +30,11 @@ Knowledgebase:
 
 ### General
 
-#### Voice to text input:
-
-<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
-
 #### Export
 
 Support export format, theme selection and export range control:
 
-<img src="https://github.com/user-attachments/assets/f4e1461e-2334-4b45-b4d9-2ff0d79a0e63" alt="Export settings and preview" style="zoom:40%;" />
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMRZ5CP8tOC8mZNa1Gfmn0ZrIi02rYAAj_BMRsUEYFUKE-qz7XnQGYBAAMCAAN3AAM2BA.png" alt="Export settings and preview" style="zoom:40%;" />
 
 Currently supported themes: 
 
@@ -50,37 +46,31 @@ Currently supported themes:
 
 ### RAG Chat
 
-Set up the model (sidebar) and view detailed references:
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMLZ5Bl9d6RMZnIt6k1yonaBS9wXbcAArzAMRsUEYFUrbgUsfJJiMYBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
 
-<img src="https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720" alt="image" style="zoom:50%;" />
+You can set up the model (sidebar) and view detailed references:
+
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMMZ5BmXto1f3yvbBPW4AsgwsRgg7UAAsPAMRsUEYFUY1YxLW9SCQgBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
 
 Configure RAG ：
 
-<img src="https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77" alt="image" style="zoom:50%;" />
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMNZ5Bmr4RpbW6hLlk2vgABmgABTLpHzwACxMAxGxQRgVR4uuGHCePimwEAAwIAA3cAAzYE.png" alt="image" style="zoom:50%;" />
 
 ### Function Call
 
-Function calls are supported on both `Chat` and `AgentChat` pages, but are implemented differently.
-
-#### Chat Page
+> Function calls are supported on `Chat` now, and `AgentChat` will be supported in the future.
 
 The Function Calls on this page are native and work for all OpenAI Compatible models, but require the model itself to support Function calls.
 
-<img src="https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715" alt="image" style="zoom:50%;" />
+Function Call can significantly enhance the capabilities of LLM, allowing it to complete tasks that it was previously unable to complete (such as mathematical calculations), as shown below:
+
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMOZ5CISmmhCaolgsanImFf0nEEL9QAA8ExGxQRgVTsFfNLpLODKQEAAwIAA3cAAzYE.png" alt="image" style="zoom:50%;" />
+
+Or summarize the content of a webpage:
+
+<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMPZ5CMA6bEaIijxonoYAABA5HeGVJ1AAIXwTEbFBGBVFDdSgXTyOJ4AQADAgADdwADNgQ.png" alt="image" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
-
-#### AgentChat Page
-
-> **Note**: Due to AutoGen v0.4 is completely rewritten, the AgentChat Page will be updated in the future version and now is only supported for testing with AutoGen v0.2. If you want to use the AgentChat Page, please use `python startup.py` to start the application rather than `streamlit run RAGenT.py`.
-
-Relying on the AutoGen framework for implementation (testing), please refer to the documentation of [AutoGen](https://github.com/microsoft/autogen) for model compatibility.
-
-Function call can significantly enhance the capabilities of LLM and currently supports OpenAI, Azure OpenAI, Groq, and local models.（[by LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
-
-<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
-
-> You can also customize the function you want to call, please note that AutoGen's function writing is **different** from the native function calling writing rules, please refer to the [Official Documentation](https://microsoft.github.io/autogen/docs/tutorial/tool-use/) and this project's [tools.py](llm/aoai/tools/tools.py).
 
 ## Quick start
 
@@ -91,7 +81,7 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
 1. Configure the model dependencies: Modify the `.env_sample` file to `.env` and fill in the following:
 
-    - `LANGUAGE`: Support `English` and `简体中文`, defualt is `English`;
+    - `LANGUAGE`: Support `English` and `简体中文`, if not set, default is `English`;
     - `OPENAI_API_KEY` : If you are using an OpenAI model, fill in the api key here;
     - `AZURE_OAI_KEY` : If you are using an Azure OpenAI model, fill in the api key here;
     - `AZURE_OAI_ENDPOINT` : If you are using an OpenAI model, fill in the end_point here;
@@ -108,11 +98,6 @@ Run: Run `streamlit run RAGenT.py` on the command line can start it.
 
 If you want to use the AgentChat page, please use `python startup.py` to start the application rather than `streamlit run RAGenT.py`.
 
-## Route
+## Contribution
 
-- [x] Chat history and configuration local persistence
-    - [x] Chat history local persistence
-    - [x] Configuration local persistence
-- [ ] Increase the number of preset Agents
-- [ ] Mixed retrieval, reordering and specified file retrieval
-- [ ] 📚️Agent-driven Knowledge Base
+For any issues encountered during use or new ideas, please submit issues and PRs!
