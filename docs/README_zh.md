@@ -72,7 +72,7 @@ Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成�
 
 <img src="https://github.com/user-attachments/assets/7da5ae4d-40d5-49b4-9e76-6ce2a39ac6d1" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
-> 你也可以自定义想要调用函数，编写请参考[toolkits.py](tools/toolkits.py)的编写规则。
+> 你也可以自定义想要调用函数，编写请参考 [toolkits.py](../tools/toolkits.py) 的编写规则。
 
 ## 快速开始
 
@@ -97,8 +97,6 @@ Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成�
 2. 启动应用：
 
    命令行运行：`streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
-
-   如果你想要使用 AgentChat 页面，请使用 `python startup.py` 启动应用，而不是 `streamlit run RAGenT.py`。
 
 ## 贡献
 
