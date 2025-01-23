@@ -6,7 +6,7 @@
 
 > 如果你喜欢这个项目，请为它点一个 star ，这对我很重要！
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMKZ5Bj6HCDNEk_vLk6cx5_GlFtd-wAArjAMRsUEYFU1f6bxbi4L58BAAMCAAN3AAM2BA.png" alt="image" style="zoom: 50%;" />
+<img src="https://github.com/user-attachments/assets/bcc6395a-92ab-4ae6-8d36-a6831c240b16" alt="image" style="zoom: 50%;" />
 
 ## 特点
 
@@ -38,7 +38,7 @@
 
 支持导出格式、主题选择和导出范围控制：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMRZ5CP8tOC8mZNa1Gfmn0ZrIi02rYAAj_BMRsUEYFUKE-qz7XnQGYBAAMCAAN3AAM2BA.png" alt="导出设置及预览" style="zoom:40%;" />
+<img src="https://github.com/user-attachments/assets/85756a3c-7ca2-4fcf-becc-682f22091c4e" alt="导出设置及预览" style="zoom:40%;" />
 
 目前已支持主题：
 
@@ -48,15 +48,15 @@
 
 ### RAG Chat
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMLZ5Bl9d6RMZnIt6k1yonaBS9wXbcAArzAMRsUEYFUrbgUsfJJiMYBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/bc574d1e-e614-4310-ad00-746c5646963a" alt="image" style="zoom:50%;" />
 
 设置模型（边栏）及查看详细引用：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMMZ5BmXto1f3yvbBPW4AsgwsRgg7UAAsPAMRsUEYFUY1YxLW9SCQgBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/a6ce3f0b-3c8f-4e3d-8d34-bceb834da81e" alt="image" style="zoom:50%;" />
 
 配置 RAG ：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMNZ5Bmr4RpbW6hLlk2vgABmgABTLpHzwACxMAxGxQRgVR4uuGHCePimwEAAwIAA3cAAzYE.png" alt="image" style="zoom: 50%;" />
+<img src="https://github.com/user-attachments/assets/82480174-bac1-47d4-b5f4-9725774618f2" alt="image" style="zoom: 50%;" />
 
 ### Function Call（工具调用）
 
@@ -66,11 +66,11 @@
 
 Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成的工作（如数学计算），如下所示：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMOZ5CISmmhCaolgsanImFf0nEEL9QAA8ExGxQRgVTsFfNLpLODKQEAAwIAA3cAAzYE.png" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/fba30f4a-dbfc-47d0-9f1c-4443171fa018" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
 或是总结网页内容：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMPZ5CMA6bEaIijxonoYAABA5HeGVJ1AAIXwTEbFBGBVFDdSgXTyOJ4AQADAgADdwADNgQ.png" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/7da5ae4d-40d5-49b4-9e76-6ce2a39ac6d1" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
 > 你也可以自定义想要调用函数，编写请参考[toolkits.py](tools/toolkits.py)的编写规则。
 
