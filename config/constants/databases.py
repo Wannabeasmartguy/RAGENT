@@ -17,7 +17,7 @@ CHAT_HISTORY_DIR = os.path.join(DATABASE_DIR, "chat_history")
 # 知识库目录
 KNOWLEDGE_BASE_DIR = os.path.join(DATABASE_DIR, "knowledgebase")
 # 嵌入模型目录
-EMBEDDING_DIR = os.path.join(DATABASE_DIR, "embeddings")
+EMBEDDING_DIR = os.path.join(ROOT_DIR, "embeddings")
 
 # 配置目录
 CONFIGS_BASE_DIR = os.path.join(DATABASE_DIR, "configs")

@@ -372,11 +372,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         if not model_name_or_path or not repo_id:
             raise ValueError("model_name_or_path和repo_id不能为空")
 
+        ignore_patterns = ["onnx/*", "*.jpg", "*.webp"]
         try:
             os.makedirs(model_name_or_path, exist_ok=True)
             snapshot_download(
                 repo_id=repo_id,
                 local_dir=model_name_or_path,
+                local_dir_use_symlinks=False,
+                ignore_patterns=ignore_patterns
             )
             return "Model downloaded successfully!"
         except Exception as e:
