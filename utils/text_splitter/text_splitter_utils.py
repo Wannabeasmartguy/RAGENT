@@ -61,7 +61,7 @@ def choose_text_splitter(
             file_ext = os.path.splitext(file)[1].lstrip('.')
             if file_ext in _SUPPORTED_FILE_TYPES:
                 try:
-                    logger.info(f"Markitdown文件类型支持: {file_ext}")
+                    logger.info(f"Markitdown supported file type: {file_ext}")
                     md = MarkItDown()
                     res = md.convert(file)
                     document = Document(page_content=res,metadata={"source":file})
@@ -69,29 +69,31 @@ def choose_text_splitter(
                     split_docs = text_splitter.split_documents(document)
                     splitted_docs.extend(split_docs)
                 except Exception as e:
-                    logger.error(f"Markitdown文件类型不支持: {file_ext}, 错误信息: {e}")
+                    logger.error(f"Markitdown unsupported file type: {file_ext}, error message: {e}")
+                    raise e
             else:
                 try:
-                    logger.info(f"Unstructured文件类型支持: {file_ext}")
+                    logger.info(f"Unstructured supported file type: {file_ext}")
                     loader = UnstructuredFileLoader(file)
                     document = loader.load()
                     text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                     split_docs = text_splitter.split_documents(document)
                     splitted_docs.extend(split_docs)
                 except Exception as e:
-                    logger.error(f"Unstructured文件类型不支持: {file_ext}, 错误信息: {e}")
-        
+                    logger.error(f"Unstructured unsupported file type: {file_ext}, error message: {e}")
+                    raise e
+
         return splitted_docs
     
     # 如果 imput_stream 是单个IO对象
     else:
-        logger.info(f"object, 文件类型: {imput_stream.name}")
+        logger.info(f"object, file type: {imput_stream.name}")
         file_ext = os.path.splitext(imput_stream.name)[1].lstrip('.')
         splitted_docs = []  # 初始化 splitted_docs 列表
 
         if file_ext in _SUPPORTED_FILE_TYPES:
             try:
-                logger.info(f"Markitdown文件类型支持: {file_ext}")
+                logger.info(f"Markitdown supported file type: {file_ext}")
                 md = MarkItDown()
                 res = md.convert(imput_stream.name)
                 document = [Document(page_content=res.text_content,metadata={"source":imput_stream.name})]
@@ -99,17 +101,19 @@ def choose_text_splitter(
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             except Exception as e:
-                logger.error(f"Markitdown文件类型不支持: {file_ext}, 错误信息: {e}")
+                logger.error(f"Markitdown unsupported file type: {file_ext}, error message: {e}")
+                raise e
         else:
             try:
-                logger.info(f"Unstructured文件类型支持: {file_ext}")
+                logger.info(f"Unstructured supported file type: {file_ext}")
                 loader = UnstructuredFileLoader(imput_stream.name)
                 document = loader.load()
                 text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             except Exception as e:
-                logger.error(f"Unstructured文件类型不支持: {file_ext}, 错误信息: {e}")
+                logger.error(f"Unstructured unsupported file type: {file_ext}, error message: {e}")
+                raise e
 
         return splitted_docs
     
