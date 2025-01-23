@@ -2,6 +2,9 @@ from langchain_community.document_loaders.unstructured import UnstructuredFileLo
 from langchain_community.document_loaders.markdown import UnstructuredMarkdownLoader
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain_text_splitters.markdown import MarkdownTextSplitter
+from langchain_core.documents import Document
+from markitdown import MarkItDown
+from loguru import logger
 
 import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -37,7 +40,7 @@ _CHINESE_SEPARATORS = [
 
 @st.cache_data
 def choose_text_splitter(
-    file_path: List,
+    file_path,
     chunk_size: int=1000,
     chunk_overlap: int=0
 ):
@@ -59,13 +62,16 @@ def choose_text_splitter(
             # 根据扩展名判断文件类型
             file_ext = os.path.splitext(file)[1]
             if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
-                loader = UnstructuredFileLoader(file_path.name)
-                document = loader.load()
+                logger.info(f"Markitdown文件类型支持: {file_ext}")
+                md = MarkItDown()
+                res = md.convert(file)
+                document = Document(page_content=res,metadata={"source":file})
                 text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
                 splitted_docs.extend(split_docs)
             else:
-                loader = UnstructuredFileLoader(file_path.name)
+                logger.info(f"Unstructured文件类型支持: {file_ext}")
+                loader = UnstructuredFileLoader(file)
                 document = loader.load()
                 text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
                 split_docs = text_splitter.split_documents(document)
@@ -75,24 +81,27 @@ def choose_text_splitter(
     
     # 如果 file_path 是一个obj
     else:
+        logger.info(f"object, 文件类型: {file_path.name}")
         file_ext = os.path.splitext(file_path.name)[1]
-        if file_ext == '.pdf':
-                loader = UnstructuredFileLoader(file_path.name)
-                document = loader.load()
-                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-                split_docs = text_splitter.split_documents(document)
-        elif file_ext =='.md':
-            loader = UnstructuredMarkdownLoader(file_path.name)
-            document = loader.load()
-            text_splitter = MarkdownTextSplitter(chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+        splitted_docs = []  # 初始化 splitted_docs 列表
+
+        if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
+            logger.info(f"Markitdown文件类型支持: {file_ext}")
+            md = MarkItDown()
+            res = md.convert(file_path.name)
+            document = [Document(page_content=res.text_content,metadata={"source":file_path.name})]
+            text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
             split_docs = text_splitter.split_documents(document)
+            splitted_docs.extend(split_docs)
         else:
+            logger.info(f"Unstructured文件类型支持: {file_ext}")
             loader = UnstructuredFileLoader(file_path.name)
             document = loader.load()
             text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
             split_docs = text_splitter.split_documents(document)
+            splitted_docs.extend(split_docs)
 
-        return split_docs
+        return splitted_docs
     
 
 def simplify_filename(original_name):

@@ -8,6 +8,7 @@ import uuid
 import requests
 
 from loguru import logger
+from openai.types.chat.chat_completion import ChatCompletion
 
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import (
@@ -42,7 +43,7 @@ class ChatProcessor(ChatProcessStrategy):
         self,
         messages: List[Dict[str, str]],
         stream: bool = False
-    ) -> Dict | Generator:
+    ) -> ChatCompletion | Generator:
         '''
         创建一个 LLM 响应，支持普通输出和流式输出。
         

@@ -39,6 +39,8 @@ import streamlit_antd_components as sac
 import streamlit.components.v1 as components
 from loguru import logger
 
+from utils.log.logger_config import setup_logger
+
 # 全局变量声明
 global chroma_vectorstore_processor, chroma_collection_processor
 chroma_vectorstore_processor = None
@@ -504,7 +506,7 @@ with st.container(border=True):
     with detail_column:
         if st.session_state.embed_stepper_bar == 0:
             upload_local_file_tab, upload_url_tab = st.tabs(
-                [i18n("Upload Local File"), i18n("Upload URL")]
+                [i18n("Upload Local File"), i18n("Upload Web Content")]
             )
 
             with upload_local_file_tab:
