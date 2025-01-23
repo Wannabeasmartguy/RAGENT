@@ -252,23 +252,16 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self.embedding_model_type = embedding_model_type
         self.embedding_model_name_or_path = embedding_model_name_or_path
 
-        # 2. 创建模型配置信息
-        model_id = str(uuid.uuid4())
-        embedding_model = self._create_model_config(
-            model_id, 
-            embedding_model_type,
-            embedding_model_name_or_path,
-            openai_kwargs
-        )
+        # 2. 加载或创建嵌入配置
+        self.embedding_config = self._load_or_create_embedding_config()
 
-        # 3. 尝试加载已有模型信息，或创建新的嵌入模型配置信息
-        self.embedding_config = self._load_or_create_embedding_config(
-            model_id, 
-            embedding_model
-        )
+        # 3. 获取或创建当前模型配置
+        current_model = self._get_or_create_current_model(openai_kwargs=openai_kwargs)
 
-        # 4. 初始化嵌入模型和知识库集合
-        self.embedding_model = self._create_embedding_model(embedding_model)
+        # 4. 初始化嵌入模型
+        self.embedding_model = self._create_embedding_model(current_model)
+        
+        # 5. 获取知识库集合列表
         self.knowledgebase_collections = self._list_chroma_collections()
 
     def _create_model_config(
@@ -325,11 +318,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             **config["extra_params"]
         )
 
-    def _load_or_create_embedding_config(
-        self,
-        model_id: str,
-        embedding_model: EmbeddingModelConfiguration
-    ) -> EmbeddingConfiguration:
+    def _load_or_create_embedding_config(self):
         """
         尝试加载已有嵌入配置，如果配置不存在，则创建新的嵌入配置
         """
@@ -340,13 +329,13 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                     return EmbeddingConfiguration(**json.load(f))
             except Exception as e:
                 logger.error(f"Error loading embedding config: {e}")
-                logger.info(f"Creating new embedding config for {model_id} due to loading error")
+                logger.info(f"Creating new embedding config for {str(uuid.uuid4())} due to loading error")
 
         # 创建新的配置
         from datetime import datetime
         return EmbeddingConfiguration(
-            global_settings=GlobalSettings(default_model=model_id),
-            models=[embedding_model],
+            global_settings=GlobalSettings(default_model=str(uuid.uuid4())),
+            models=[],
             knowledge_bases=[],
             user_id=None,
             created_at=datetime.now().isoformat(),
@@ -433,6 +422,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
         Args:
             collection_name (str): 用户指定的知识库名称
+            hnsw_space (Literal["cosine", "l2"]): 向量空间类型
 
         Returns:
             None
@@ -456,12 +446,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             },
         )
 
-        # 获取当前使用的嵌入模型的ID
-        current_model_id = self._get_current_model_id()
+        # 获取当前使用的模型配置
+        current_model = self._get_or_create_current_model()
 
         # 添加新的知识库到配置中
         new_kb = KnowledgeBaseConfiguration(
-            id=collection_id, name=collection_name, embedding_model_id=current_model_id
+            id=collection_id,
+            name=collection_name,
+            embedding_model_id=current_model.id
         )
         self.embedding_config.knowledge_bases.append(new_kb)
 
@@ -545,23 +537,48 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         else:
             raise ValueError("Unsupported embedding type")
 
-    def _get_current_model_id(self):
+    def _get_or_create_current_model(
+        self,
+        create_if_not_exists: bool = True,
+        openai_kwargs: dict = None
+    ) -> EmbeddingModelConfiguration:
         """
-        获取当前使用的嵌入模型的ID
+        获取或创建当前使用的模型配置
+
+        Args:
+            create_if_not_exists (bool): 如果模型不存在，是否创建新的模型配置
+            openai_kwargs (dict): 创建新模型时需要的OpenAI相关参数
 
         Returns:
-            str: 当前模型的ID
+            EmbeddingModelConfiguration: 当前使用的模型配置
+
+        Raises:
+            ValueError: 当模型不存在且create_if_not_exists为False时
         """
+        # 查找匹配的模型配置
+        current_model = None
         for model in self.embedding_config.models:
             if (
                 model.embedding_type == self.embedding_model_type
-                and model.embedding_model_name_or_path
-                == self.embedding_model_name_or_path
+                and model.embedding_model_name_or_path == self.embedding_model_name_or_path
             ):
-                return model.id
+                current_model = model
+                break
 
-        # 如果没有找到匹配的模型，使用默认模型ID
-        return self.embedding_config.global_settings.default_model
+        # 如果没有找到匹配的模型配置且允许创建
+        if not current_model and create_if_not_exists:
+            current_model = self._create_model_config(
+                str(uuid.uuid4()),
+                self.embedding_model_type,
+                self.embedding_model_name_or_path,
+                openai_kwargs or {}
+            )
+            self.embedding_config.models.append(current_model)
+            self._update_embedding_config()
+        elif not current_model:
+            raise ValueError(f"No matching model configuration found for {self.embedding_model_type}:{self.embedding_model_name_or_path}")
+
+        return current_model
 
 
 class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):

@@ -33,7 +33,9 @@ _CHINESE_SEPARATORS = [
     "",
 ]
 
-_SUPPORTED_FILE_TYPES = ['pdf','md','txt','docx','doc','pptx','ppt','xlsx','xls','csv']
+_MARKITDOWN_SUPPORTED_FILE_TYPES = ['md','txt','docx','doc','pptx','ppt','xlsx','xls','csv']
+_UNSTRUCTURED_SUPPORTED_FILE_TYPES = ['pdf']
+_SUPPORTED_FILE_TYPES = _MARKITDOWN_SUPPORTED_FILE_TYPES + _UNSTRUCTURED_SUPPORTED_FILE_TYPES
 
 
 @st.cache_data
@@ -59,7 +61,7 @@ def choose_text_splitter(
         for file in file_path_list:
             # 根据扩展名判断文件类型
             file_ext = os.path.splitext(file)[1].lstrip('.')
-            if file_ext in _SUPPORTED_FILE_TYPES:
+            if file_ext in _MARKITDOWN_SUPPORTED_FILE_TYPES:
                 try:
                     logger.info(f"Markitdown supported file type: {file_ext}")
                     md = MarkItDown()
@@ -91,7 +93,7 @@ def choose_text_splitter(
         file_ext = os.path.splitext(imput_stream.name)[1].lstrip('.')
         splitted_docs = []  # 初始化 splitted_docs 列表
 
-        if file_ext in _SUPPORTED_FILE_TYPES:
+        if file_ext in _MARKITDOWN_SUPPORTED_FILE_TYPES:
             try:
                 logger.info(f"Markitdown supported file type: {file_ext}")
                 md = MarkItDown()
