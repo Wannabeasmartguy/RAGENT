@@ -308,6 +308,21 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     display_rag_sources(response_sources, response_id)
 
 
+def get_collection_options():
+    """获取当前可用的知识库列表"""
+    try:
+        with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
+            embedding_config = json.load(f)
+        collections = [kb["name"] for kb in embedding_config.get("knowledge_bases", [])]
+        return collections if collections else []
+    except FileNotFoundError:
+        logger.error(f"File not found: {EMBEDDING_CONFIG_FILE_PATH}")
+        return []
+    except Exception as e:
+        logger.error(f"Error loading embedding config: {e}")
+        return []
+
+
 oailike_config_processor = OAILikeConfigProcessor()
 
 logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
@@ -388,9 +403,19 @@ if "rag_chat_config_list" not in st.session_state:
     ]
 if "knowledge_base_config" not in st.session_state:
     kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
-    st.session_state.collection_name = kb_config.get("collection_name")
-    st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
-    st.session_state.selected_collection_file = kb_config.get("selected_file")
+    # 获取可用的知识库列表
+    available_collections = get_collection_options()
+    
+    configured_collection = kb_config.get("collection_name")
+    if configured_collection and configured_collection in available_collections:
+        st.session_state.collection_name = configured_collection
+    else:
+        # 如果配置的知识库不存在或未配置，配置为None
+        st.session_state.collection_name = None
+        
+    # 其他配置项的初始化
+    st.session_state.query_mode_toggle = False
+    st.session_state.selected_collection_file = None
     st.session_state.is_rerank = kb_config.get("is_rerank", False)
     st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
     st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
@@ -624,10 +649,48 @@ def update_knowledge_base_config():
 
 # 在加载对话时恢复知识库配置
 def restore_knowledge_base_config():
+    """
+    恢复知识库配置，如果配置的知识库不存在则重置配置
+    """
     kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
     if kb_config:
-        st.session_state.collection_name = kb_config.get("collection_name")
+        # 获取当前可用的知识库列表
+        available_collections = get_collection_options()
+        
+        # 检查配置的知识库是否仍然存在
+        configured_collection = kb_config.get("collection_name")
+        if configured_collection and configured_collection in available_collections:
+            st.session_state.collection_name = configured_collection
+        else:
+            # 如果配置的知识库不存在，重置为第一个可用的知识库，如果没有可用的知识库则设为None
+            st.session_state.collection_name = available_collections[0] if available_collections else None
+            # 同时重置其他相关配置
+            st.session_state.query_mode_toggle = False
+            st.session_state.selected_collection_file = None
+            # 更新数据库中的配置
+            dialog_processor.update_knowledge_base_config(
+                run_id=st.session_state.rag_run_id,
+                knowledge_base_config={
+                    "collection_name": st.session_state.collection_name,
+                    "query_mode": "collection",
+                    "selected_file": None,
+                    "is_rerank": False,
+                    "is_hybrid_retrieve": False,
+                    "hybrid_retrieve_weight": 0.5,
+                }
+            )
+            # 提示用户
+            if not available_collections:
+                st.warning(i18n("No knowledge base available. Please create one first."))
+            else:
+                st.warning(i18n("Previously configured knowledge base no longer exists. Reset to available knowledge base."))
+            return
+
+        # 如果知识库存在，继续恢复其他配置
         st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
+        st.session_state.is_rerank = kb_config.get("is_rerank", False)
+        st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
+        st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
         # 检查文件是否仍然存在于知识库中
         selected_file = kb_config.get("selected_file")
@@ -640,13 +703,13 @@ def restore_knowledge_base_config():
                     (
                         kb
                         for kb in embedding_config.get("knowledge_bases", [])
-                        if kb["name"] == st.session_state["collection_name"]
+                        if kb["name"] == st.session_state.collection_name
                     ),
                     {},
                 )
 
                 collection_processor = ChromaCollectionProcessorWithNoApi(
-                    collection_name=kb_config.get("collection_name"),
+                    collection_name=st.session_state.collection_name,
                     embedding_config=EmbeddingConfiguration(**embedding_config),
                     embedding_model_id=collection_config.get("embedding_model_id"),
                 )
@@ -659,18 +722,27 @@ def restore_knowledge_base_config():
                     st.session_state.selected_collection_file = selected_file
                 else:
                     st.session_state.selected_collection_file = None
-                    logger.warning(
-                        f"Selected file {selected_file} no longer exists in knowledge base"
+                    st.session_state.query_mode_toggle = False
+                    # 更新数据库中的配置
+                    dialog_processor.update_knowledge_base_config(
+                        run_id=st.session_state.rag_run_id,
+                        knowledge_base_config={
+                            "collection_name": st.session_state.collection_name,
+                            "query_mode": "collection",
+                            "selected_file": None,
+                            "is_rerank": st.session_state.is_rerank,
+                            "is_hybrid_retrieve": st.session_state.is_hybrid_retrieve,
+                            "hybrid_retrieve_weight": st.session_state.hybrid_retrieve_weight,
+                        }
                     )
+                    st.warning(i18n("Previously selected file no longer exists in the knowledge base."))
             except Exception as e:
                 logger.error(f"Error checking file existence: {e}")
                 st.session_state.selected_collection_file = None
+                st.session_state.query_mode_toggle = False
         else:
             st.session_state.selected_collection_file = None
 
-        st.session_state.is_rerank = kb_config.get("is_rerank", False)
-        st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
-        st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
 try:
     set_pages_configs_in_common(
@@ -714,63 +786,40 @@ with st.sidebar:
 
             def rag_saved_dialog_change_callback():
                 """对话切换回调函数"""
-                # 暂时取消防抖，防止频繁切换对话时，出现卡顿
-                # if debounced_dialog_change():
-                try:
-                    selected_run = st.session_state.rag_saved_dialog
-                    current_run_id = st.session_state.rag_run_id
-                    
-                    # 如果是同一个对话，不进行更新
-                    if selected_run.run_id == current_run_id:
-                        logger.debug(f"Same dialog selected, skipping update")
-                        return
-                        
-                    # 先保存当前对话的状态
-                    if current_run_id:
-                        current_chat_state = RAGChatState(
-                            current_run_id=current_run_id,
-                            run_name=st.session_state.rag_run_name,
-                            config_list=st.session_state.rag_chat_config_list,
-                            llm_model_type=st.session_state.model_type,
-                            source_documents=st.session_state.custom_rag_sources,
-                        )
-                        dialog_processor.update_dialog_config(
-                            run_id=current_run_id,
-                            llm_config=current_chat_state.config_list[0],
-                            assistant_data={
-                                "model_type": current_chat_state.llm_model_type,
-                            },
-                            task_data={
-                                "source_documents": current_chat_state.source_documents
-                            },
-                            updated_at=datetime.now()
-                        )
-                        
-                    # 再加载新对话的状态    
-                    st.session_state.rag_run_id = selected_run.run_id
-                    st.session_state.rag_current_run_id_index = [
-                        run.run_id for run in dialog_processor.get_all_dialogs()
-                    ].index(st.session_state.rag_run_id)
-                    
-                    # 更新配置
-                    st.session_state.rag_chat_config_list = [selected_run.llm] if selected_run.llm else []
-                    
-                    # 更新聊天历史和源文档
+                if debounced_dialog_change():
                     try:
-                        st.session_state.custom_rag_chat_history = selected_run.memory["chat_history"]
-                        st.session_state.custom_rag_sources = selected_run.task_data["source_documents"]
-                    except (TypeError, ValidationError):
-                        st.session_state.custom_rag_chat_history = []
-                        st.session_state.custom_rag_sources = {}
+                        selected_run = st.session_state.rag_saved_dialog
+                        current_run_id = st.session_state.rag_run_id
                         
-                    # 从数据库中恢复知识库配置
-                    restore_knowledge_base_config()
-                    
-                    logger.info(f"RAG Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Error during RAG dialog change: {e}")
-                    st.error(i18n("Failed to change dialog"))
+                        # 如果是同一个对话，不进行更新
+                        if selected_run.run_id == current_run_id:
+                            return
+                            
+                        # 更新对话ID和索引
+                        st.session_state.rag_run_id = selected_run.run_id
+                        st.session_state.rag_current_run_id_index = [
+                            run.run_id for run in dialog_processor.get_all_dialogs()
+                        ].index(st.session_state.rag_run_id)
+                        
+                        # 更新配置
+                        st.session_state.rag_chat_config_list = [selected_run.llm] if selected_run.llm else []
+                        
+                        # 更新聊天历史和源文档
+                        try:
+                            st.session_state.custom_rag_chat_history = selected_run.memory["chat_history"]
+                            st.session_state.custom_rag_sources = selected_run.task_data["source_documents"]
+                        except (TypeError, ValidationError):
+                            st.session_state.custom_rag_chat_history = []
+                            st.session_state.custom_rag_sources = {}
+                            
+                        # 恢复知识库配置
+                        restore_knowledge_base_config()
+                        
+                        logger.info(f"RAG Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
+                        
+                    except Exception as e:
+                        logger.error(f"Error during RAG dialog change: {e}")
+                        st.error(i18n("Failed to change dialog"))
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
@@ -1208,24 +1257,18 @@ with st.sidebar:
                 st.session_state.selected_collection_file = None
                 update_collection_processor_callback()
 
-            def get_collection_options():
-                try:
-                    with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
-                        embedding_config = json.load(f)
-                    return [
-                        kb["name"] for kb in embedding_config.get("knowledge_bases", [])
-                    ]
-                except FileNotFoundError:
-                    logger.error(f"File not found: {EMBEDDING_CONFIG_FILE_PATH}")
-                    return []
-
-            collection_selectbox = st.selectbox(
-                label=i18n("Collection"),
-                options=get_collection_options(),
-                placeholder=i18n("Please create a new collection first"),
-                on_change=change_collection_callback,
-                key="collection_name",
-            )
+            collections = get_collection_options()
+            if collections:
+                collection_selectbox = st.selectbox(
+                    label=i18n("Collection"),
+                    options=collections,
+                    index=collections.index(st.session_state.collection_name) if st.session_state.collection_name in collections else 0,
+                    on_change=change_collection_callback,
+                    key="collection_name",
+                )
+            else:
+                st.warning(i18n("No knowledge base available. Please create one first."))
+                collection_selectbox = None
 
             collection_files_placeholder = st.empty()
             refresh_collection_files_button_placeholder = st.empty()
