@@ -25,6 +25,7 @@ from utils.chroma_utils import get_chroma_file_info
 from utils.text_splitter.text_splitter_utils import (
     text_split_execute,
     url_text_split_execute,
+    _SUPPORTED_FILE_TYPES,
 )
 from utils.basic_utils import datetime_serializer
 from core.models.embeddings import (
@@ -515,6 +516,7 @@ with st.container(border=True):
                     accept_multiple_files=True,
                     label_visibility="collapsed",
                     key=st.session_state["file_uploader_key"],
+                    type=_SUPPORTED_FILE_TYPES
                 )
                 if st.session_state.file_uploaded:
                     if len(st.session_state.file_uploaded) > 1:

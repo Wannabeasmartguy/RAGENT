@@ -1,5 +1,5 @@
 from langchain_community.document_loaders.unstructured import UnstructuredFileLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from markitdown import MarkItDown
 from loguru import logger
@@ -33,6 +33,8 @@ _CHINESE_SEPARATORS = [
     "",
 ]
 
+_SUPPORTED_FILE_TYPES = ['pdf','md','txt','docx','doc','pptx','ppt','xlsx','xls','csv']
+
 
 @st.cache_data
 def choose_text_splitter(
@@ -56,46 +58,58 @@ def choose_text_splitter(
 
         for file in file_path_list:
             # 根据扩展名判断文件类型
-            file_ext = os.path.splitext(file)[1]
-            if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
-                logger.info(f"Markitdown文件类型支持: {file_ext}")
-                md = MarkItDown()
-                res = md.convert(file)
-                document = Document(page_content=res,metadata={"source":file})
-                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-                split_docs = text_splitter.split_documents(document)
-                splitted_docs.extend(split_docs)
+            file_ext = os.path.splitext(file)[1].lstrip('.')
+            if file_ext in _SUPPORTED_FILE_TYPES:
+                try:
+                    logger.info(f"Markitdown文件类型支持: {file_ext}")
+                    md = MarkItDown()
+                    res = md.convert(file)
+                    document = Document(page_content=res,metadata={"source":file})
+                    text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                    split_docs = text_splitter.split_documents(document)
+                    splitted_docs.extend(split_docs)
+                except Exception as e:
+                    logger.error(f"Markitdown文件类型不支持: {file_ext}, 错误信息: {e}")
             else:
-                logger.info(f"Unstructured文件类型支持: {file_ext}")
-                loader = UnstructuredFileLoader(file)
-                document = loader.load()
-                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-                split_docs = text_splitter.split_documents(document)
-                splitted_docs.extend(split_docs)
+                try:
+                    logger.info(f"Unstructured文件类型支持: {file_ext}")
+                    loader = UnstructuredFileLoader(file)
+                    document = loader.load()
+                    text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                    split_docs = text_splitter.split_documents(document)
+                    splitted_docs.extend(split_docs)
+                except Exception as e:
+                    logger.error(f"Unstructured文件类型不支持: {file_ext}, 错误信息: {e}")
         
         return splitted_docs
     
     # 如果 imput_stream 是单个IO对象
     else:
         logger.info(f"object, 文件类型: {imput_stream.name}")
-        file_ext = os.path.splitext(imput_stream.name)[1]
+        file_ext = os.path.splitext(imput_stream.name)[1].lstrip('.')
         splitted_docs = []  # 初始化 splitted_docs 列表
 
-        if file_ext in ['.pdf','.md','.txt','.docx','.doc','.pptx','.ppt','.xlsx','.xls','.csv']:
-            logger.info(f"Markitdown文件类型支持: {file_ext}")
-            md = MarkItDown()
-            res = md.convert(imput_stream.name)
-            document = [Document(page_content=res.text_content,metadata={"source":imput_stream.name})]
-            text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-            split_docs = text_splitter.split_documents(document)
-            splitted_docs.extend(split_docs)
+        if file_ext in _SUPPORTED_FILE_TYPES:
+            try:
+                logger.info(f"Markitdown文件类型支持: {file_ext}")
+                md = MarkItDown()
+                res = md.convert(imput_stream.name)
+                document = [Document(page_content=res.text_content,metadata={"source":imput_stream.name})]
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                split_docs = text_splitter.split_documents(document)
+                splitted_docs.extend(split_docs)
+            except Exception as e:
+                logger.error(f"Markitdown文件类型不支持: {file_ext}, 错误信息: {e}")
         else:
-            logger.info(f"Unstructured文件类型支持: {file_ext}")
-            loader = UnstructuredFileLoader(imput_stream.name)
-            document = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
-            split_docs = text_splitter.split_documents(document)
-            splitted_docs.extend(split_docs)
+            try:
+                logger.info(f"Unstructured文件类型支持: {file_ext}")
+                loader = UnstructuredFileLoader(imput_stream.name)
+                document = loader.load()
+                text_splitter = RecursiveCharacterTextSplitter(separators=_CHINESE_SEPARATORS,chunk_size=chunk_size,chunk_overlap=chunk_overlap)
+                split_docs = text_splitter.split_documents(document)
+                splitted_docs.extend(split_docs)
+            except Exception as e:
+                logger.error(f"Unstructured文件类型不支持: {file_ext}, 错误信息: {e}")
 
         return splitted_docs
     
