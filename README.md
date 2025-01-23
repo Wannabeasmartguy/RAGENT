@@ -4,7 +4,7 @@
 
 Probably one of the lightest native RAG + Agent apps out there，experience the power of Agent-powered models and Agent-driven knowledge bases in one click, without complex configuration.
 
-![image](https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMKZ5Bj6HCDNEk_vLk6cx5_GlFtd-wAArjAMRsUEYFU1f6bxbi4L58BAAMCAAN3AAM2BA.png)
+![image](https://github.com/user-attachments/assets/bcc6395a-92ab-4ae6-8d36-a6831c240b16)
 
 ## Features
 
@@ -34,7 +34,7 @@ Knowledgebase:
 
 Support export format, theme selection and export range control:
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMRZ5CP8tOC8mZNa1Gfmn0ZrIi02rYAAj_BMRsUEYFUKE-qz7XnQGYBAAMCAAN3AAM2BA.png" alt="Export settings and preview" style="zoom:40%;" />
+<img src="https://github.com/user-attachments/assets/85756a3c-7ca2-4fcf-becc-682f22091c4e" alt="Export settings and preview" style="zoom:40%;" />
 
 Currently supported themes: 
 
@@ -42,19 +42,17 @@ Currently supported themes:
 | :-----: | :-----------: |
 | <img src="https://github.com/user-attachments/assets/6ac8132c-0821-4487-9a1a-a0297a35783a" alt="default theme" width="300" /> | <img src="https://github.com/user-attachments/assets/87b07e86-dd98-4e66-a850-17b776fbeb1c" alt="Glassmorphism theme" width="300" /> |
 
-
-
 ### RAG Chat
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMLZ5Bl9d6RMZnIt6k1yonaBS9wXbcAArzAMRsUEYFUrbgUsfJJiMYBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/bc574d1e-e614-4310-ad00-746c5646963a" alt="image" style="zoom:50%;" />
 
 You can set up the model (sidebar) and view detailed references:
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMMZ5BmXto1f3yvbBPW4AsgwsRgg7UAAsPAMRsUEYFUY1YxLW9SCQgBAAMCAAN3AAM2BA.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/a6ce3f0b-3c8f-4e3d-8d34-bceb834da81e" alt="image" style="zoom:50%;" />
 
-Configure RAG ：
+Configure RAG：
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMNZ5Bmr4RpbW6hLlk2vgABmgABTLpHzwACxMAxGxQRgVR4uuGHCePimwEAAwIAA3cAAzYE.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/82480174-bac1-47d4-b5f4-9725774618f2" alt="image" style="zoom:50%;" />
 
 ### Function Call
 
@@ -64,11 +62,11 @@ The Function Calls on this page are native and work for all OpenAI Compatible mo
 
 Function Call can significantly enhance the capabilities of LLM, allowing it to complete tasks that it was previously unable to complete (such as mathematical calculations), as shown below:
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMOZ5CISmmhCaolgsanImFf0nEEL9QAA8ExGxQRgVTsFfNLpLODKQEAAwIAA3cAAzYE.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/fba30f4a-dbfc-47d0-9f1c-4443171fa018" alt="image" style="zoom:50%;" />
 
 Or summarize the content of a webpage:
 
-<img src="https://telegraph-image-4v7.pages.dev/file/AgACAgUAAyEGAASL2gZEAAMPZ5CMA6bEaIijxonoYAABA5HeGVJ1AAIXwTEbFBGBVFDdSgXTyOJ4AQADAgADdwADNgQ.png" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/7da5ae4d-40d5-49b4-9e76-6ce2a39ac6d1" alt="image" style="zoom:50%;" />
 
 > You can also customize the function you want to call, please refer to [toolkits.py](tools/toolkits.py) for writing rules.
 
