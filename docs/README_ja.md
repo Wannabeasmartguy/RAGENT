@@ -1,4 +1,4 @@
-# RAGenT
+# RAGENT
 [中文文档](../docs/README_zh.md) | [English](../README.md) | **日本語**
 
 おそらく最も軽量なローカル RAG + Agent アプリの一つで、複雑な設定なしに、ワンクリックで Agent の強化を受けた異なるモデルの能力の飛躍的な向上を体験できます。
@@ -74,7 +74,7 @@ Function Call は LLM の能力を大幅に強化し、本来は不可能な作�
 
 ### Git
 
-0. `git clone https://github.com/Wannabeasmartguy/RAGenT.git`を使用してコードを取得します。
+0. `git clone https://github.com/Wannabeasmartguy/RAGENT.git`を使用してコードを取得します。
 次に、**コマンドプロンプト（CMD）**で実行環境を開き、`pip install -r requirements.txt`を使用して実行依存関係をインストールします。
 
 1. モデル依存関係を設定します：`.env_sample`ファイルを`.env`に変更し、以下の内容を記入します：
@@ -92,7 +92,7 @@ Function Call は LLM の能力を大幅に強化し、本来は不可能な作�
 
 2. アプリケーションを起動します：
 
-コマンドラインで：`streamlit run RAGenT.py` を実行すると起動し、起動完了後ブラウザで自動的にフロントエンドページが開きます。
+コマンドラインで：`streamlit run RAGENT.py` を実行すると起動し、起動完了後ブラウザで自動的にフロントエンドページが開きます。
 
 コントリビュート
 使用中に遭遇した問題や新しいアイデアについては、issue や PR の提出を歓迎します！

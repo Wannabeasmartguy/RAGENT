@@ -1,4 +1,4 @@
-# RAGenT
+# RAGENT
 
 **中文文档** | [English](../README.md) | [日本語](README_ja.md)
 
@@ -78,7 +78,7 @@ Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成�
 
 ### Git
 
-0. 使用`git clone https://github.com/Wannabeasmartguy/RAGenT.git`拉取代码；
+0. 使用`git clone https://github.com/Wannabeasmartguy/RAGENT.git`拉取代码；
 然后在**命令提示符 (CMD)**中打开你的运行环境，使用 `pip install -r requirements.txt` 安装运行依赖。
 
 1. 配置模型依赖项：修改 `.env_sample` 文件为 `.env` 并填写以下内容：
@@ -96,7 +96,7 @@ Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成�
 
 2. 启动应用：
 
-   命令行运行：`streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
+   命令行运行：`streamlit run RAGENT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
 ## 贡献
 

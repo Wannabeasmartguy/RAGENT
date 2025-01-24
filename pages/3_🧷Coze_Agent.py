@@ -10,8 +10,8 @@ from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
 parent_directory = os.path.dirname(current_directory)
-logo_path = os.path.join(parent_directory, 'assets', 'images', 'logos', 'RAGenT_logo.png')
-logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(parent_directory, 'assets', 'images', 'logos', 'RAGENT_logo.png')
+logo_text = os.path.join(parent_directory, "assets", "images", "logos", "RAGENT_logo_with_text_horizon.png")
 set_pages_configs_in_common(version=VERSION,title="Coze-Agent",page_icon_path=logo_path)
 
 language = os.getenv("LANGUAGE", "简体中文")
@@ -35,7 +35,7 @@ display_coze_conversation(st.session_state.coze_chat_history_display)
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")

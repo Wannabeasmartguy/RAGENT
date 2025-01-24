@@ -155,8 +155,8 @@ if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
 
-logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
 # 将SVG编码为base64
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -165,7 +165,7 @@ ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('
 # Only need st.rerun once to fix it, and it works fine thereafter.
 try:
     set_pages_configs_in_common(
-        version=VERSION, title="RAGenT", page_icon_path=logo_path
+        version=VERSION, title="RAGENT", page_icon_path=logo_path
     )
 except:
     st.rerun()
@@ -494,7 +494,7 @@ async def generate_new_run_name_with_llm_for_the_first_time(
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")

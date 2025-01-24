@@ -1,4 +1,4 @@
-# RAGenT
+# RAGENT
 
 **English** | [中文文档](./docs/README_zh.md) | [日本語](./docs/README_ja.md)
 
@@ -74,7 +74,7 @@ Or summarize the content of a webpage:
 
 ### Git
 
-0. Use `git clone https://github.com/Wannabeasmartguy/RAGenT.git` to pull the code;
+0. Use `git clone https://github.com/Wannabeasmartguy/RAGENT.git` to pull the code;
 Then open your runtime environment in **command prompt (CMD)** and use `pip install -r requirements.txt` to install the runtime dependencies.
 
 1. Configure the model dependencies: Modify the `.env_sample` file to `.env` and fill in the following:
@@ -92,9 +92,9 @@ Then open your runtime environment in **command prompt (CMD)** and use `pip inst
 
 2. launch the application:
 
-Run: Run `streamlit run RAGenT.py` on the command line can start it.
+Run: Run `streamlit run RAGENT.py` on the command line can start it.
 
-If you want to use the AgentChat page, please use `python startup.py` to start the application rather than `streamlit run RAGenT.py`.
+If you want to use the AgentChat page, please use `python startup.py` to start the application rather than `streamlit run RAGENT.py`.
 
 ## Contribution
 

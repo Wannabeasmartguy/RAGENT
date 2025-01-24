@@ -233,7 +233,7 @@ def get_or_create_model_id(collection_name, embedding_config):
 
 
 try:
-    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+    logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
     set_pages_configs_in_common(
         version=VERSION, title="Knowledge Base Management", page_icon_path=logo_path
     )
@@ -244,8 +244,8 @@ init_session_state()
 
 # 侧边栏
 with st.sidebar:
-    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-    logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+    logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
+    logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
     st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
