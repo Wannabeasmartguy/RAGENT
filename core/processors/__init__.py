@@ -1,5 +1,5 @@
 from .chat.classic import ChatProcessor
-from .chat.agent import RAGChatProcessor
+from .chat.rag import RAGChatProcessor
 from .config.llm import OAILikeConfigProcessor
 from .dialog.dialog_processors import DialogProcessor, RAGChatDialogProcessor
 from .vector.chroma.kb_processors import (
