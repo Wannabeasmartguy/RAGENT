@@ -205,5 +205,7 @@
     "Team Settings": "Team Settings",
     "Select a team template": "Select a team template",
     "Detail info": "Detail info",
-    "The Collection You Want to Delete": "The Collection You Want to Delete"
+    "The Collection You Want to Delete": "The Collection You Want to Delete",
+    "Please select a knowledge base collection": "Please select a knowledge base collection",
+    "Previously configured knowledge base no longer exists. Please select a new one.": "Previously configured knowledge base no longer exists. Please select a new one."
 }

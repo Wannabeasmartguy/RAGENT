@@ -31,7 +31,7 @@ from core.processors import (
 from core.models.embeddings import (
     EmbeddingConfiguration,
 )
-from core.models.app import RAGChatState
+from core.models.app import RAGChatState, KnowledgebaseConfigInRAGChatState
 from core.storage.db.sqlite import SqlAssistantStorage
 from core.llm._client_info import generate_client_config
 from utils.basic_utils import (
@@ -414,7 +414,7 @@ if "knowledge_base_config" not in st.session_state:
         st.session_state.collection_name = None
         
     # 其他配置项的初始化
-    st.session_state.query_mode_toggle = False
+    st.session_state.query_mode_toggle = True if kb_config.get("query_mode") == "file" else False
     st.session_state.selected_collection_file = None
     st.session_state.is_rerank = kb_config.get("is_rerank", False)
     st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
@@ -557,6 +557,7 @@ def update_rag_config_in_db_callback():
         },
         updated_at=datetime.now(),
     )
+    logger.info(f"Updated RAG chat llm config in db: {current_chat_state.current_run_id}")
 
 
 def create_and_display_rag_chat_round(
@@ -627,24 +628,27 @@ def create_and_display_rag_chat_round(
 
 # 在知识库设置发生变化时保存配置
 def update_knowledge_base_config():
-    knowledge_base_config = {
-        "collection_name": st.session_state.get("collection_name"),
-        "query_mode": (
-            "file" if st.session_state.get("query_mode_toggle") else "collection"
-        ),
-        "selected_file": (
-            st.session_state.get("selected_collection_file")
-            if st.session_state.get("query_mode_toggle")
-            else None
-        ),
-        "is_rerank": st.session_state.get("is_rerank", False),
-        "is_hybrid_retrieve": st.session_state.get("is_hybrid_retrieve", False),
-        "hybrid_retrieve_weight": st.session_state.get("hybrid_retrieve_weight", 0.5),
-    }
+    query_mode = "file" if st.session_state.get("query_mode_toggle") else "collection"
+    selected_file = (
+        st.session_state.get("selected_collection_file")
+        if st.session_state.get("query_mode_toggle")
+        else None
+    )
+    
+    knowledge_base_config = KnowledgebaseConfigInRAGChatState(
+        collection_name=st.session_state.get("collection_name"),
+        query_mode=query_mode,
+        selected_file=selected_file,
+        is_rerank=st.session_state.get("is_rerank", False),
+        is_hybrid_retrieve=st.session_state.get("is_hybrid_retrieve", False),
+        hybrid_retrieve_weight=st.session_state.get("hybrid_retrieve_weight", 0.5),
+    )
 
     dialog_processor.update_knowledge_base_config(
-        run_id=st.session_state.rag_run_id, knowledge_base_config=knowledge_base_config
+        run_id=st.session_state.rag_run_id, 
+        knowledge_base_config=knowledge_base_config.model_dump()
     )
+    logger.info(f"Knowledge base config updated in db: {st.session_state.rag_run_id}")
 
 
 # 在加载对话时恢复知识库配置
@@ -662,28 +666,24 @@ def restore_knowledge_base_config():
         if configured_collection and configured_collection in available_collections:
             st.session_state.collection_name = configured_collection
         else:
-            # 如果配置的知识库不存在，重置为第一个可用的知识库，如果没有可用的知识库则设为None
-            st.session_state.collection_name = available_collections[0] if available_collections else None
+            # 如果配置的知识库不存在，重置为None
+            st.session_state.collection_name = None
             # 同时重置其他相关配置
             st.session_state.query_mode_toggle = False
             st.session_state.selected_collection_file = None
             # 更新数据库中的配置
             dialog_processor.update_knowledge_base_config(
                 run_id=st.session_state.rag_run_id,
-                knowledge_base_config={
-                    "collection_name": st.session_state.collection_name,
-                    "query_mode": "collection",
-                    "selected_file": None,
-                    "is_rerank": False,
-                    "is_hybrid_retrieve": False,
-                    "hybrid_retrieve_weight": 0.5,
-                }
+                knowledge_base_config=KnowledgebaseConfigInRAGChatState(
+                    collection_name= st.session_state.collection_name,
+                    query_mode = "collection",
+                    selected_file = None,
+                    is_rerank = False,
+                    is_hybrid_retrieve = False,
+                    hybrid_retrieve_weight = 0.5,
+                )
             )
-            # 提示用户
-            if not available_collections:
-                st.warning(i18n("No knowledge base available. Please create one first."))
-            else:
-                st.warning(i18n("Previously configured knowledge base no longer exists. Reset to available knowledge base."))
+            st.toast(i18n("Previously configured knowledge base no longer exists. Please select a new one."), icon="❗️")
             return
 
         # 如果知识库存在，继续恢复其他配置
@@ -726,14 +726,14 @@ def restore_knowledge_base_config():
                     # 更新数据库中的配置
                     dialog_processor.update_knowledge_base_config(
                         run_id=st.session_state.rag_run_id,
-                        knowledge_base_config={
-                            "collection_name": st.session_state.collection_name,
-                            "query_mode": "collection",
-                            "selected_file": None,
-                            "is_rerank": st.session_state.is_rerank,
-                            "is_hybrid_retrieve": st.session_state.is_hybrid_retrieve,
-                            "hybrid_retrieve_weight": st.session_state.hybrid_retrieve_weight,
-                        }
+                        knowledge_base_config=KnowledgebaseConfigInRAGChatState(
+                            collection_name= st.session_state.collection_name,
+                            query_mode = "collection",
+                            selected_file = None,
+                            is_rerank = st.session_state.is_rerank,
+                            is_hybrid_retrieve = st.session_state.is_hybrid_retrieve,
+                            hybrid_retrieve_weight=st.session_state.hybrid_retrieve_weight,
+                        )
                     )
                     st.warning(i18n("Previously selected file no longer exists in the knowledge base."))
             except Exception as e:

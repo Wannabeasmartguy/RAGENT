@@ -205,5 +205,7 @@
     "Team Settings": "团队设置",
     "Select a team template": "选择一个团队模板",
     "Detail info": "详情信息",
-    "The Collection You Want to Delete": "将要删除的知识库"
+    "The Collection You Want to Delete": "将要删除的知识库",
+    "Please select a knowledge base collection": "请选择一个知识库",
+    "Previously configured knowledge base no longer exists. Please select a new one.": "之前配置的知识库不再存在。请选择一个新的知识库。"
 }
