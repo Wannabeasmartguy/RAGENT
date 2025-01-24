@@ -476,7 +476,7 @@ with st.expander(
 
     with delete_collection_tab:
         delete_collection_name_selectbox = st.selectbox(
-            label=i18n("To be deleted Collection Name"),
+            label=i18n("The Collection You Want to Delete"),
             options=chroma_vectorstore_processor.knowledgebase_collections,
             key="delete_collection_name_selectbox",
         )

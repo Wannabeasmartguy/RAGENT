@@ -2,7 +2,7 @@ import os
 import json
 import base64
 from datetime import datetime
-from typing import Dict, Any, Optional, Union, Literal
+from typing import Dict, Any, Optional, Union, Literal, List
 from uuid import uuid4
 from functools import lru_cache
 from copy import deepcopy
@@ -62,7 +62,7 @@ from pydantic import ValidationError
 
 
 @lru_cache(maxsize=1)
-def get_ragchat_processor():
+def get_ragchat_processor() -> RAGChatProcessor:
     return RAGChatProcessor(
         model_type=st.session_state.model_type,
         llm_config=st.session_state.rag_chat_config_list[0],
@@ -70,7 +70,7 @@ def get_ragchat_processor():
 
 
 # 在 create_custom_rag_response 调用之前添加
-def refresh_retriever():
+def refresh_retriever() -> None:
     get_ragchat_processor.cache_clear()
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
@@ -78,7 +78,7 @@ def refresh_retriever():
 def create_default_rag_dialog(
     dialog_processor: RAGChatDialogProcessor,
     priority: Literal["high", "normal"] = "high",
-):
+) -> RAGChatState:
     from core.processors.dialog.dialog_processors import OperationPriority
     if priority == "high":
         priority = OperationPriority.HIGH
@@ -111,7 +111,7 @@ def create_default_rag_dialog(
     return new_chat_state
 
 
-def save_rag_chat_history():
+def save_rag_chat_history() -> None:
     """
     Save chat history to database.
     Always update the chat entirely, including chat history and sources.
@@ -130,7 +130,7 @@ def display_rag_sources(
     response_sources: Dict[str, Any],
     name_space: str,
     visible_sources: int = 6,
-):
+) -> None:
     """
     显示引用源
     使用name_space（通常是response_id）创建session_state key，避免重复
@@ -244,7 +244,7 @@ def display_rag_sources(
 
 
 # @st.cache_data
-def write_custom_rag_chat_history(chat_history, _sources):
+def write_custom_rag_chat_history(chat_history, _sources) -> None:
     # 将SVG编码为base64
     user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
     ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -268,7 +268,7 @@ def write_custom_rag_chat_history(chat_history, _sources):
     st.html(combined_style)
 
 
-def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool):
+def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool) -> None:
 
     if isinstance(response, dict) and "error" in response:
         st.error(response["error"])
@@ -308,7 +308,7 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     display_rag_sources(response_sources, response_id)
 
 
-def get_collection_options():
+def get_collection_options() -> List[str]:
     """获取当前可用的知识库列表"""
     try:
         with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
@@ -568,7 +568,7 @@ def create_and_display_rag_chat_round(
     is_hybrid_retrieve: bool = False,
     hybrid_retrieve_weight: float = 0.5,
     selected_file: Optional[str] = None,
-):
+) -> None:
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='rag-chat-user'></span>")
         st.markdown(prompt)
