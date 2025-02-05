@@ -12,7 +12,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import (
-    OPENAI_SUPPORTED_CLIENTS,
+    OpenAISupportedClients,
     validate_client_config
 )
 from core.strategy import (
@@ -58,7 +58,8 @@ class ChatProcessor(ChatProcessStrategy):
         if source not in SUPPORTED_CLIENTS:
             raise ValueError(f"Unsupported source: {source}")
         
-        if source in OPENAI_SUPPORTED_CLIENTS:
+        # if source in OPENAI_SUPPORTED_CLIENTS:
+        if any(client.value == source for client in OpenAISupportedClients):
             try:
                 if self.llm_config.get("api_type") != "azure":
                     from openai import OpenAI

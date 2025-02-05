@@ -1,4 +1,6 @@
 from typing import Literal, Dict, Type
+from enum import Enum
+
 from core.models.llm import *
 
 from pydantic import ValidationError
@@ -13,14 +15,13 @@ SUPPORTED_SOURCES: Dict[str, Type[LLMBaseConfig]] = {
     "openai-like": OpenAILikeConfig,
 }
 
-OPENAI_SUPPORTED_CLIENTS = [
-    "openai",
-    "aoai",
-    "llamafile",
-    "ollama",
-    "groq",
-    "openai-like",
-]
+class OpenAISupportedClients(Enum):
+    OPENAI = "openai"
+    AOAI = "aoai"
+    LLAMAFILE = "llamafile"
+    OLLAMA = "ollama"
+    GROQ = "groq"
+    OPENAI_LIKE = "openai-like"
 
 
 def generate_client_config(
