@@ -107,6 +107,25 @@ class OpenAIConfig(LLMBaseConfig):
     def config_type() -> str:
         return "OpenAI"
 
+
+class OpenAILikeConfig(OpenAIConfig):
+    """OpenAI-like配置，与OpenAI完全一致，仅config_type不同"""
+
+    @classmethod
+    def from_env(cls, **kwargs) -> "OpenAILikeConfig":
+        """从环境变量和kwargs创建配置"""
+        return cls(
+            model=kwargs.get("model"),
+            api_key=os.getenv("OPENAI_API_KEY", kwargs.get("api_key", "noopenaikey")),
+            base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
+            params=LLMParams.init_params(**kwargs)
+        )
+
+    @staticmethod
+    def config_type() -> str:
+        return "OpenAI-Like"
+
+
 class OllamaConfig(LLMBaseConfig):
     """Ollama配置"""
     api_key: str = Field(..., description="API key, required but not used")

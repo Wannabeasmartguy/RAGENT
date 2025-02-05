@@ -91,11 +91,11 @@ def create_agent_team_form(
     selected_team_type = st.session_state[f"agent_team_type_{form_key}"].lower()
     
     if selected_team_type == AgentTemplateType.REFLECTION.value:
-        primary_agent_system_message = agent_team_form.text_input(
+        primary_agent_system_message = agent_team_form.text_area(
             i18n("Primary Agent System Message"), 
             key=f"primary_agent_system_message_{form_key}"
         )
-        critic_agent_system_message = agent_team_form.text_input(
+        critic_agent_system_message = agent_team_form.text_area(
             i18n("Critic Agent System Message"), 
             key=f"critic_agent_system_message_{form_key}"
         )

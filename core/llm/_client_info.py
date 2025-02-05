@@ -7,10 +7,10 @@ from pydantic import ValidationError
 SUPPORTED_SOURCES: Dict[str, Type[LLMBaseConfig]] = {
     "openai": OpenAIConfig,
     "aoai": AzureOpenAIConfig,
-    "llamafile": OpenAIConfig,
+    "llamafile": OpenAILikeConfig,
     "ollama": OllamaConfig,
     "groq": GroqConfig,
-    "openai-like": OpenAIConfig,
+    "openai-like": OpenAILikeConfig,
 }
 
 OPENAI_SUPPORTED_CLIENTS = [
@@ -62,7 +62,7 @@ def get_client_config(config: Dict) -> str:
         return "groq"
     elif config_type == "Ollama":
         return "ollama"
-    elif config_type == "OpenAI-like":
+    elif config_type == "OpenAI-Like":
         return "openai-like"
     else:
         raise ValueError(f"Invalid config type: {config_type}")
