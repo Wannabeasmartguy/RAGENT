@@ -9,7 +9,6 @@ from pydantic import ValidationError
 SUPPORTED_SOURCES: Dict[str, Type[LLMBaseConfig]] = {
     "openai": OpenAIConfig,
     "aoai": AzureOpenAIConfig,
-    "llamafile": OpenAILikeConfig,
     "ollama": OllamaConfig,
     "groq": GroqConfig,
     "openai-like": OpenAILikeConfig,
@@ -18,7 +17,6 @@ SUPPORTED_SOURCES: Dict[str, Type[LLMBaseConfig]] = {
 class OpenAISupportedClients(Enum):
     OPENAI = "openai"
     AOAI = "aoai"
-    LLAMAFILE = "llamafile"
     OLLAMA = "ollama"
     GROQ = "groq"
     OPENAI_LIKE = "openai-like"

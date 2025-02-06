@@ -498,7 +498,7 @@ def update_rag_config_in_db_callback():
 
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
 
-    if st.session_state["model_type"] == OpenAISupportedClients.LLAMAFILE.value:
+    if st.session_state["model_type"] == OpenAISupportedClients.OPENAI_LIKE.value:
         # 先获取模型配置
         model_config = oailike_config_processor.get_model_config(
             model=st.session_state.model
@@ -1032,11 +1032,7 @@ with st.sidebar:
             # )
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
-        if (
-            select_box0 != OpenAISupportedClients.LLAMAFILE.value
-            and select_box0 != OpenAISupportedClients.OPENAI_LIKE.value
-        ):
-
+        if select_box0 != OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state.rag_chat_config_list[0].get("model")
@@ -1073,11 +1069,7 @@ with st.sidebar:
                 on_change=update_rag_config_in_db_callback,
             )
 
-        elif (
-            select_box0 == OpenAISupportedClients.LLAMAFILE.value
-            or select_box0 == OpenAISupportedClients.OPENAI_LIKE.value
-        ):
-
+        elif select_box0 == OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_llamafile_model() -> str:
                 if st.session_state.rag_chat_config_list:
                     return st.session_state.rag_chat_config_list[0].get("model")

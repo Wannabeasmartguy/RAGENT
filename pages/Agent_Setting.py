@@ -336,11 +336,7 @@ def create_model_select_container(key_suffix: str = ""):
                 ),
             )
         
-        if (
-            model_type != OpenAISupportedClients.LLAMAFILE.value
-            and model_type != OpenAISupportedClients.OPENAI_LIKE.value
-        ):
-
+        if model_type != OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state[f"llm_config_list{key_suffix}"][0].get("model")
@@ -376,11 +372,7 @@ def create_model_select_container(key_suffix: str = ""):
                 key=f"model{key_suffix}",
                 on_change=lambda: update_llm_config_list(key_suffix),
             )
-        elif (
-            model_type == OpenAISupportedClients.OPENAI_LIKE.value
-            or model_type == OpenAISupportedClients.LLAMAFILE.value
-        ):
-
+        elif model_type == OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_llamafile_model() -> str:
                 if st.session_state[f"llm_config_list{key_suffix}"]:
                     return st.session_state[f"llm_config_list{key_suffix}"][0].get("model")

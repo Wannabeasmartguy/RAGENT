@@ -75,11 +75,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get Groq model list: {e}")
             logger.info("Using default model list")
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif (
-        model_type == OpenAISupportedClients.LLAMAFILE.value
-        or model_type == OpenAISupportedClients.OPENAI_LIKE.value
-
-    ):
+    elif model_type == OpenAISupportedClients.OPENAI_LIKE.value:
         return ["Not given"]
     else:
         return None
