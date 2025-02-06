@@ -11,7 +11,8 @@ from config.constants import (
 from core.basic_config import I18nAuto
 from core.llm._client_info import (
     generate_client_config, 
-    get_client_config_model
+    get_client_config_model,
+    OpenAISupportedClients
 )
 from core.processors.config.llm import OAILikeConfigProcessor
 from utils.basic_utils import (
@@ -269,7 +270,8 @@ def create_model_select_container(key_suffix: str = ""):
         with model_type_column:
             model_type = model_type_column.selectbox(
                 label=i18n("Model type"),
-                options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
+                options=[provider.value for provider in OpenAISupportedClients],
+                format_func=lambda x: x.capitalize(),
                 on_change=lambda: update_llm_config_list(key_suffix),
                 key=f"model_type{key_suffix}"
             )
@@ -334,7 +336,10 @@ def create_model_select_container(key_suffix: str = ""):
                 ),
             )
         
-        if model_type != "Llamafile":
+        if (
+            model_type != OpenAISupportedClients.LLAMAFILE.value
+            and model_type != OpenAISupportedClients.OPENAI_LIKE.value
+        ):
 
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
@@ -371,7 +376,10 @@ def create_model_select_container(key_suffix: str = ""):
                 key=f"model{key_suffix}",
                 on_change=lambda: update_llm_config_list(key_suffix),
             )
-        elif model_type == "Llamafile":
+        elif (
+            model_type == OpenAISupportedClients.OPENAI_LIKE.value
+            or model_type == OpenAISupportedClients.LLAMAFILE.value
+        ):
 
             def get_selected_llamafile_model() -> str:
                 if st.session_state[f"llm_config_list{key_suffix}"]:
@@ -575,8 +583,8 @@ with create_agent_form_tab:
     # 初始化 llm_config_list_new
     if "llm_config_list_new" not in st.session_state:
         llm_config = generate_client_config(
-            source="aoai",
-            model=model_selector("AOAI")[0],
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
             stream=True,
         )
         st.session_state["llm_config_list_new"] = [llm_config.to_dict()]

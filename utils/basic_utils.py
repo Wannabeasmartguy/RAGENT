@@ -7,6 +7,9 @@ from typing import List, Dict, Optional, Union, Tuple, Literal
 from io import BytesIO
 from functools import lru_cache
 
+from core.llm._client_info import (
+    OpenAISupportedClients,
+)
 from core.llm.ollama.completion import get_ollama_model_list
 from core.llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto
@@ -26,7 +29,7 @@ i18n = I18nAuto(
 
 @lru_cache(maxsize=10)
 def model_selector(model_type):
-    if model_type == "OpenAI":
+    if model_type == OpenAISupportedClients.OPENAI.value:
         from openai import OpenAI
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -37,7 +40,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get OpenAI model list: {e}")
             logger.info("Using default model list")
             return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "AOAI":
+    elif model_type == OpenAISupportedClients.AOAI.value:
         from openai import AzureOpenAI
         try:
             client = AzureOpenAI(api_key=os.getenv("AZURE_OAI_KEY"), azure_endpoint=os.getenv("AZURE_OAI_ENDPOINT"))
@@ -47,7 +50,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get AOAI model list: {e}")
             logger.info("Using default model list")
             return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "Ollama":
+    elif model_type == OpenAISupportedClients.OLLAMA.value:
         try:
             from openai import OpenAI
             client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key="noneed")
@@ -57,7 +60,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get Ollama model list: {e}")
             logger.info("Using request method to get model list")
             return get_ollama_model_list()
-    elif model_type == "Groq":
+    elif model_type == OpenAISupportedClients.GROQ.value:
         try:
             groq_api_key = os.getenv("GROQ_API_KEY")
             model_list = get_groq_models(api_key=groq_api_key,only_id=True)
@@ -72,9 +75,11 @@ def model_selector(model_type):
             logger.warning(f"Failed to get Groq model list: {e}")
             logger.info("Using default model list")
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif model_type == "Llamafile":
-        return ["Not given"]
-    elif model_type == "LiteLLM":
+    elif (
+        model_type == OpenAISupportedClients.LLAMAFILE.value
+        or model_type == OpenAISupportedClients.OPENAI_LIKE.value
+
+    ):
         return ["Not given"]
     else:
         return None

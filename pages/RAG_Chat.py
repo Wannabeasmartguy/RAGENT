@@ -33,7 +33,10 @@ from core.models.embeddings import (
 )
 from core.models.app import RAGChatState, KnowledgebaseConfigInRAGChatState
 from core.storage.db.sqlite import SqlAssistantStorage
-from core.llm._client_info import generate_client_config
+from core.llm._client_info import (
+    generate_client_config,
+    OpenAISupportedClients,
+)
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
@@ -90,11 +93,11 @@ def create_default_rag_dialog(
         current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
         config_list=[generate_client_config(
-            source="aoai",
-            model=model_selector("AOAI")[0],
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
             stream=True,
         ).model_dump()],
-        llm_model_type="AOAI",
+        llm_model_type=OpenAISupportedClients.AOAI.value,
         chat_history=[],
         source_documents={},
     )
@@ -495,7 +498,7 @@ def update_rag_config_in_db_callback():
 
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
 
-    if st.session_state["model_type"] == "Llamafile":
+    if st.session_state["model_type"] == OpenAISupportedClients.LLAMAFILE.value:
         # 先获取模型配置
         model_config = oailike_config_processor.get_model_config(
             model=st.session_state.model
@@ -944,7 +947,7 @@ with st.sidebar:
         )
 
         def get_model_type_index():
-            options = ["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"]
+            options = [provider.value for provider in OpenAISupportedClients]
             try:
                 return options.index(
                     dialog_processor.get_dialog(
@@ -956,8 +959,9 @@ with st.sidebar:
 
         select_box0 = model_choosing_container.selectbox(
             label=i18n("Model type"),
-            options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
+            options=[provider.value for provider in OpenAISupportedClients],
             index=get_model_type_index(),
+            format_func=lambda x: x.capitalize(),
             key="model_type",
             on_change=update_rag_config_in_db_callback,
         )
@@ -1028,7 +1032,10 @@ with st.sidebar:
             # )
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
-        if select_box0 != "Llamafile":
+        if (
+            select_box0 != OpenAISupportedClients.LLAMAFILE.value
+            and select_box0 != OpenAISupportedClients.OPENAI_LIKE.value
+        ):
 
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
@@ -1066,7 +1073,10 @@ with st.sidebar:
                 on_change=update_rag_config_in_db_callback,
             )
 
-        elif select_box0 == "Llamafile":
+        elif (
+            select_box0 == OpenAISupportedClients.LLAMAFILE.value
+            or select_box0 == OpenAISupportedClients.OPENAI_LIKE.value
+        ):
 
             def get_selected_llamafile_model() -> str:
                 if st.session_state.rag_chat_config_list:
