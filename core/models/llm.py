@@ -79,7 +79,7 @@ class AzureOpenAIConfig(LLMBaseConfig):
 
     @staticmethod
     def config_type() -> str:
-        return "AzureOpenAI"
+        return "azureopenai"
 
 class OpenAIConfig(LLMBaseConfig):
     """OpenAI配置"""
@@ -105,7 +105,7 @@ class OpenAIConfig(LLMBaseConfig):
     
     @staticmethod
     def config_type() -> str:
-        return "OpenAI"
+        return "openai"
 
 
 class OpenAILikeConfig(OpenAIConfig):
@@ -123,7 +123,7 @@ class OpenAILikeConfig(OpenAIConfig):
 
     @staticmethod
     def config_type() -> str:
-        return "OpenAI-Like"
+        return "openai-like"
 
 
 class OllamaConfig(LLMBaseConfig):
@@ -153,7 +153,7 @@ class OllamaConfig(LLMBaseConfig):
     
     @staticmethod
     def config_type() -> str:
-        return "Ollama"
+        return "ollama"
 
 
 class GroqConfig(LLMBaseConfig):
@@ -184,4 +184,4 @@ class GroqConfig(LLMBaseConfig):
     
     @staticmethod
     def config_type() -> str:
-        return "Groq"
+        return "groq"

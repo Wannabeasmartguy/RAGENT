@@ -229,9 +229,11 @@ async def create_agent_template_card_gallery(
             with col1:
                 if st.button(i18n("Edit"), key=f"edit_{template_id}", use_container_width=True):
                     st.session_state[f"edit_mode_{template_id}"] = True
-                    # 初始化 llm_config_list_edit_{template_id}
+                    # 初始化编辑模式下的模型配置
                     if f"llm_config_list_edit_{template_id}" not in st.session_state:
                         st.session_state[f"llm_config_list_edit_{template_id}"] = [template["llm"]]
+                        # 设置模型类型
+                        st.session_state[f"model_type_edit_{template_id}"] = template["llm"]["config_type"]
                     st.rerun()
 
             # 编辑模式下显示编辑表单
@@ -285,6 +287,7 @@ def create_model_select_container(key_suffix: str = ""):
             default_stream = True
 
             if f"llm_config_list{key_suffix}" in st.session_state:
+                # 如果卡片的配置列表存在，说明已点击编辑键，则加载进来
                 default_max_tokens = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("max_tokens", 1900)
                 default_temperature = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("temperature", 0.5)
                 default_top_p = config_list_postprocess(st.session_state[f"llm_config_list{key_suffix}"])[0].get("top_p", 0.5)
