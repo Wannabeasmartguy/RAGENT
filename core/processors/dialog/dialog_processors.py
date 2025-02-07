@@ -99,7 +99,7 @@ class BaseDialogProcessor(BaseDialogProcessStrategy):
         self.processing_thread.join()
 
 
-class DialogProcessor(BaseDialogProcessor):
+class ClassicChatDialogProcessor(BaseDialogProcessor):
     """
     对话处理器，用于管理对话相关的数据库操作
     """
@@ -256,7 +256,7 @@ class DialogProcessor(BaseDialogProcessor):
             return []
 
 
-class RAGChatDialogProcessor(DialogProcessor):
+class RAGChatDialogProcessor(ClassicChatDialogProcessor):
     """RAG聊天对话处理器"""
     def __init__(
         self,

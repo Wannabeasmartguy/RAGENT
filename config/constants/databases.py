@@ -7,6 +7,11 @@ DATABASE_DIR = os.path.join(ROOT_DIR, "databases")
 # 用户手动创建的配置
 DYNAMIC_CONFIGS_DIR = os.path.join(ROOT_DIR, "dynamic_configs")
 
+# OpenAI-Like 模型的配置信息
+OPENAI_LIKE_MODEL_CONFIG_FILE_PATH = os.path.join(
+    DYNAMIC_CONFIGS_DIR, "custom_model_config.json"
+)
+
 # 知识库及嵌入模型配置信息
 EMBEDDING_CONFIG_FILE_PATH = os.path.join(
     DYNAMIC_CONFIGS_DIR, "embedding_config.json"

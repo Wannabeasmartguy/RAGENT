@@ -9,15 +9,11 @@ from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
 )
-from utils.basic_utils import (
-    model_selector,
-)
 from config.constants import (
     VERSION,
     LOGO_DIR,
     DEFAULT_DIALOG_TITLE,
 )
-from core.llm._client_info import generate_client_config
 from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
@@ -33,16 +29,37 @@ from autogen_agentchat.messages import TextMessage, MultiModalMessage
 from autogen_agentchat.teams import BaseGroupChat
 
 
-def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+async def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+    """
+    保存团队状态并更新对话处理器中的团队状态。
+
+    Args:
+    - team (BaseGroupChat): 团队聊天对象，表示一个基础群聊。
+    - run_id (str): 运行标识符，用于跟踪对话处理的特定实例。
+    - dialog_processor (AgenChatDialogProcessor): 对话处理器对象，负责处理和更新对话数据。
+    """
+    # 异步保存当前团队的状态
     current_team_state = asyncio.run(team.save_state())
+    
+    # 将保存的团队状态存储在会话状态中
     st.session_state.agent_chat_team_state = current_team_state
+    
+    # 更新对话处理器中的团队状态
     dialog_processor.update_team_state(
         run_id=run_id,
         team_state=current_team_state,
     )
 
 
-def load_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+async def load_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+    """
+    异步加载团队状态。
+    
+    Args:
+    - team (BaseGroupChat): 团队聊天对象，代表一个基础群聊。
+    - run_id (str): 运行ID，用于标识特定的对话流程。
+    - dialog_processor (AgenChatDialogProcessor): 对话处理器对象，用于处理对话数据。
+    """
     asyncio.run(team.load_state(dialog_processor.get_dialog(run_id).assistant_data["team_state"]))
 
 

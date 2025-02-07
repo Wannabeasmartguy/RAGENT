@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional, Union, Literal, List
 from uuid import uuid4
@@ -42,6 +43,7 @@ from utils.basic_utils import (
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
+    generate_new_run_name_with_llm_for_the_first_time,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
@@ -1482,6 +1484,18 @@ if prompt and st.session_state.model and collection_selectbox:
         if_stream=if_stream,
         selected_file=selected_collection_file,
     )
+    if st.session_state.rag_run_name == DEFAULT_DIALOG_TITLE:
+        # 为使用默认对话名称的对话生成一个内容摘要的新名称
+        try:
+            asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
+                chat_history=st.session_state.custom_rag_chat_history,
+                run_id=st.session_state.rag_run_id,
+                dialog_processor=dialog_processor,
+                model_type=st.session_state.model_type,
+                llm_config=st.session_state.rag_chat_config_list[0]
+            ))
+        except Exception as e:
+            logger.error(f"Error during thread creation: {e}")
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
 elif collection_selectbox == None:

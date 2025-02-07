@@ -20,7 +20,7 @@ from core.basic_config import (
 from core.processors import (
     ChatProcessor,
     OAILikeConfigProcessor,
-    DialogProcessor,
+    ClassicChatDialogProcessor,
 )
 from core.models.app import ClassicChatState
 from core.storage.db.sqlite import SqlAssistantStorage
@@ -30,6 +30,7 @@ from utils.basic_utils import (
     oai_model_config_selector,
     config_list_postprocess,
     user_input_constructor,
+    generate_new_run_name_with_llm_for_the_first_time,
 )
 from utils.log.logger_config import (
     setup_logger,
@@ -104,7 +105,7 @@ def generate_response(
 
 
 def create_default_dialog(
-    dialog_processor: DialogProcessor,
+    dialog_processor: ClassicChatDialogProcessor,
     priority: Literal["high", "normal"] = "high",
 ):
     """
@@ -153,7 +154,7 @@ chat_history_storage = SqlAssistantStorage(
     table_name=CHAT_HISTORY_DB_TABLE,
     db_file=CHAT_HISTORY_DB_FILE,
 )
-dialog_processor = DialogProcessor(storage=chat_history_storage)
+dialog_processor = ClassicChatDialogProcessor(storage=chat_history_storage)
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
@@ -459,38 +460,6 @@ def create_and_display_chat_round(
                 # 清空中断按钮
                 interrupt_button_placeholder.empty()
 
-
-async def generate_new_run_name_with_llm_for_the_first_time(
-    chat_history: List[Dict[str, Union[str, Dict, List]]],
-    run_id: str,
-    dialog_processor: DialogProcessor,
-    summary_prompt: str = SUMMARY_PROMPT,
-) -> None:
-    """根据对话内容，为首次进行对话的对话生成一个内容摘要的新名称"""
-    summary_chat_history = chat_history.copy()
-
-    from utils.st_utils import generate_markdown_chat
-    chat_history_md = generate_markdown_chat(
-        chat_history=summary_chat_history
-    )
-    
-    chat_processor = ChatProcessor(
-        model_type=st.session_state.model_type,
-        llm_config=st.session_state.chat_config_list[0],
-    )
-    chat_history_summary = chat_processor.create_completion(
-        messages=[
-            {"role": "system", "content": summary_prompt},
-            {"role": "user", "content": chat_history_md},
-        ],
-    )
-    new_run_name = chat_history_summary.choices[0].message.content
-    dialog_processor.update_dialog_name(
-        run_id=run_id,
-        new_name=new_run_name,
-    )
-
-    st.rerun()
     
 # ********** Sidebar **********
 
@@ -1108,6 +1077,8 @@ if prompt and st.session_state.model:
                 chat_history=st.session_state.chat_history,
                 run_id=st.session_state.run_id,
                 dialog_processor=dialog_processor,
+                model_type=st.session_state.model_type,
+                llm_config=st.session_state.chat_config_list[0]
             ))
         except Exception as e:
             logger.error(f"Error during thread creation: {e}")
