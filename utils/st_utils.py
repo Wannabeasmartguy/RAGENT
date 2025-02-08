@@ -99,6 +99,7 @@ STYLE_CONSTANTS = {
     }
 }
 
+
 def get_scroll_button_js(
     scroll_type: Literal["BACK_TO_TOP", "BACK_TO_BOTTOM"],
     st_version: str

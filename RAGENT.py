@@ -24,7 +24,11 @@ from core.processors import (
 )
 from core.models.app import ClassicChatState
 from core.storage.db.sqlite import SqlAssistantStorage
-from modules.chat.transform import MessageHistoryTransform
+from modules.chat.transform import (
+    MessageHistoryTransform, 
+    ReasoningContentTagProcessor
+)
+from modules.chat.wrapper import stream_with_reasoning_content_wrapper
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
@@ -426,10 +430,22 @@ def create_and_display_chat_round(
 
                 if isinstance(response, dict) and "error" in response:
                     st.error(response["error"])
+                    logger.error(f"Error occurred: {response['error']}")
                 else:
+                    tag_processor = ReasoningContentTagProcessor()
                     if not if_stream:
+                        tagged_reasoning_content = ""
+                        try:
+                            if response.choices[0].message.reasoning_content:
+                                reasoning_content = response.choices[0].message.reasoning_content
+                                tagged_reasoning_content = tag_processor.add(reasoning_content)
+                        except:
+                            pass
                         response_content = response.choices[0].message.content
-                        st.write(response_content)
+
+                        full_content = tagged_reasoning_content + response_content if tagged_reasoning_content else response_content
+                        
+                        st.write(full_content)
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
@@ -437,10 +453,10 @@ def create_and_display_chat_round(
                         )
 
                         st.session_state.chat_history.append(
-                            {"role": "assistant", "content": response_content}
+                            {"role": "assistant", "content": full_content}
                         )
                     else:
-                        total_response = st.write_stream(response)
+                        total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__

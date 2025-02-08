@@ -625,6 +625,7 @@ def create_and_display_rag_chat_round(
                     )
                 except Exception as e:
                     response = dict(error=str(e))
+                    logger.error(f"Error occurred during RAG response generation: {e}")
             st.html("<span class='rag-chat-assistant'></span>")
             handle_response(response=response, if_stream=if_stream)
             st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
