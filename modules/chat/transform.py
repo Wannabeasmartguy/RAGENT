@@ -1,5 +1,8 @@
 from typing import List, Dict, Tuple, Optional, TypeVar, Generic
 
+import unittest
+
+
 T = TypeVar('T')
 
 class ListLimiter(Generic[T]):
@@ -121,23 +124,6 @@ class TagProcessor:
             return f"{self._start_tag}{text}{self._end_tag}" + "\n\n"
         return f"{self._start_tag}{text}{self._end_tag}"
 
-    def _validate_tags(self, start_tag: str, end_tag: str) -> None:
-        """Validates the tags to ensure they are not empty and properly formatted.
-
-        Args:
-            start_tag (str): The starting tag.
-            end_tag (str): The ending tag.
-
-        Raises:
-            ValueError: If tags are empty or not properly formatted.
-        """
-        if not start_tag or not end_tag:
-            raise ValueError("Tags cannot be empty.")
-        if start_tag[0] != "<" or start_tag[-1] != ">":
-            raise ValueError("Start tag must be properly formatted (e.g., <tag>).")
-        if end_tag[0] != "<" or end_tag[-1] != ">":
-            raise ValueError("End tag must be properly formatted (e.g., </tag>).")
-
     def detect(self, text: str) -> bool:
         """Detects if the text contains any section enclosed by the specified tags.
 
@@ -160,12 +146,39 @@ class TagProcessor:
             Tuple[str, str]: The first occurrence of the tagged section if found and the rest of the text, otherwise an empty string and the original text.
         """
         start_index = text.find(self._start_tag)
-        end_index = text.find(self._end_tag, start_index)
-        if start_index == -1 or end_index == -1:
+        if start_index == -1:
             return "", text
-        end_index += len(self._end_tag)
+
+        end_index = self._find_matching_end_tag(text, start_index)
+        if end_index == -1:
+            return "", text
+
         return text[start_index:end_index], text[:start_index] + text[end_index:]
-    
+
+    def _find_matching_end_tag(self, text: str, start_index: int) -> int:
+        """Finds the matching end tag for the start tag at the given index.
+
+        Args:
+            text (str): The text to be checked.
+            start_index (int): The index of the start tag.
+
+        Returns:
+            int: The index of the matching end tag, or -1 if not found.
+        """
+        tag_depth = 1
+        index = start_index + len(self._start_tag)
+
+        while index < len(text):
+            if text.startswith(self._start_tag, index):
+                tag_depth += 1
+            elif text.startswith(self._end_tag, index):
+                tag_depth -= 1
+                if tag_depth == 0:
+                    return index + len(self._end_tag)
+            index += 1
+
+        return -1
+
     def extract_all(self, text: str) -> Tuple[List[str], str]:
         """Detects if the text contains any section enclosed by the specified tags and returns all occurrences and the rest of the text.
 
@@ -183,11 +196,9 @@ class TagProcessor:
             if start_index == -1:
                 break  # No more start tags found, exit loop
 
-            end_index = remaining_text.find(self._end_tag, start_index)
+            end_index = self._find_matching_end_tag(remaining_text, start_index)
             if end_index == -1:
                 break  # No matching end tag found, exit loop
-
-            end_index += len(self._end_tag)  # Include the end tag in the slice
 
             # Extract the tagged section
             tagged_section = remaining_text[start_index:end_index]
@@ -197,7 +208,7 @@ class TagProcessor:
             remaining_text = remaining_text[:start_index] + remaining_text[end_index:]
 
         return occurrences, remaining_text
-    
+
     def modify(self, text: str, replacement: str) -> str:
         """Modifies the first occurrence of the tagged section with the given replacement.
 
@@ -209,10 +220,13 @@ class TagProcessor:
             str: The modified text.
         """
         start_index = text.find(self._start_tag)
-        end_index = text.find(self._end_tag, start_index)
-        if start_index == -1 or end_index == -1:
+        if start_index == -1:
             return text
-        end_index += len(self._end_tag)
+
+        end_index = self._find_matching_end_tag(text, start_index)
+        if end_index == -1:
+            return text
+
         return text[:start_index] + replacement + text[end_index:]
 
     def delete(self, text: str) -> str:
@@ -298,7 +312,14 @@ class TagProcessor:
         Raises:
             ValueError: If tags are empty or not properly formatted.
         """
-        if not start_tag or not end_tag or not start_tag.startswith("<") or not end_tag.endswith(">"):
+        if (
+            not start_tag 
+            or not end_tag 
+            or not start_tag.startswith("<")
+            or not start_tag.endswith(">")
+            or not end_tag.startswith("<")
+            or not end_tag.endswith(">")
+        ):
             raise ValueError("Tags must be non-empty and properly formatted (e.g., '<tag>' and '</tag>').")
 
     @staticmethod
@@ -329,3 +350,59 @@ class ReasoningContentTagProcessor(TagProcessor):
             end_tag (str, optional): The ending tag. Defaults to "</think>".
         """
         super().__init__(start_tag, end_tag)
+
+
+class TestTagProcessor(unittest.TestCase):
+    def setUp(self):
+        self.processor = TagProcessor("<think>", "</think>")
+
+    def test_add(self):
+        self.assertEqual(self.processor.add("Hello, world!"), "<think>Hello, world!</think>\n\n")
+        self.assertEqual(self.processor.add("Hello, world!", if_newline=False), "<think>Hello, world!</think>")
+
+    def test_detect(self):
+        self.assertTrue(self.processor.detect("<think>Hello, world!</think>"))
+        self.assertFalse(self.processor.detect("Hello, world!"))
+
+    def test_extract(self):
+        self.assertEqual(self.processor.extract("<think>Hello, world!</think>"), ("<think>Hello, world!</think>", ""))
+        self.assertEqual(self.processor.extract("Hello, world!"), ("", "Hello, world!"))
+
+    def test_extract_all(self):
+        self.assertEqual(self.processor.extract_all("<think>Hello</think><think>World</think>"), (["<think>Hello</think>", "<think>World</think>"], ""))
+        self.assertEqual(self.processor.extract_all("Hello, world!"), ([], "Hello, world!"))
+
+    def test_modify(self):
+        self.assertEqual(self.processor.modify("<think>Hello, world!</think>", "Hi, universe!"), "Hi, universe!")
+        self.assertEqual(self.processor.modify("Hello, world!", "Hi, universe!"), "Hello, world!")
+
+    def test_delete(self):
+        self.assertEqual(self.processor.delete("<think>Hello, world!</think>"), "")
+        self.assertEqual(self.processor.delete("Hello, world!"), "Hello, world!")
+
+    def test_modify_all(self):
+        self.assertEqual(self.processor.modify_all("<think>Hello</think><think>World</think>", "Hi"), "HiHi")
+        self.assertEqual(self.processor.modify_all("Hello, world!", "Hi"), "Hello, world!")
+
+    def test_delete_all(self):
+        self.assertEqual(self.processor.delete_all("<think>Hello</think><think>World</think>"), "")
+        self.assertEqual(self.processor.delete_all("Hello, world!"), "Hello, world!")
+
+    def test_process_with_logs(self):
+        self.assertEqual(self.processor.process_with_logs("<think>Hello, world!</think>", "modify", "Hi, universe!"), ("Hi, universe!", "Performed modify operation. Text changed from '<think>Hello, world!</think>' to 'Hi, universe!'."))
+        self.assertEqual(self.processor.process_with_logs("Hello, world!", "modify", "Hi, universe!"), ("Hello, world!", "No changes made during modify operation."))
+
+    def test_validate_tags(self):
+        with self.assertRaises(ValueError):
+            TagProcessor("", "</think>")
+        with self.assertRaises(ValueError):
+            TagProcessor("<think>", "")
+        with self.assertRaises(ValueError):
+            TagProcessor("think", "</think>")
+        with self.assertRaises(ValueError):
+            TagProcessor("<think", "</think>")
+        with self.assertRaises(ValueError):
+            TagProcessor("<think>", "think>")
+
+if __name__ == "__main__":
+    unittest.main()
