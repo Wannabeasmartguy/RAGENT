@@ -1,4 +1,5 @@
-from typing import List, Dict, Tuple, Optional, TypeVar, Generic
+from typing import List, Dict, Tuple, Optional, TypeVar, Generic, Union
+from core.models.app import MessageType
 
 import unittest
 
@@ -81,14 +82,14 @@ class ListLimiter(Generic[T]):
         return "No items were removed."
 
 
-class MessageHistoryTransform(ListLimiter[Dict]):
+class MessageHistoryTransform(ListLimiter[Union[Dict, MessageType]]):
     def __init__(self, max_size: Optional[int] = None):
         super().__init__(max_size)
 
-    def transform(self, items: List[Dict]) -> List[Dict]:
+    def transform(self, items: List[MessageType]) -> List[MessageType]:
         return super().transform(items)
     
-    def transform_with_logs(self, items: List[Dict]) -> Tuple[List[Dict], str]:
+    def transform_with_logs(self, items: List[MessageType]) -> Tuple[List[MessageType], str]:
         return super().transform_with_logs(items)
 
 

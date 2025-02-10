@@ -22,7 +22,7 @@ from core.processors import (
     OAILikeConfigProcessor,
     ClassicChatDialogProcessor,
 )
-from core.models.app import ClassicChatState
+from core.models.app import ClassicChatState, UserMessage, AssistantMessage, SystemMessage
 from core.storage.db.sqlite import SqlAssistantStorage
 from modules.chat.transform import (
     MessageHistoryTransform, 
@@ -216,12 +216,19 @@ if "chat_config_list" not in st.session_state:
     ]
 # initialize chat history
 if "chat_history" not in st.session_state:
-    # st.session_state.chat_history = chat_history_storage.get_specific_run(
-    #     st.session_state.run_id
-    # ).memory["chat_history"]
-    st.session_state.chat_history = dialog_processor.get_dialog(
+    db_chat_history = dialog_processor.get_dialog(
         st.session_state.run_id
     ).memory["chat_history"]
+    
+    # Convert dict messages to message objects
+    st.session_state.chat_history = []
+    for msg in db_chat_history:
+        if msg["role"] == "user":
+            st.session_state.chat_history.append(UserMessage(**msg))
+        elif msg["role"] == "assistant":
+            st.session_state.chat_history.append(AssistantMessage(**msg))
+        elif msg["role"] == "system":
+            st.session_state.chat_history.append(SystemMessage(**msg))
 
 # 中断回复生成
 if "if_interrupt_reply_generating" not in st.session_state:
@@ -349,33 +356,45 @@ def interrupt_reply_generating_callback():
     st.session_state.if_interrupt_reply_generating = True
 
 
+# Add user message to chat history
+def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMessage:
+    return UserMessage(
+        content=prompt,
+        images=images
+    )
+
+# Add assistant message to chat history
+def create_assistant_message(content: str, reasoning_content: Optional[str] = None) -> AssistantMessage:
+    return AssistantMessage(
+        content=content,
+        reasoning_content=reasoning_content
+    )
+
 def create_and_display_chat_round(
     prompt: str,
     history_length: int = 16,
     image_uploader: Optional[BytesIO] = None,
     if_tools_call: bool = False,
 ):
-    # 显示用户消息
+    # Display user message
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='chat-user'></span>")
         st.markdown(prompt)
         if image_uploader:
             st.image(image_uploader)
-        # 根据Streamlit版本选择样式
         st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
 
     # Add user message to chat history
-    user_input = user_input_constructor(
-        prompt=prompt,
-        images=image_uploader,
-    )
-    st.session_state.chat_history.append(user_input)
+    user_message = create_user_message(prompt=prompt, images=image_uploader)
+    st.session_state.chat_history.append(user_message)
+    
+    # Update chat history in database
     dialog_processor.update_chat_history(
         run_id=st.session_state.run_id,
-        chat_history=st.session_state.chat_history,
+        chat_history=[msg.model_dump() for msg in st.session_state.chat_history]
     )
 
-    # Display assistant response in chat message container
+    # Display assistant response
     with st.chat_message("assistant", avatar=ai_avatar):
         interrupt_button_placeholder = st.empty()
         response_placeholder = st.empty()
@@ -408,18 +427,27 @@ def create_and_display_chat_round(
                     if if_tools_call
                     else st.session_state.system_prompt
                 )
-                processed_messages.insert(
-                    0, {"role": "system", "content": system_prompt}
+                
+                # 使用 SystemMessage 创建系统消息
+                system_message = SystemMessage(
+                    content=system_prompt
                 )
+                processed_messages.insert(0, system_message)
 
                 chatprocessor = ChatProcessor(
                     model_type=st.session_state["model_type"],
                     llm_config=st.session_state.chat_config_list[0],
                 )
 
+                # 将 MessageType 转换为 Dict，并去除 reasoning_content
+                dict_processed_messages = [
+                    msg.model_dump(exclude={'reasoning_content'}) 
+                        for msg in processed_messages
+                    ]
+
                 try:
                     response = generate_response(
-                        processed_messages=processed_messages,
+                        processed_messages=dict_processed_messages,
                         chatprocessor=chatprocessor,
                         if_tools_call=if_tools_call,
                     )
@@ -452,9 +480,12 @@ def create_and_display_chat_round(
                             )
                         )
 
-                        st.session_state.chat_history.append(
-                            {"role": "assistant", "content": full_content}
+                        # Create and add assistant message
+                        assistant_message = create_assistant_message(
+                            content=response_content,
+                            reasoning_content=tagged_reasoning_content
                         )
+                        st.session_state.chat_history.append(assistant_message)
                     else:
                         total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
                         st.html(
@@ -462,16 +493,16 @@ def create_and_display_chat_round(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
                             )
                         )
-                        st.session_state.chat_history.append(
-                            {"role": "assistant", "content": total_response}
-                        )
+                        
+                        # Create and add assistant message for streamed response
+                        assistant_message = create_assistant_message(content=total_response)
+                        st.session_state.chat_history.append(assistant_message)
 
-                # 保存聊天记录
-                # chat_history_storage.upsert(
-                dialog_processor.update_chat_history(
-                    run_id=st.session_state.run_id,
-                    chat_history=st.session_state.chat_history,
-                )
+                    # Save chat history
+                    dialog_processor.update_chat_history(
+                        run_id=st.session_state.run_id,
+                        chat_history=[msg.model_dump() for msg in st.session_state.chat_history]
+                    )
 
                 # 清空中断按钮
                 interrupt_button_placeholder.empty()
@@ -1041,7 +1072,7 @@ with st.sidebar:
             )
             if export_button:
                 export_dialog(
-                    chat_history=st.session_state.chat_history,
+                    chat_history=[msg.model_dump(exclude={'reasoning_content'}) for msg in st.session_state.chat_history],
                     chat_name=st.session_state.run_name,
                     model_name=st.session_state.model,
                 )
@@ -1064,7 +1095,7 @@ with st.sidebar:
 
 float_init()
 st.title(st.session_state.run_name)
-write_chat_history(st.session_state.chat_history)
+write_chat_history([msg.model_dump() for msg in st.session_state.chat_history])
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 if st.session_state.model == None:
@@ -1090,7 +1121,7 @@ if prompt and st.session_state.model:
         # 为使用默认对话名称的对话生成一个内容摘要的新名称
         try:
             asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
-                chat_history=st.session_state.chat_history,
+                chat_history=[msg.model_dump(exclude={'reasoning_content'}) for msg in st.session_state.chat_history],
                 run_id=st.session_state.run_id,
                 dialog_processor=dialog_processor,
                 model_type=st.session_state.model_type,

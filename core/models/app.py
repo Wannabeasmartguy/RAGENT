@@ -13,13 +13,36 @@ class BaseChatState(BaseModel):
     current_run_index: Optional[int] = Field(default=None)
 
 
+class BaseMessage(BaseModel):
+    """Base message model for all types of messages"""
+    role: Literal["user", "assistant", "system"]
+    content: str
+    reasoning_content: Optional[str] = None
+
+class UserMessage(BaseMessage):
+    """User message model"""
+    role: Literal["user"] = "user"
+    images: Optional[Any] = None
+
+class AssistantMessage(BaseMessage):
+    """Assistant message model"""
+    role: Literal["assistant"] = "assistant"
+    function_call: Optional[Dict[str, Any]] = None
+
+class SystemMessage(BaseMessage):
+    """System message model"""
+    role: Literal["system"] = "system"
+
+MessageType = Union[UserMessage, AssistantMessage, SystemMessage]
+
+
 class ClassicChatState(BaseChatState):
     """Classic chat state used in streamlit chat page"""
 
     config_list: Optional[List[Dict[str, Any]]] = Field(default=None)
     system_prompt: Optional[str] = Field(default=None)
     llm_model_type: Optional[str] = Field(default=None)
-    chat_history: Optional[List[Dict[str, Any]]] = Field(default=None)
+    chat_history: Optional[List[MessageType]] = Field(default_factory=list)
 
 
 class KnowledgebaseConfigInRAGChatState(BaseModel):
