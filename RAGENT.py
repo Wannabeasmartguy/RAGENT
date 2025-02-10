@@ -22,7 +22,7 @@ from core.processors import (
     OAILikeConfigProcessor,
     ClassicChatDialogProcessor,
 )
-from core.models.app import ClassicChatState, UserMessage, AssistantMessage, SystemMessage
+from core.models.app import ClassicChatState, UserMessage, AssistantMessage, SystemMessage, MessageType
 from core.storage.db.sqlite import SqlAssistantStorage
 from modules.chat.transform import (
     MessageHistoryTransform, 
@@ -106,6 +106,21 @@ def generate_response(
         )
 
     return response
+
+
+def transform_chat_history(chat_history: List[Dict[str, Union[str, Dict, List]]]) -> List[MessageType]:
+    """
+    将数据库中的聊天记录转换为MessageType对象列表
+    """
+    transformed_chat_history = []
+    for message in chat_history:
+        if message["role"] == "system":
+            transformed_chat_history.append(SystemMessage(**message))
+        elif message["role"] == "user":
+            transformed_chat_history.append(UserMessage(**message))
+        elif message["role"] == "assistant":
+            transformed_chat_history.append(AssistantMessage(**message))
+    return transformed_chat_history
 
 
 def create_default_dialog(
@@ -221,14 +236,7 @@ if "chat_history" not in st.session_state:
     ).memory["chat_history"]
     
     # Convert dict messages to message objects
-    st.session_state.chat_history = []
-    for msg in db_chat_history:
-        if msg["role"] == "user":
-            st.session_state.chat_history.append(UserMessage(**msg))
-        elif msg["role"] == "assistant":
-            st.session_state.chat_history.append(AssistantMessage(**msg))
-        elif msg["role"] == "system":
-            st.session_state.chat_history.append(SystemMessage(**msg))
+    st.session_state.chat_history = transform_chat_history(db_chat_history)
 
 # 中断回复生成
 if "if_interrupt_reply_generating" not in st.session_state:
@@ -466,14 +474,13 @@ def create_and_display_chat_round(
                         try:
                             if response.choices[0].message.reasoning_content:
                                 reasoning_content = response.choices[0].message.reasoning_content
-                                tagged_reasoning_content = tag_processor.add(reasoning_content)
+                                
                         except:
                             pass
                         response_content = response.choices[0].message.content
-
-                        full_content = tagged_reasoning_content + response_content if tagged_reasoning_content else response_content
                         
-                        st.write(full_content)
+                        st.caption(reasoning_content)
+                        st.write(response_content)
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
@@ -483,11 +490,13 @@ def create_and_display_chat_round(
                         # Create and add assistant message
                         assistant_message = create_assistant_message(
                             content=response_content,
-                            reasoning_content=tagged_reasoning_content
+                            reasoning_content=reasoning_content
                         )
                         st.session_state.chat_history.append(assistant_message)
                     else:
                         total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
+
+                        reasoning_content, response_content = tag_processor.extract(total_response)
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
@@ -495,7 +504,10 @@ def create_and_display_chat_round(
                         )
                         
                         # Create and add assistant message for streamed response
-                        assistant_message = create_assistant_message(content=total_response)
+                        assistant_message = create_assistant_message(
+                            content=response_content, 
+                            reasoning_content=reasoning_content
+                        )
                         st.session_state.chat_history.append(assistant_message)
 
                     # Save chat history
@@ -893,7 +905,7 @@ with st.sidebar:
                     st.session_state.run_id = selected_run.run_id
                     st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
                     st.session_state.chat_config_list = [selected_run.llm] if selected_run.llm else []
-                    st.session_state.chat_history = selected_run.memory["chat_history"]
+                    st.session_state.chat_history = transform_chat_history(selected_run.memory["chat_history"])
                     st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt", "")
 
                     logger.info(f"Chat dialog changed, from {current_chat_state.current_run_id} to {selected_run.run_id}")
@@ -950,7 +962,7 @@ with st.sidebar:
                             st.session_state.current_run_id_index
                         ].run_id
                     current_run = dialog_processor.get_dialog(st.session_state.run_id)
-                    st.session_state.chat_history = current_run.memory["chat_history"]
+                    st.session_state.chat_history = transform_chat_history(current_run.memory["chat_history"])
                     st.session_state.chat_config_list = [current_run.llm]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.saved_dialog.run_name}, deleted dialog id: {st.session_state.run_id}"
