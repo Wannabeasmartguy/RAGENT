@@ -1,4 +1,4 @@
-# RAGenT
+# RAGENT
 
 **中文文档** | [English](../README.md) | [日本語](README_ja.md)
 
@@ -6,7 +6,7 @@
 
 > 如果你喜欢这个项目，请为它点一个 star ，这对我很重要！
 
-<img src="https://github.com/user-attachments/assets/d87905e8-bbb8-4c36-baa6-2bcf95c882bb" alt="image" style="zoom: 50%;" />
+<img src="https://github.com/user-attachments/assets/bcc6395a-92ab-4ae6-8d36-a6831c240b16" alt="image" style="zoom: 50%;" />
 
 ## 特点
 
@@ -26,7 +26,7 @@
 - [x] **原生实现**的检索增强生成（RAG），轻量而高效
 - [x] 可供选择的嵌入模型（Hugging Face/OpenAI）
 - [x] 易于使用的知识库管理
-- [x] 混合检索、重排序和指定文件检索
+- [x] 多种检索方法：混合检索、重排序和指定文件检索
 
 > 如果你喜欢这个项目，请你为它点上 star，这是对我最大的鼓励！
 
@@ -34,15 +34,11 @@
 
 ### 通用
 
-#### 语音输入
-
-<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
-
 #### 记录导出
 
 支持导出格式、主题选择和导出范围控制：
 
-<img src="https://github.com/user-attachments/assets/744ddca3-5eef-4774-91e7-06dc46e89931" alt="导出设置及预览" style="zoom:40%;" />
+<img src="https://github.com/user-attachments/assets/85756a3c-7ca2-4fcf-becc-682f22091c4e" alt="导出设置及预览" style="zoom:40%;" />
 
 目前已支持主题：
 
@@ -50,47 +46,39 @@
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | <img src="https://github.com/user-attachments/assets/20a817f7-9fb9-4e7a-8840-f3072a39053a" alt="中文导出原皮" width="300" /> | <img src="https://github.com/user-attachments/assets/9fdc60ac-6eda-420c-ba7a-9e9bc97d8dcf" alt="中文导出透明皮" width="300" /> |
 
-
-
 ### RAG Chat
+
+<img src="https://github.com/user-attachments/assets/bc574d1e-e614-4310-ad00-746c5646963a" alt="image" style="zoom:50%;" />
 
 设置模型（边栏）及查看详细引用：
 
-<img src="https://github.com/user-attachments/assets/e9a4ffb3-72da-4dbf-b82a-4c47e81231f2" alt="image" style="zoom:50%;" />
+<img src="https://github.com/user-attachments/assets/a6ce3f0b-3c8f-4e3d-8d34-bceb834da81e" alt="image" style="zoom:50%;" />
 
 配置 RAG ：
 
-<img src="https://github.com/user-attachments/assets/ce26b34d-6620-4517-a008-02f35cde2588" alt="image" style="zoom: 50%;" />
+<img src="https://github.com/user-attachments/assets/82480174-bac1-47d4-b5f4-9725774618f2" alt="image" style="zoom: 50%;" />
 
 ### Function Call（工具调用）
 
-在 `Chat` 和 `AgentChat` 页面均支持 Function call，但实现方式不同。
-
-#### Chat 页面
+> 现在支持在`Chat`上进行函数调用，未来也将支持在`AgentChat`上进行函数调用。
 
 原生调用，对所有 OpenAI Compatible 模型均有效，但需要模型本身支持 Function call。
 
-<img src="https://github.com/user-attachments/assets/2a334fd7-e4e1-456d-bad7-7b463e2911d3" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
+Function Call 可以显著增强 LLM 的能力，使其完成原本无法完成的工作（如数学计算），如下所示：
 
-> 你也可以自定义想要调用函数，编写请参考[toolkits.py](tools/toolkits.py)的编写规则。
+<img src="https://github.com/user-attachments/assets/fba30f4a-dbfc-47d0-9f1c-4443171fa018" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
-#### AgentChat 页面
+或是总结网页内容：
 
-> **注意**：由于 AutoGen v0.4 完全重写，AgentChat 页面将在未来版本中更新，目前仅使用 AutoGen v0.2 作为测试。如果需要使用 AgentChat 页面，请使用 `python startup.py` 启动应用，而不是 `streamlit run RAGenT.py`。
+<img src="https://github.com/user-attachments/assets/7da5ae4d-40d5-49b4-9e76-6ce2a39ac6d1" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
-借由 AutoGen 框架实现（测试），对模型的兼容性请参考 [AutoGen](https://github.com/microsoft/autogen) 的文档。
-
-Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure OpenAI, Groq 以及本地模型（[通过 LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)）。
-
-<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
-
-> 你也可以自定义想要调用函数，请注意 AutoGen 的函数编写与原生调用的函数**编写规则不同**，具体请参考[官方文档](https://microsoft.github.io/autogen/docs/tutorial/tool-use/)以及本项目的[tools.py](llm/aoai/tools/tools.py)。
+> 你也可以自定义想要调用函数，编写请参考 [toolkits.py](../tools/toolkits.py) 的编写规则。
 
 ## 快速开始
 
 ### Git
 
-0. 使用`git clone https://github.com/Wannabeasmartguy/RAGenT.git`拉取代码；
+0. 使用`git clone https://github.com/Wannabeasmartguy/RAGENT.git`拉取代码；
 然后在**命令提示符 (CMD)**中打开你的运行环境，使用 `pip install -r requirements.txt` 安装运行依赖。
 
 1. 配置模型依赖项：修改 `.env_sample` 文件为 `.env` 并填写以下内容：
@@ -108,19 +96,7 @@ Function call 可以显著增强 LLM 的能力，目前支持 OpenAI, Azure Open
 
 2. 启动应用：
 
-   命令行运行：`streamlit run RAGenT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
-
-   如果你想要使用 AgentChat 页面，请使用 `python startup.py` 启动应用，而不是 `streamlit run RAGenT.py`。
-
-## Todo
-
-- [x] 聊天记录及配置本地持久化
-  - [x] 聊天记录本地持久化
-  - [x] 配置本地持久化
-- [ ] 增加对更多模型来源的支持
-- [ ] 增加更多可供调用的函数工具
-- [ ] 增加对更多嵌入模型的支持
-- [ ] 增加预置 Agent 的数量
+   命令行运行：`streamlit run RAGENT.py` 即可启动，启动完成后会在浏览器自动打开前端页面。
 
 ## 贡献
 

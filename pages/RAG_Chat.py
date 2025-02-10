@@ -1,8 +1,9 @@
 import os
 import json
 import base64
+import asyncio
 from datetime import datetime
-from typing import Dict, Any, Optional, Union, Literal
+from typing import Dict, Any, Optional, Union, Literal, List
 from uuid import uuid4
 from functools import lru_cache
 from copy import deepcopy
@@ -22,7 +23,7 @@ from config.constants import (
 )
 from core.basic_config import I18nAuto, set_pages_configs_in_common
 from core.processors import (
-    AgentChatProcessor,
+    RAGChatProcessor,
     RAGChatDialogProcessor,
     OAILikeConfigProcessor,
     ChromaVectorStoreProcessorWithNoApi,
@@ -31,14 +32,18 @@ from core.processors import (
 from core.models.embeddings import (
     EmbeddingConfiguration,
 )
-from core.models.app import RAGChatState
+from core.models.app import RAGChatState, KnowledgebaseConfigInRAGChatState
 from core.storage.db.sqlite import SqlAssistantStorage
-from core.llm._client_info import generate_client_config
+from core.llm._client_info import (
+    generate_client_config,
+    OpenAISupportedClients,
+)
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
     dict_filter,
     config_list_postprocess,
+    generate_new_run_name_with_llm_for_the_first_time,
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
@@ -49,8 +54,6 @@ from utils.st_utils import (
     get_style,
     get_combined_style,
 )
-
-from api.dependency import APIRequestHandler
 
 from modules.types.rag import BaseRAGResponse
 from modules.chat.transform import MessageHistoryTransform
@@ -64,24 +67,23 @@ from pydantic import ValidationError
 
 
 @lru_cache(maxsize=1)
-def get_agentchat_processor():
-    return AgentChatProcessor(
-        requesthandler=requesthandler,
+def get_ragchat_processor() -> RAGChatProcessor:
+    return RAGChatProcessor(
         model_type=st.session_state.model_type,
         llm_config=st.session_state.rag_chat_config_list[0],
     )
 
 
 # 在 create_custom_rag_response 调用之前添加
-def refresh_retriever():
-    get_agentchat_processor.cache_clear()
+def refresh_retriever() -> None:
+    get_ragchat_processor.cache_clear()
     # 可能还需要其他刷新操作，比如重新加载向量数据库等
 
 
 def create_default_rag_dialog(
     dialog_processor: RAGChatDialogProcessor,
     priority: Literal["high", "normal"] = "high",
-):
+) -> RAGChatState:
     from core.processors.dialog.dialog_processors import OperationPriority
     if priority == "high":
         priority = OperationPriority.HIGH
@@ -93,11 +95,11 @@ def create_default_rag_dialog(
         current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
         config_list=[generate_client_config(
-            source="aoai",
-            model=model_selector("AOAI")[0],
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
             stream=True,
         ).model_dump()],
-        llm_model_type="AOAI",
+        llm_model_type=OpenAISupportedClients.AOAI.value,
         chat_history=[],
         source_documents={},
     )
@@ -114,7 +116,7 @@ def create_default_rag_dialog(
     return new_chat_state
 
 
-def save_rag_chat_history():
+def save_rag_chat_history() -> None:
     """
     Save chat history to database.
     Always update the chat entirely, including chat history and sources.
@@ -133,7 +135,7 @@ def display_rag_sources(
     response_sources: Dict[str, Any],
     name_space: str,
     visible_sources: int = 6,
-):
+) -> None:
     """
     显示引用源
     使用name_space（通常是response_id）创建session_state key，避免重复
@@ -149,7 +151,7 @@ def display_rag_sources(
         st.toast(i18n("No sources found for this response."))
         return
 
-    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // 3)]
+    rows = [st.columns(num_columns) for _ in range((visible_sources + 2) // num_columns)]
 
     @st.dialog(title=i18n("Cited Source"), width="large")
     def show_source_content(
@@ -247,7 +249,7 @@ def display_rag_sources(
 
 
 # @st.cache_data
-def write_custom_rag_chat_history(chat_history, _sources):
+def write_custom_rag_chat_history(chat_history, _sources) -> None:
     # 将SVG编码为base64
     user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
     ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -271,7 +273,7 @@ def write_custom_rag_chat_history(chat_history, _sources):
     st.html(combined_style)
 
 
-def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool):
+def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream: bool) -> None:
 
     if isinstance(response, dict) and "error" in response:
         st.error(response["error"])
@@ -311,12 +313,25 @@ def handle_response(response: Union[BaseRAGResponse, Dict[str, Any]], if_stream:
     display_rag_sources(response_sources, response_id)
 
 
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
+def get_collection_options() -> List[str]:
+    """获取当前可用的知识库列表"""
+    try:
+        with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
+            embedding_config = json.load(f)
+        collections = [kb["name"] for kb in embedding_config.get("knowledge_bases", [])]
+        return collections if collections else []
+    except FileNotFoundError:
+        logger.error(f"File not found: {EMBEDDING_CONFIG_FILE_PATH}")
+        return []
+    except Exception as e:
+        logger.error(f"Error loading embedding config: {e}")
+        return []
+
 
 oailike_config_processor = OAILikeConfigProcessor()
 
-logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 
@@ -393,9 +408,19 @@ if "rag_chat_config_list" not in st.session_state:
     ]
 if "knowledge_base_config" not in st.session_state:
     kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
-    st.session_state.collection_name = kb_config.get("collection_name")
-    st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
-    st.session_state.selected_collection_file = kb_config.get("selected_file")
+    # 获取可用的知识库列表
+    available_collections = get_collection_options()
+    
+    configured_collection = kb_config.get("collection_name")
+    if configured_collection and configured_collection in available_collections:
+        st.session_state.collection_name = configured_collection
+    else:
+        # 如果配置的知识库不存在或未配置，配置为None
+        st.session_state.collection_name = None
+        
+    # 其他配置项的初始化
+    st.session_state.query_mode_toggle = True if kb_config.get("query_mode") == "file" else False
+    st.session_state.selected_collection_file = None
     st.session_state.is_rerank = kb_config.get("is_rerank", False)
     st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
     st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
@@ -475,7 +500,7 @@ def update_rag_config_in_db_callback():
 
     origin_config_list = deepcopy(st.session_state.rag_chat_config_list)
 
-    if st.session_state["model_type"] == "Llamafile":
+    if st.session_state["model_type"] == OpenAISupportedClients.OPENAI_LIKE.value:
         # 先获取模型配置
         model_config = oailike_config_processor.get_model_config(
             model=st.session_state.model
@@ -537,6 +562,7 @@ def update_rag_config_in_db_callback():
         },
         updated_at=datetime.now(),
     )
+    logger.info(f"Updated RAG chat llm config in db: {current_chat_state.current_run_id}")
 
 
 def create_and_display_rag_chat_round(
@@ -548,7 +574,7 @@ def create_and_display_rag_chat_round(
     is_hybrid_retrieve: bool = False,
     hybrid_retrieve_weight: float = 0.5,
     selected_file: Optional[str] = None,
-):
+) -> None:
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='rag-chat-user'></span>")
         st.markdown(prompt)
@@ -586,9 +612,9 @@ def create_and_display_rag_chat_round(
         with response_placeholder.container():
             with st.spinner("Thinking..."):
                 refresh_retriever()
-                agentchat_processor = get_agentchat_processor()
+                ragchat_processor = get_ragchat_processor()
                 try:
-                    response = agentchat_processor.create_custom_rag_response(
+                    response = ragchat_processor.create_custom_rag_response(
                         collection_name=collection_name,
                         messages=processed_messages,
                         is_rerank=is_rerank,
@@ -599,6 +625,7 @@ def create_and_display_rag_chat_round(
                     )
                 except Exception as e:
                     response = dict(error=str(e))
+                    logger.error(f"Error occurred during RAG response generation: {e}")
             st.html("<span class='rag-chat-assistant'></span>")
             handle_response(response=response, if_stream=if_stream)
             st.html(get_style(style_type="RAG_ASSISTANT_CHAT", st_version=st.__version__))
@@ -607,32 +634,69 @@ def create_and_display_rag_chat_round(
 
 # 在知识库设置发生变化时保存配置
 def update_knowledge_base_config():
-    knowledge_base_config = {
-        "collection_name": st.session_state.get("collection_name"),
-        "query_mode": (
-            "file" if st.session_state.get("query_mode_toggle") else "collection"
-        ),
-        "selected_file": (
-            st.session_state.get("selected_collection_file")
-            if st.session_state.get("query_mode_toggle")
-            else None
-        ),
-        "is_rerank": st.session_state.get("is_rerank", False),
-        "is_hybrid_retrieve": st.session_state.get("is_hybrid_retrieve", False),
-        "hybrid_retrieve_weight": st.session_state.get("hybrid_retrieve_weight", 0.5),
-    }
+    query_mode = "file" if st.session_state.get("query_mode_toggle") else "collection"
+    selected_file = (
+        st.session_state.get("selected_collection_file")
+        if st.session_state.get("query_mode_toggle")
+        else None
+    )
+    
+    knowledge_base_config = KnowledgebaseConfigInRAGChatState(
+        collection_name=st.session_state.get("collection_name"),
+        query_mode=query_mode,
+        selected_file=selected_file,
+        is_rerank=st.session_state.get("is_rerank", False),
+        is_hybrid_retrieve=st.session_state.get("is_hybrid_retrieve", False),
+        hybrid_retrieve_weight=st.session_state.get("hybrid_retrieve_weight", 0.5),
+    )
 
     dialog_processor.update_knowledge_base_config(
-        run_id=st.session_state.rag_run_id, knowledge_base_config=knowledge_base_config
+        run_id=st.session_state.rag_run_id, 
+        knowledge_base_config=knowledge_base_config.model_dump()
     )
+    logger.info(f"Knowledge base config updated in db: {st.session_state.rag_run_id}")
 
 
 # 在加载对话时恢复知识库配置
 def restore_knowledge_base_config():
+    """
+    恢复知识库配置，如果配置的知识库不存在则重置配置
+    """
     kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
     if kb_config:
-        st.session_state.collection_name = kb_config.get("collection_name")
+        # 获取当前可用的知识库列表
+        available_collections = get_collection_options()
+        
+        # 检查配置的知识库是否仍然存在
+        configured_collection = kb_config.get("collection_name")
+        if configured_collection and configured_collection in available_collections:
+            st.session_state.collection_name = configured_collection
+        else:
+            # 如果配置的知识库不存在，重置为None
+            st.session_state.collection_name = None
+            # 同时重置其他相关配置
+            st.session_state.query_mode_toggle = False
+            st.session_state.selected_collection_file = None
+            # 更新数据库中的配置
+            dialog_processor.update_knowledge_base_config(
+                run_id=st.session_state.rag_run_id,
+                knowledge_base_config=KnowledgebaseConfigInRAGChatState(
+                    collection_name= st.session_state.collection_name,
+                    query_mode = "collection",
+                    selected_file = None,
+                    is_rerank = False,
+                    is_hybrid_retrieve = False,
+                    hybrid_retrieve_weight = 0.5,
+                )
+            )
+            st.toast(i18n("Previously configured knowledge base no longer exists. Please select a new one."), icon="❗️")
+            return
+
+        # 如果知识库存在，继续恢复其他配置
         st.session_state.query_mode_toggle = kb_config.get("query_mode") == "file"
+        st.session_state.is_rerank = kb_config.get("is_rerank", False)
+        st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
+        st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
         # 检查文件是否仍然存在于知识库中
         selected_file = kb_config.get("selected_file")
@@ -645,13 +709,13 @@ def restore_knowledge_base_config():
                     (
                         kb
                         for kb in embedding_config.get("knowledge_bases", [])
-                        if kb["name"] == st.session_state["collection_name"]
+                        if kb["name"] == st.session_state.collection_name
                     ),
                     {},
                 )
 
                 collection_processor = ChromaCollectionProcessorWithNoApi(
-                    collection_name=kb_config.get("collection_name"),
+                    collection_name=st.session_state.collection_name,
                     embedding_config=EmbeddingConfiguration(**embedding_config),
                     embedding_model_id=collection_config.get("embedding_model_id"),
                 )
@@ -664,18 +728,27 @@ def restore_knowledge_base_config():
                     st.session_state.selected_collection_file = selected_file
                 else:
                     st.session_state.selected_collection_file = None
-                    logger.warning(
-                        f"Selected file {selected_file} no longer exists in knowledge base"
+                    st.session_state.query_mode_toggle = False
+                    # 更新数据库中的配置
+                    dialog_processor.update_knowledge_base_config(
+                        run_id=st.session_state.rag_run_id,
+                        knowledge_base_config=KnowledgebaseConfigInRAGChatState(
+                            collection_name= st.session_state.collection_name,
+                            query_mode = "collection",
+                            selected_file = None,
+                            is_rerank = st.session_state.is_rerank,
+                            is_hybrid_retrieve = st.session_state.is_hybrid_retrieve,
+                            hybrid_retrieve_weight=st.session_state.hybrid_retrieve_weight,
+                        )
                     )
+                    st.warning(i18n("Previously selected file no longer exists in the knowledge base."))
             except Exception as e:
                 logger.error(f"Error checking file existence: {e}")
                 st.session_state.selected_collection_file = None
+                st.session_state.query_mode_toggle = False
         else:
             st.session_state.selected_collection_file = None
 
-        st.session_state.is_rerank = kb_config.get("is_rerank", False)
-        st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
-        st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
 
 try:
     set_pages_configs_in_common(
@@ -689,7 +762,7 @@ except:
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
@@ -719,63 +792,40 @@ with st.sidebar:
 
             def rag_saved_dialog_change_callback():
                 """对话切换回调函数"""
-                # 暂时取消防抖，防止频繁切换对话时，出现卡顿
-                # if debounced_dialog_change():
-                try:
-                    selected_run = st.session_state.rag_saved_dialog
-                    current_run_id = st.session_state.rag_run_id
-                    
-                    # 如果是同一个对话，不进行更新
-                    if selected_run.run_id == current_run_id:
-                        logger.debug(f"Same dialog selected, skipping update")
-                        return
-                        
-                    # 先保存当前对话的状态
-                    if current_run_id:
-                        current_chat_state = RAGChatState(
-                            current_run_id=current_run_id,
-                            run_name=st.session_state.rag_run_name,
-                            config_list=st.session_state.rag_chat_config_list,
-                            llm_model_type=st.session_state.model_type,
-                            source_documents=st.session_state.custom_rag_sources,
-                        )
-                        dialog_processor.update_dialog_config(
-                            run_id=current_run_id,
-                            llm_config=current_chat_state.config_list[0],
-                            assistant_data={
-                                "model_type": current_chat_state.llm_model_type,
-                            },
-                            task_data={
-                                "source_documents": current_chat_state.source_documents
-                            },
-                            updated_at=datetime.now()
-                        )
-                        
-                    # 再加载新对话的状态    
-                    st.session_state.rag_run_id = selected_run.run_id
-                    st.session_state.rag_current_run_id_index = [
-                        run.run_id for run in dialog_processor.get_all_dialogs()
-                    ].index(st.session_state.rag_run_id)
-                    
-                    # 更新配置
-                    st.session_state.rag_chat_config_list = [selected_run.llm] if selected_run.llm else []
-                    
-                    # 更新聊天历史和源文档
+                if debounced_dialog_change():
                     try:
-                        st.session_state.custom_rag_chat_history = selected_run.memory["chat_history"]
-                        st.session_state.custom_rag_sources = selected_run.task_data["source_documents"]
-                    except (TypeError, ValidationError):
-                        st.session_state.custom_rag_chat_history = []
-                        st.session_state.custom_rag_sources = {}
+                        selected_run = st.session_state.rag_saved_dialog
+                        current_run_id = st.session_state.rag_run_id
                         
-                    # 从数据库中恢复知识库配置
-                    restore_knowledge_base_config()
-                    
-                    logger.info(f"RAG Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
-                    
-                except Exception as e:
-                    logger.error(f"Error during RAG dialog change: {e}")
-                    st.error(i18n("Failed to change dialog"))
+                        # 如果是同一个对话，不进行更新
+                        if selected_run.run_id == current_run_id:
+                            return
+                            
+                        # 更新对话ID和索引
+                        st.session_state.rag_run_id = selected_run.run_id
+                        st.session_state.rag_current_run_id_index = [
+                            run.run_id for run in dialog_processor.get_all_dialogs()
+                        ].index(st.session_state.rag_run_id)
+                        
+                        # 更新配置
+                        st.session_state.rag_chat_config_list = [selected_run.llm] if selected_run.llm else []
+                        
+                        # 更新聊天历史和源文档
+                        try:
+                            st.session_state.custom_rag_chat_history = selected_run.memory["chat_history"]
+                            st.session_state.custom_rag_sources = selected_run.task_data["source_documents"]
+                        except (TypeError, ValidationError):
+                            st.session_state.custom_rag_chat_history = []
+                            st.session_state.custom_rag_sources = {}
+                            
+                        # 恢复知识库配置
+                        restore_knowledge_base_config()
+                        
+                        logger.info(f"RAG Chat dialog changed, from {current_run_id} to {selected_run.run_id}")
+                        
+                    except Exception as e:
+                        logger.error(f"Error during RAG dialog change: {e}")
+                        st.error(i18n("Failed to change dialog"))
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
@@ -900,7 +950,7 @@ with st.sidebar:
         )
 
         def get_model_type_index():
-            options = ["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"]
+            options = [provider.value for provider in OpenAISupportedClients]
             try:
                 return options.index(
                     dialog_processor.get_dialog(
@@ -912,8 +962,9 @@ with st.sidebar:
 
         select_box0 = model_choosing_container.selectbox(
             label=i18n("Model type"),
-            options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
+            options=[provider.value for provider in OpenAISupportedClients],
             index=get_model_type_index(),
+            format_func=lambda x: x.capitalize(),
             key="model_type",
             on_change=update_rag_config_in_db_callback,
         )
@@ -968,7 +1019,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_rag_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             # if_tools_call = st.toggle(
@@ -984,8 +1035,7 @@ with st.sidebar:
             # )
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
-        if select_box0 != "Llamafile":
-
+        if select_box0 != OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state.rag_chat_config_list[0].get("model")
@@ -1022,8 +1072,7 @@ with st.sidebar:
                 on_change=update_rag_config_in_db_callback,
             )
 
-        elif select_box0 == "Llamafile":
-
+        elif select_box0 == OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_llamafile_model() -> str:
                 if st.session_state.rag_chat_config_list:
                     return st.session_state.rag_chat_config_list[0].get("model")
@@ -1213,24 +1262,18 @@ with st.sidebar:
                 st.session_state.selected_collection_file = None
                 update_collection_processor_callback()
 
-            def get_collection_options():
-                try:
-                    with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
-                        embedding_config = json.load(f)
-                    return [
-                        kb["name"] for kb in embedding_config.get("knowledge_bases", [])
-                    ]
-                except FileNotFoundError:
-                    logger.error(f"File not found: {EMBEDDING_CONFIG_FILE_PATH}")
-                    return []
-
-            collection_selectbox = st.selectbox(
-                label=i18n("Collection"),
-                options=get_collection_options(),
-                placeholder=i18n("Please create a new collection first"),
-                on_change=change_collection_callback,
-                key="collection_name",
-            )
+            collections = get_collection_options()
+            if collections:
+                collection_selectbox = st.selectbox(
+                    label=i18n("Collection"),
+                    options=collections,
+                    index=collections.index(st.session_state.collection_name) if st.session_state.collection_name in collections else 0,
+                    on_change=change_collection_callback,
+                    key="collection_name",
+                )
+            else:
+                st.warning(i18n("No knowledge base available. Please create one first."))
+                collection_selectbox = None
 
             collection_files_placeholder = st.empty()
             refresh_collection_files_button_placeholder = st.empty()
@@ -1442,6 +1485,18 @@ if prompt and st.session_state.model and collection_selectbox:
         if_stream=if_stream,
         selected_file=selected_collection_file,
     )
+    if st.session_state.rag_run_name == DEFAULT_DIALOG_TITLE:
+        # 为使用默认对话名称的对话生成一个内容摘要的新名称
+        try:
+            asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
+                chat_history=st.session_state.custom_rag_chat_history,
+                run_id=st.session_state.rag_run_id,
+                dialog_processor=dialog_processor,
+                model_type=st.session_state.model_type,
+                llm_config=st.session_state.rag_chat_config_list[0]
+            ))
+        except Exception as e:
+            logger.error(f"Error during thread creation: {e}")
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
 elif collection_selectbox == None:

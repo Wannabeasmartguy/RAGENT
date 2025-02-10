@@ -7,11 +7,22 @@ from typing import List, Dict, Optional, Union, Tuple, Literal
 from io import BytesIO
 from functools import lru_cache
 
+from core.llm._client_info import (
+    OpenAISupportedClients,
+)
 from core.llm.ollama.completion import get_ollama_model_list
 from core.llm.groq.completion import get_groq_models
 from core.basic_config import I18nAuto
-from core.processors.chat.classic import OAILikeConfigProcessor
-from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
+from core.processors import (
+    OAILikeConfigProcessor,
+    ChatProcessor,
+    ALLDIAGLOGPROCESSOR
+)
+from config.constants import (
+    I18N_DIR, 
+    SUPPORTED_LANGUAGES,
+    SUMMARY_PROMPT,
+)
 from utils.log.logger_config import setup_logger
 
 from loguru import logger
@@ -26,7 +37,7 @@ i18n = I18nAuto(
 
 @lru_cache(maxsize=10)
 def model_selector(model_type):
-    if model_type == "OpenAI":
+    if model_type == OpenAISupportedClients.OPENAI.value:
         from openai import OpenAI
         try:
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -37,7 +48,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get OpenAI model list: {e}")
             logger.info("Using default model list")
             return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "AOAI":
+    elif model_type == OpenAISupportedClients.AOAI.value:
         from openai import AzureOpenAI
         try:
             client = AzureOpenAI(api_key=os.getenv("AZURE_OAI_KEY"), azure_endpoint=os.getenv("AZURE_OAI_ENDPOINT"))
@@ -47,7 +58,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get AOAI model list: {e}")
             logger.info("Using default model list")
             return ["gpt-3.5-turbo","gpt-3.5-turbo-16k","gpt-4","gpt-4-32k","gpt-4-1106-preview","gpt-4-vision-preview"]
-    elif model_type == "Ollama":
+    elif model_type == OpenAISupportedClients.OLLAMA.value:
         try:
             from openai import OpenAI
             client = OpenAI(base_url="http://127.0.0.1:11434/v1", api_key="noneed")
@@ -57,7 +68,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get Ollama model list: {e}")
             logger.info("Using request method to get model list")
             return get_ollama_model_list()
-    elif model_type == "Groq":
+    elif model_type == OpenAISupportedClients.GROQ.value:
         try:
             groq_api_key = os.getenv("GROQ_API_KEY")
             model_list = get_groq_models(api_key=groq_api_key,only_id=True)
@@ -72,9 +83,7 @@ def model_selector(model_type):
             logger.warning(f"Failed to get Groq model list: {e}")
             logger.info("Using default model list")
             return ["llama3-8b-8192","llama3-70b-8192","llama2-70b-4096","mixtral-8x7b-32768","gemma-7b-it"]
-    elif model_type == "Llamafile":
-        return ["Not given"]
-    elif model_type == "LiteLLM":
+    elif model_type == OpenAISupportedClients.OPENAI_LIKE.value:
         return ["Not given"]
     else:
         return None
@@ -89,6 +98,39 @@ def oai_model_config_selector(oai_model_config:Dict):
         return model_name, config_dict[model_name]["base_url"], config_dict[model_name]["api_key"]
     else:
         return "Not given", "Not given", "Not given"
+
+
+async def generate_new_run_name_with_llm_for_the_first_time(
+    chat_history: List[Dict[str, Union[str, Dict, List]]],
+    run_id: str,
+    model_type: str,
+    llm_config: Dict,
+    dialog_processor: ALLDIAGLOGPROCESSOR,
+    summary_prompt: str = SUMMARY_PROMPT,
+) -> None:
+    """根据对话内容，为首次进行对话的对话生成一个内容摘要的新名称"""
+    import streamlit as st
+    summary_chat_history = chat_history.copy()
+
+    from utils.st_utils import generate_markdown_chat
+    chat_history_md = generate_markdown_chat(
+        chat_history=summary_chat_history
+    )
+    
+    chat_processor = ChatProcessor(model_type=model_type, llm_config=llm_config)
+    chat_history_summary = chat_processor.create_completion(
+        messages=[
+            {"role": "system", "content": summary_prompt},
+            {"role": "user", "content": chat_history_md},
+        ],
+    )
+    new_run_name = chat_history_summary.choices[0].message.content
+    dialog_processor.update_dialog_name(
+        run_id=run_id,
+        new_name=new_run_name,
+    )
+
+    st.rerun()
 
 
 # def html_to_jpg(html_content: str) -> Image:
@@ -117,31 +159,6 @@ def oai_model_config_selector(oai_model_config:Dict):
 #     """
 #     image = Image.open(bytes_content)
 #     return image
-
-def split_list_by_key_value(dict_list, key, value):
-    result = []
-    temp_list = []
-    count = 0
-
-    for d in dict_list:
-        # 检查字典是否有指定的key，并且该key的值是否等于指定的value
-        if d.get(key) == value:
-            count += 1
-            temp_list.append(d)
-            # 如果指定值的出现次数为2，则分割列表
-            if count == 2:
-                result.append(temp_list)
-                temp_list = []
-                count = 0
-        else:
-            # 如果当前字典的key的值不是指定的value，则直接添加到当前轮次的列表
-            temp_list.append(d)
-
-    # 将剩余的临时列表（如果有）添加到结果列表
-    if temp_list:
-        result.append(temp_list)
-
-    return result
 
 
 def detect_and_decode(data_bytes):
@@ -256,15 +273,25 @@ def user_input_constructor(
     images: Optional[Union[BytesIO, List[BytesIO]]] = None, 
 ) -> Dict:
     """
-    构造用户输入的字典。
+    构造用户多模态输入的字典。
+
+    参数:
+    - prompt: 用户输入的文本提示。
+    - images: 可选的图像数据，可以是单个BytesIO对象或BytesIO对象的列表。
+
+    返回值:
+    - 一个字典，包含了用户的角色和内容（文本或/和图像）。
     """
     base_input = {
         "role": "user"
     }
 
+    # 根据是否提供图像数据，构造不同的内容格式
     if images is None:
+        # 如果没有图像，内容仅为文本提示
         base_input["content"] = prompt
     elif isinstance(images, (BytesIO, list)):
+        # 如果有图像，内容为文本和图像的组合
         text_input = {
             "type": "text",
             "text": prompt

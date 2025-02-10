@@ -1,10 +1,11 @@
-# RAGenT
+# RAGENT
+[中文文档](../docs/README_zh.md) | [English](../README.md) | **日本語**
 
- [English](../README.md) | [中文文档](README_zh.md) | **日本語**
+おそらく最も軽量なローカル RAG + Agent アプリの一つで、複雑な設定なしに、ワンクリックで Agent の強化を受けた異なるモデルの能力の飛躍的な向上を体験できます。
 
-おそらく最も軽量なネイティブRAG + Agentアプリの1つであり、複雑な設定なしで、ワンクリックでAgentによるモデルと知識ベースの強力な機能を体験できます。
+> このプロジェクトが気に入ったら、ぜひ star を付けてください。それは私にとってとても重要です！
 
-![image](https://github.com/user-attachments/assets/f50c9b86-55c8-4881-a7cf-b2ccf3b35ece)
+<img src="https://github.com/user-attachments/assets/bcc6395a-92ab-4ae6-8d36-a6831c240b16" alt="image" style="zoom: 50%;" />
 
 ## 特徴
 
@@ -30,63 +31,50 @@
 
 ### 一般
 
-#### 音声入力:
+#### レコードエクスポート
 
-<img src="https://github.com/user-attachments/assets/37ea413d-5ef6-4783-a2da-ed6d1d010f58" alt="image" style="zoom:50%;" />
+エクスポートフォーマット、テーマ選択、エクスポート範囲の制御をサポート：
 
-#### エクスポート
+<img src="https://github.com/user-attachments/assets/85756a3c-7ca2-4fcf-becc-682f22091c4e" alt="エクスポート設定及びプレビュー" style="zoom:40%;" />
 
-エクスポート形式、テーマ選択、エクスポート範囲の制御をサポートします。
+現在サポートしているテーマ：
 
-<img src="https://github.com/user-attachments/assets/f4e1461e-2334-4b45-b4d9-2ff0d79a0e63" alt="Export settings and preview" style="zoom:40%;" />
+| クラシック | Glassmorphism |
+| :----------: | :--------------: |
+| <img src="https://github.com/user-attachments/assets/20a817f7-9fb9-4e7a-8840-f3072a39053a" alt="中文导出原皮" width="300" /> | <img src="https://github.com/user-attachments/assets/9fdc60ac-6eda-420c-ba7a-9e9bc97d8dcf" alt="中文导出透明皮" width="300" /> |
 
-現在サポートされているテーマ:
+### RAG Chat
 
-| デフォルト | ガラス化 |
-| :-----: | :-----------: |
-| <img src="https://github.com/user-attachments/assets/6ac8132c-0821-4487-9a1a-a0297a35783a" alt="default theme" width="300" /> | <img src="https://github.com/user-attachments/assets/87b07e86-dd98-4e66-a850-17b776fbeb1c" alt="Glassmorphism theme" width="300" /> |
+<img src="https://github.com/user-attachments/assets/bc574d1e-e614-4310-ad00-746c5646963a" alt="image" style="zoom:50%;" />
+モデル設定（サイドバー） 及び 詳細引用の確認：
 
+<img src="https://github.com/user-attachments/assets/a6ce3f0b-3c8f-4e3d-8d34-bceb834da81e" alt="image" style="zoom:50%;" />
 
+RAG の設定：
 
-### RAGチャット
+<img src="https://github.com/user-attachments/assets/82480174-bac1-47d4-b5f4-9725774618f2" alt="image" style="zoom: 50%;" />
 
-モデルの設定（サイドバー）と詳細な参照の表示:
+### Function Call（ツール呼び出し）
 
-<img src="https://github.com/user-attachments/assets/4fba2259-3362-42b2-a4d5-85e0658d7720" alt="image" style="zoom:50%;" />
+現在はChatでの関数呼び出しがサポートされており、将来的にはAgentChatでも関数呼び出しがサポートされる予定です。
 
-RAGの設定：
+ネイティブ呼び出しで、すべての OpenAI Compatible モデルに有効ですが、モデル自体が Function call をサポートする必要があります。
 
-<img src="https://github.com/user-attachments/assets/565d96dc-3f42-4f7d-a368-55af9f4a5d77" alt="image" style="zoom:50%;" />
+Function Call は LLM の能力を大幅に強化し、本来は不可能な作業（例：数学計算）を完了できるようにします。以下に例を示します：
 
-### Function Call
+<img src="https://github.com/user-attachments/assets/fba30f4a-dbfc-47d0-9f1c-4443171fa018" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
-Function Callは`Chat`と`AgentChat`の両方のページでサポートされていますが、実装方法が異なります。
+またはウェブページの内容を要約する：
 
-#### チャットページ
+<img src="https://github.com/user-attachments/assets/7da5ae4d-40d5-49b4-9e76-6ce2a39ac6d1" alt="Chat_page_tool_call zh_cn" style="zoom:50%;" />
 
-このページのFunction Callはネイティブであり、すべてのOpenAI互換モデルで動作しますが、モデル自体がFunction Callをサポートしている必要があります。
-
-<img src="https://github.com/user-attachments/assets/75163c4d-bcd2-4ef0-83d5-ab27c6527715" alt="image" style="zoom:50%;" />
-
-> 呼び出したい関数をカスタマイズすることもできます。記述ルールについては[toolkits.py](tools/toolkits.py)を参照してください。
-
-#### エージェントチャットページ
-
-> **注意**：AutoGen v0.4 は完全に再構築されているため、AgentChat ページは将来のバージョンで更新されます。現在は AutoGen v0.2 を使用してテストしています。AgentChat ページを使用する場合は、`python startup.py` を使用してアプリケーションを起動してください。
-
-AutoGenフレームワークに依存して実装されています（テスト中）。モデルの互換性については[AutoGen](https://github.com/microsoft/autogen)のドキュメントを参照してください。
-
-Function CallはLLMの能力を大幅に強化することができ、現在はOpenAI、Azure OpenAI、Groq、およびローカルモデルをサポートしています。（[LiteLLM + Ollama](https://microsoft.github.io/autogen/docs/topics/non-openai-models/local-litellm-ollama#using-litellmollama-with-autogen)による）
-
-<img src="https://github.com/user-attachments/assets/4eabcedb-5717-46b1-b2f4-4324b5f1fb67" alt="openai function call" style="zoom:50%;" />
-
-> 呼び出したい関数をカスタマイズすることもできます。AutoGenの関数記述はネイティブの関数呼び出し記述ルールとは**異なる**ことに注意してください。詳細については[公式ドキュメント](https://microsoft.github.io/autogen/docs/tutorial/tool-use/)およびこのプロジェクトの[tools.py](llm/aoai/tools/tools.py)を参照してください。
+> あなた自身で呼び出したい関数をカスタマイズすることもできます。書き方は [toolkits.py](../tools/toolkits.py) の記述規則を参照してください。
 
 ## クイックスタート
 
 ### Git
 
-0. `git clone https://github.com/Wannabeasmartguy/RAGenT.git`を使用してコードを取得します。
+0. `git clone https://github.com/Wannabeasmartguy/RAGENT.git`を使用してコードを取得します。
 次に、**コマンドプロンプト（CMD）**で実行環境を開き、`pip install -r requirements.txt`を使用して実行依存関係をインストールします。
 
 1. モデル依存関係を設定します：`.env_sample`ファイルを`.env`に変更し、以下の内容を記入します：
@@ -104,15 +92,7 @@ Function CallはLLMの能力を大幅に強化することができ、現在はO
 
 2. アプリケーションを起動します：
 
-コマンドラインで`streamlit run RAGenT.py`を実行すると起動します。
+コマンドラインで：`streamlit run RAGENT.py` を実行すると起動し、起動完了後ブラウザで自動的にフロントエンドページが開きます。
 
-AgentChat ページを使用する場合は、`python startup.py` を使用してアプリケーションを起動してください。
-
-## ルート
-
-- [x] チャット履歴と設定のローカル永続化
-    - [x] チャット履歴のローカル永続化
-    - [x] 設定のローカル永続化
-- [ ] プリセットエージェントの数を増やす
-- [ ] 混合リトリーバル、再ランキング、および指定ファイルのリトリーバル
-- [ ] 📚️エージェント駆動の知識ベース
+コントリビュート
+使用中に遭遇した問題や新しいアイデアについては、issue や PR の提出を歓迎します！

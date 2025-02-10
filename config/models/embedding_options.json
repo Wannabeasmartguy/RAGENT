@@ -10,7 +10,7 @@
     "sentence_transformer": {
       "display_name": "Sentence Transformer",
       "owner_organization": {
-        "BAAI": ["bge-base-zh-v1.5", "bge-large-zh-v1.5", "bge-base-en-v1.5", "bge-large-en-v1.5"]
+        "BAAI": ["bge-base-zh-v1.5", "bge-large-zh-v1.5", "bge-base-en-v1.5", "bge-large-en-v1.5", "bge-m3"]
       }
     }
 }

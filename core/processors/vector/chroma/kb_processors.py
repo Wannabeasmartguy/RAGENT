@@ -16,7 +16,6 @@ from loguru import logger
 
 from core.basic_config import I18nAuto
 from config.constants.paths import KNOWLEDGE_BASE_DIR
-from api.dependency import APIRequestHandler
 from api.routers.knowledgebase import (
     EmbeddingModelConfig,
 )
@@ -28,7 +27,6 @@ from core.models.embeddings import (
 )
 
 
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
 EMBEDDING_CONFIG_FILE_PATH = os.path.join("dynamic_configs", "embedding_config.json")
 
 DEFAULT_COLLECTION_NAME = "default_collection"
@@ -234,385 +232,6 @@ def create_embedding_model_config(
     return embedding_model_config
 
 
-@deprecated(
-    "This class is deprecated and will be removed in a future version. Use ChromaVectorStoreProcessorWithNoApi instead."
-)
-class ChromaVectorStoreProcessor(ChromaVectorStoreProcessStrategy):
-    """Chroma向量存储处理器，用于在*使用FastAPI后端时*，使用request向后端请求以处理向量存储。"""
-
-    embedding_config_file_path = os.path.join(
-        "dynamic_configs", "embedding_config.json"
-    )
-
-    def __init__(
-        self,
-        embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
-        embedding_model_name_or_path: str,
-        **openai_kwargs,
-    ):
-        self.embedding_model_config = create_embedding_model_config(
-            embedding_model_type, embedding_model_name_or_path, **openai_kwargs
-        )
-
-    def model_dir_verify(self, model_name_or_path: str):
-        """
-        Verify the model directory. If the model_name_or_path is a directory, it will be used as the model directory.
-        If the model_name_or_path doesn't exist, it will be created.
-
-        Args:
-            model_name_or_path (str): The model name or path. It's a directory path, consists of "models_dir_path/model_name".
-        """
-        if not os.path.exists(model_name_or_path):
-            # 创建模型目录
-            # os.makedirs(model_name_or_path, exist_ok=True)
-
-            create_info = "You don't have this embed model yet. Please enter huggingface model 'repo_id' to download the model FIRST."
-            return create_info
-        else:
-            # 模型目录存在
-            return None
-
-    def download_model(self, model_name_or_path: str, repo_id: str) -> None:
-        """
-        Download the model from Hugging Face Hub.
-
-        Args:
-            model_name_or_path (str): The model name or path. It's a directory path, consists of "models_dir_path/model_name".
-        """
-        # 下载模型
-        os.makedirs(model_name_or_path, exist_ok=True)
-        snapshot_download(
-            repo_id=repo_id,
-            local_dir=model_name_or_path,
-        )
-
-        return "Model downloaded successfully!"
-
-    @st.cache_data
-    def list_all_knowledgebase_collections(_self, counter: int) -> List[str]:
-        """
-        List all knowledgebase collections.
-
-        Args:
-            counter (int): No usage, just for update cache data.
-
-        Returns:
-            List[str]: A list of collection names.
-        """
-        response = requesthandler.get("/knowledgebase/list-knowledge-bases")
-        return response
-
-    def create_knowledgebase_collection(self, collection_name: str) -> None:
-        """
-        Create a knowledgebase collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-            embedding_model_type (str): The type of the embedding model.
-            embedding_model_name_or_path (str): The name or path of the embedding model.
-            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-        """
-        # 创建请求
-        requesthandler.post(
-            "/knowledgebase/create-knowledge-base",
-            data=self.embedding_model_config.dict(),
-            params={"name": collection_name},
-        )
-
-        # 请求完成后，在 embedding_config.json 中更新该 collection 的全部信息
-        # 格式为
-        # {
-        #     collection_name: self.embedding_model_config.dict()
-        # }
-
-        # 更新 embedding_config.json，如果没有该文件，则创建
-        if not os.path.exists(self.embedding_config_file_path):
-            with open(self.embedding_config_file_path, "w") as f:
-                json.dump({collection_name: self.embedding_model_config.dict()}, f)
-        else:
-            with open(self.embedding_config_file_path, "r") as f:
-                collections_embedding_config = json.load(f)
-            collections_embedding_config[collection_name] = (
-                self.embedding_model_config.dict()
-            )
-            with open(self.embedding_config_file_path, "w") as f:
-                json.dump(collections_embedding_config, f, indent=4)
-
-    def delete_knowledgebase_collection(self, collection_name: str) -> None:
-        """
-        Delete a knowledgebase collection by name.
-
-        Args:
-            collection_name (str): The name of the collection.
-        """
-        requesthandler.post(
-            "/knowledgebase/delete-knowledge-base",
-            data=None,
-            params={"name": collection_name},
-        )
-
-        # 删除 embedding_config.json 中的该 collection 的信息
-        with open(self.embedding_config_file_path, "r") as f:
-            collections_embedding_config = json.load(f)
-        del collections_embedding_config[collection_name]
-        with open(self.embedding_config_file_path, "w") as f:
-            json.dump(collections_embedding_config, f, indent=4)
-
-
-@deprecated(
-    "This class is deprecated and will be removed in a future version. Use ChromaCollectionProcessorWithNoApi instead."
-)
-class ChromaCollectionProcessor(BaseProcessStrategy):
-    def __init__(
-        self,
-        collection_name: str,
-        embedding_model_type: Literal["openai", "aoai", "sentence_transformer"],
-        embedding_model_name_or_path: str,
-        **openai_kwargs,
-    ):
-        self.collection_name = collection_name
-        self.embedding_model_config = create_embedding_model_config(
-            embedding_model_type, embedding_model_name_or_path, **openai_kwargs
-        )
-
-    def update_parameters(
-        self,
-        collection_name: Optional[str] = None,
-        embedding_model_type: Optional[
-            Literal["openai", "aoai", "sentence_transformer"]
-        ] = None,
-        embedding_model_name_or_path: Optional[str] = None,
-        **openai_kwargs,
-    ) -> None:
-        if collection_name is not None:
-            self.collection_name = collection_name
-        if embedding_model_type is not None or embedding_model_name_or_path is not None:
-            self.embedding_model_config = create_embedding_model_config(
-                embedding_model_type, embedding_model_name_or_path, **openai_kwargs
-            )
-
-    def get_embedding_model_max_seq_len(self) -> int:
-        """
-        Get the max sequence length of the embedding model.
-
-        Args:
-            embedding_model_type (str): The type of the embedding model.
-            embedding_model_name_or_path (str): The name or path of the embedding model.
-            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-
-        Returns:
-            int: The max sequence length of the embedding model.
-        """
-        if self.embedding_model_config is None or self.embedding_model_config == {}:
-            logger.warning("Embedding model config is empty")
-            return None
-
-        logger.debug(f"Getting max sequence length for {self.embedding_model_config}")
-        response = requesthandler.post(
-            "/knowledgebase/get-max-seq-len",
-            data=self.embedding_model_config.dict(),
-        )
-
-        if isinstance(response, int):
-            logger.debug(response)
-            return response
-        elif isinstance(response, Dict):
-            if response.get("error"):
-                logger.warning(
-                    f"Error getting max sequence length for {self.embedding_model_config}"
-                )
-                return None
-
-    def list_collection_all_filechunks_content(self) -> List[str]:
-        """
-        List all files content in a collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-            embedding_model_type (str): The type of the embedding model.
-            embedding_model_name_or_path (str): The name or path of the embedding model.
-            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-
-        Returns:
-            List[str]: A list of file content.
-        """
-        response = requesthandler.post(
-            "/knowledgebase/list-all-files",
-            data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name},
-        )
-        return response
-
-    def list_all_filechunks_in_detail(self) -> Dict:
-        """
-        List all file chunks in a collection.
-
-        Args:
-            collection_name (str): The name of the collection.
-            embedding_model_type (str): The type of the embedding model.
-            embedding_model_name_or_path (str): The name or path of the embedding model.
-            openai_kwargs (dict): Additional keyword arguments for the OpenAI embedding model.
-
-        Returns:
-            Dict: A dictionary of file chunks info, include "ids", "embeddings", "metadatas" and "documents".
-        """
-        response = requesthandler.post(
-            "/knowledgebase/list-all-files-in-detail",
-            data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name},
-        )
-        return response
-
-    @st.cache_data
-    def list_all_filechunks_metadata_name(_self, counter: int) -> List[str]:
-        """
-        List all files content in a collection by file name.
-
-        Args:
-            counter (int): No usage, just for update cache data.
-
-        Returns:
-            List[str]: A list of file content.
-        """
-        response = requesthandler.post(
-            "/knowledgebase/list-all-files-metadata-name",
-            data=_self.embedding_model_config.dict(),
-            params={"name": _self.collection_name},
-        )
-
-        if "error" in response:
-            return []
-        else:
-            return response
-
-    @st.cache_data
-    def list_all_filechunks_raw_metadata_name(_self, counter: int) -> List[str]:
-        """
-        List all files content in a collection by raw file name(include system path).
-
-        Args:
-            counter (int): No usage, just for update cache data.
-
-        Returns:
-            List[str]: A list of file content.
-        """
-        response = requesthandler.post(
-            "/knowledgebase/list-all-files-raw-metadata-name",
-            data=_self.embedding_model_config.dict(),
-            params={"name": _self.collection_name},
-        )
-
-        if "error" in response:
-            return []
-        else:
-            return response
-
-    def search_docs(
-        self,
-        query: str | List[str],
-        n_results: int,
-    ) -> Dict:
-        """
-        查询知识库中的文档，返回与查询语句最相似 n_results 个文档列表
-
-        Args:
-            collection_name (str): 知识库名称
-            embedding_model_type (str): 嵌入模型类型
-            embedding_model_name_or_path (str): 嵌入模型名称或路径
-            query (str | List[str]): 查询的文本或列表
-            n_results (int): 返回结果的数量
-            openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-
-        Returns:
-            Dict: 查询结果
-                ids (List[List[str]]): 匹配文档的 ID
-                distances (List[List[float]]): 匹配文档的向量距离
-                metadata (List[List[Dict]]): 匹配文档的元数据
-                embeddings : 匹配文档的嵌入向量
-                documents (List[List[str]]): 匹配文档的文本内容
-        """
-        response = requesthandler.post(
-            "/knowledgebase/search-docs",
-            data={
-                "query": query,
-                "embedding_config": self.embedding_model_config.dict(),
-            },
-            params={"name": self.collection_name, "n_results": n_results},
-        )
-        return response
-
-    def add_documents(
-        self,
-        documents: List[Document],
-    ) -> None:
-        """
-        向知识库中添加文档
-
-        Args:
-            collection_name (str): 知识库名称
-            embedding_model_type (str): 嵌入模型类型
-            embedding_model_name_or_path (str): 嵌入模型名称或路径
-            documents (List[Document]): 要添加的文档列表
-            openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-        """
-        # Document 类无法被 json 序列化，需要将其转换为字典
-        documents_dict = [dict(document) for document in documents]
-
-        requesthandler.post(
-            "/knowledgebase/add-docs",
-            data={
-                "documents": documents_dict,
-                "embedding_config": self.embedding_model_config.dict(),
-            },
-            params={"name": self.collection_name},
-        )
-
-    def delete_documents_from_same_metadata(
-        self,
-        files_name: str,
-    ) -> None:
-        """
-        从知识库中删除来自于同一个相同元文件的文档块
-
-        Args:
-            collection_name (str): 知识库名称
-            files_name (str): 元文件名称
-            embedding_model_type (str): 嵌入模型类型
-            embedding_model_name_or_path (str): 嵌入模型名称或路径
-            openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-
-        """
-        requesthandler.post(
-            "/knowledgebase/delete-whole-file-in-collection",
-            data=self.embedding_model_config.dict(),
-            params={"name": self.collection_name, "files_name": files_name},
-        )
-
-    def delete_specific_documents(
-        self,
-        chunk_document_content: str,
-    ) -> None:
-        """
-        从知识库中删除特定的文档块
-
-        Args:
-            collection_name (str): 知识库名称
-            chunk_document_content (str): 要删除的文档块内容
-            embedding_model_type (str): 嵌入模型类型
-            embedding_model_name_or_path (str): 嵌入模型名称或路径
-            openai_kwargs (dict): 选择openai作为嵌入模型来源时，传递给嵌入模型的额外参数
-
-        """
-        requesthandler.post(
-            "/knowledgebase/delete-specific-splitted-document",
-            data=self.embedding_model_config.dict(),
-            params={
-                "name": self.collection_name,
-                "chunk_document_content": chunk_document_content,
-            },
-        )
-
-
 class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
     """Chroma向量存储处理器，用于在*不使用FastAPI后端时*，直接处理向量存储。"""
 
@@ -633,23 +252,16 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         self.embedding_model_type = embedding_model_type
         self.embedding_model_name_or_path = embedding_model_name_or_path
 
-        # 2. 创建模型配置信息
-        model_id = str(uuid.uuid4())
-        embedding_model = self._create_model_config(
-            model_id, 
-            embedding_model_type,
-            embedding_model_name_or_path,
-            openai_kwargs
-        )
+        # 2. 加载或创建嵌入配置
+        self.embedding_config = self._load_or_create_embedding_config()
 
-        # 3. 尝试加载已有模型信息，或创建新的嵌入模型配置信息
-        self.embedding_config = self._load_or_create_embedding_config(
-            model_id, 
-            embedding_model
-        )
+        # 3. 获取或创建当前模型配置
+        current_model = self._get_or_create_current_model(openai_kwargs=openai_kwargs)
 
-        # 4. 初始化嵌入模型和知识库集合
-        self.embedding_model = self._create_embedding_model(embedding_model)
+        # 4. 初始化嵌入模型
+        self.embedding_model = self._create_embedding_model(current_model)
+        
+        # 5. 获取知识库集合列表
         self.knowledgebase_collections = self._list_chroma_collections()
 
     def _create_model_config(
@@ -706,11 +318,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             **config["extra_params"]
         )
 
-    def _load_or_create_embedding_config(
-        self,
-        model_id: str,
-        embedding_model: EmbeddingModelConfiguration
-    ) -> EmbeddingConfiguration:
+    def _load_or_create_embedding_config(self):
         """
         尝试加载已有嵌入配置，如果配置不存在，则创建新的嵌入配置
         """
@@ -721,13 +329,13 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
                     return EmbeddingConfiguration(**json.load(f))
             except Exception as e:
                 logger.error(f"Error loading embedding config: {e}")
-                logger.info(f"Creating new embedding config for {model_id} due to loading error")
+                logger.info(f"Creating new embedding config for {str(uuid.uuid4())} due to loading error")
 
         # 创建新的配置
         from datetime import datetime
         return EmbeddingConfiguration(
-            global_settings=GlobalSettings(default_model=model_id),
-            models=[embedding_model],
+            global_settings=GlobalSettings(default_model=str(uuid.uuid4())),
+            models=[],
             knowledge_bases=[],
             user_id=None,
             created_at=datetime.now().isoformat(),
@@ -753,11 +361,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         if not model_name_or_path or not repo_id:
             raise ValueError("model_name_or_path和repo_id不能为空")
 
+        ignore_patterns = ["onnx/*", "*.jpg", "*.webp"]
         try:
             os.makedirs(model_name_or_path, exist_ok=True)
             snapshot_download(
                 repo_id=repo_id,
                 local_dir=model_name_or_path,
+                local_dir_use_symlinks=False,
+                ignore_patterns=ignore_patterns
             )
             return "Model downloaded successfully!"
         except Exception as e:
@@ -811,6 +422,7 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
 
         Args:
             collection_name (str): 用户指定的知识库名称
+            hnsw_space (Literal["cosine", "l2"]): 向量空间类型
 
         Returns:
             None
@@ -834,12 +446,14 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
             },
         )
 
-        # 获取当前使用的嵌入模型的ID
-        current_model_id = self._get_current_model_id()
+        # 获取当前使用的模型配置
+        current_model = self._get_or_create_current_model()
 
         # 添加新的知识库到配置中
         new_kb = KnowledgeBaseConfiguration(
-            id=collection_id, name=collection_name, embedding_model_id=current_model_id
+            id=collection_id,
+            name=collection_name,
+            embedding_model_id=current_model.id
         )
         self.embedding_config.knowledge_bases.append(new_kb)
 
@@ -923,23 +537,48 @@ class ChromaVectorStoreProcessorWithNoApi(BaseChromaInitEmbeddingConfig):
         else:
             raise ValueError("Unsupported embedding type")
 
-    def _get_current_model_id(self):
+    def _get_or_create_current_model(
+        self,
+        create_if_not_exists: bool = True,
+        openai_kwargs: dict = None
+    ) -> EmbeddingModelConfiguration:
         """
-        获取当前使用的嵌入模型的ID
+        获取或创建当前使用的模型配置
+
+        Args:
+            create_if_not_exists (bool): 如果模型不存在，是否创建新的模型配置
+            openai_kwargs (dict): 创建新模型时需要的OpenAI相关参数
 
         Returns:
-            str: 当前模型的ID
+            EmbeddingModelConfiguration: 当前使用的模型配置
+
+        Raises:
+            ValueError: 当模型不存在且create_if_not_exists为False时
         """
+        # 查找匹配的模型配置
+        current_model = None
         for model in self.embedding_config.models:
             if (
                 model.embedding_type == self.embedding_model_type
-                and model.embedding_model_name_or_path
-                == self.embedding_model_name_or_path
+                and model.embedding_model_name_or_path == self.embedding_model_name_or_path
             ):
-                return model.id
+                current_model = model
+                break
 
-        # 如果没有找到匹配的模型，使用默认模型ID
-        return self.embedding_config.global_settings.default_model
+        # 如果没有找到匹配的模型配置且允许创建
+        if not current_model and create_if_not_exists:
+            current_model = self._create_model_config(
+                str(uuid.uuid4()),
+                self.embedding_model_type,
+                self.embedding_model_name_or_path,
+                openai_kwargs or {}
+            )
+            self.embedding_config.models.append(current_model)
+            self._update_embedding_config()
+        elif not current_model:
+            raise ValueError(f"No matching model configuration found for {self.embedding_model_type}:{self.embedding_model_name_or_path}")
+
+        return current_model
 
 
 class ChromaCollectionProcessorWithNoApi(BaseChromaInitEmbeddingConfig):

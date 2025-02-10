@@ -2,19 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Literal, List, Dict, Any, Generator
 
 
-class DialogProcessStrategy(ABC):
-    @abstractmethod
-    def update_dialog_name(self):
-        pass
-
-    @abstractmethod
-    def update_dialog_config(self):
-        pass
-
-    @abstractmethod
-    def update_chat_history(self):
-        pass
-
+class BaseDialogProcessStrategy(ABC):
     @abstractmethod
     def create_dialog(self):
         pass
@@ -29,6 +17,10 @@ class DialogProcessStrategy(ABC):
 
     @abstractmethod
     def get_all_dialogs(self):
+        pass
+
+    @abstractmethod
+    def update_dialog_name(self):
         pass
 
 
@@ -66,17 +58,9 @@ class ChatProcessStrategy(ABC):
         pass
 
 
-class AgentChatProcessStrategy(ABC):
+class RAGChatProcessStrategy(ABC):
     @abstractmethod
-    def create_reflection_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_rag_agent_response(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def create_base_chat_agent_response(self) -> Dict:
+    def create_custom_rag_response(self):
         pass
 
 

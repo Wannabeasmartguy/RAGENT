@@ -25,6 +25,7 @@ from utils.chroma_utils import get_chroma_file_info
 from utils.text_splitter.text_splitter_utils import (
     text_split_execute,
     url_text_split_execute,
+    _SUPPORTED_FILE_TYPES,
 )
 from utils.basic_utils import datetime_serializer
 from core.models.embeddings import (
@@ -38,6 +39,8 @@ import streamlit as st
 import streamlit_antd_components as sac
 import streamlit.components.v1 as components
 from loguru import logger
+
+from utils.log.logger_config import setup_logger
 
 # 全局变量声明
 global chroma_vectorstore_processor, chroma_collection_processor
@@ -230,7 +233,7 @@ def get_or_create_model_id(collection_name, embedding_config):
 
 
 try:
-    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
+    logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
     set_pages_configs_in_common(
         version=VERSION, title="Knowledge Base Management", page_icon_path=logo_path
     )
@@ -241,8 +244,8 @@ init_session_state()
 
 # 侧边栏
 with st.sidebar:
-    logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-    logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+    logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
+    logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
     st.logo(logo_text, icon_image=logo_path)
 
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
@@ -473,7 +476,7 @@ with st.expander(
 
     with delete_collection_tab:
         delete_collection_name_selectbox = st.selectbox(
-            label=i18n("To be deleted Collection Name"),
+            label=i18n("The Collection You Want to Delete"),
             options=chroma_vectorstore_processor.knowledgebase_collections,
             key="delete_collection_name_selectbox",
         )
@@ -504,7 +507,7 @@ with st.container(border=True):
     with detail_column:
         if st.session_state.embed_stepper_bar == 0:
             upload_local_file_tab, upload_url_tab = st.tabs(
-                [i18n("Upload Local File"), i18n("Upload URL")]
+                [i18n("Upload Local File"), i18n("Upload Web Content")]
             )
 
             with upload_local_file_tab:
@@ -513,6 +516,7 @@ with st.container(border=True):
                     accept_multiple_files=True,
                     label_visibility="collapsed",
                     key=st.session_state["file_uploader_key"],
+                    type=_SUPPORTED_FILE_TYPES
                 )
                 if st.session_state.file_uploaded:
                     if len(st.session_state.file_uploaded) > 1:

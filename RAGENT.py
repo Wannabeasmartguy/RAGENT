@@ -1,14 +1,18 @@
 import os
 import base64
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Union, Literal
 from uuid import uuid4
 from copy import deepcopy
 from io import BytesIO
 
-from api.dependency import APIRequestHandler
+import streamlit as st
 
-from core.llm._client_info import generate_client_config
+from core.llm._client_info import (
+    generate_client_config,
+    OpenAISupportedClients,
+)
 from core.basic_config import (
     I18nAuto,
     set_pages_configs_in_common,
@@ -16,16 +20,21 @@ from core.basic_config import (
 from core.processors import (
     ChatProcessor,
     OAILikeConfigProcessor,
-    DialogProcessor,
+    ClassicChatDialogProcessor,
 )
 from core.models.app import ClassicChatState
 from core.storage.db.sqlite import SqlAssistantStorage
-from modules.chat.transform import MessageHistoryTransform
+from modules.chat.transform import (
+    MessageHistoryTransform, 
+    ReasoningContentTagProcessor
+)
+from modules.chat.wrapper import stream_with_reasoning_content_wrapper
 from utils.basic_utils import (
     model_selector,
     oai_model_config_selector,
     config_list_postprocess,
     user_input_constructor,
+    generate_new_run_name_with_llm_for_the_first_time,
 )
 from utils.log.logger_config import (
     setup_logger,
@@ -50,6 +59,7 @@ from config.constants import (
     DEFAULT_DIALOG_TITLE,
     DEFAULT_SYSTEM_PROMPT,
     ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT,
+    SUMMARY_PROMPT,
     CHAT_HISTORY_DIR,
     CHAT_HISTORY_DB_FILE,
     CHAT_HISTORY_DB_TABLE,
@@ -62,7 +72,6 @@ from tools.toolkits import (
 )
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 
-import streamlit as st
 from streamlit_float import *
 from loguru import logger
 from dotenv import load_dotenv
@@ -100,7 +109,7 @@ def generate_response(
 
 
 def create_default_dialog(
-    dialog_processor: DialogProcessor,
+    dialog_processor: ClassicChatDialogProcessor,
     priority: Literal["high", "normal"] = "high",
 ):
     """
@@ -117,11 +126,11 @@ def create_default_dialog(
         current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
         config_list=[generate_client_config(
-            source="aoai",
-            model=model_selector("AOAI")[0],
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
             stream=True,
         ).model_dump()],
-        llm_model_type="AOAI",
+        llm_model_type=OpenAISupportedClients.AOAI.value,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         chat_history=[],
     )
@@ -141,8 +150,6 @@ def create_default_dialog(
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(i18n_dir=I18N_DIR, language=SUPPORTED_LANGUAGES[language])
 
-requesthandler = APIRequestHandler("localhost", os.getenv("SERVER_PORT", 8000))
-
 oailike_config_processor = OAILikeConfigProcessor()
 
 if not os.path.exists(CHAT_HISTORY_DIR):
@@ -151,13 +158,13 @@ chat_history_storage = SqlAssistantStorage(
     table_name=CHAT_HISTORY_DB_TABLE,
     db_file=CHAT_HISTORY_DB_FILE,
 )
-dialog_processor = DialogProcessor(storage=chat_history_storage)
+dialog_processor = ClassicChatDialogProcessor(storage=chat_history_storage)
 if not chat_history_storage.table_exists():
     chat_history_storage.create()
 
 
-logo_path = os.path.join(LOGO_DIR, "RAGenT_logo.png")
-logo_text = os.path.join(LOGO_DIR, "RAGenT_logo_with_text_horizon.png")
+logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
+logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
 # 将SVG编码为base64
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -166,7 +173,7 @@ ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('
 # Only need st.rerun once to fix it, and it works fine thereafter.
 try:
     set_pages_configs_in_common(
-        version=VERSION, title="RAGenT", page_icon_path=logo_path
+        version=VERSION, title="RAGENT", page_icon_path=logo_path
     )
 except:
     st.rerun()
@@ -273,7 +280,7 @@ def update_config_in_db_callback():
     Update config in db.
     """
     origin_config_list = deepcopy(st.session_state.chat_config_list)
-    if st.session_state["model_type"] == "Llamafile":
+    if st.session_state["model_type"] == OpenAISupportedClients.OPENAI_LIKE.value:
         # 先获取模型配置
         model_config = oailike_config_processor.get_model_config(
             model=st.session_state.model
@@ -406,7 +413,6 @@ def create_and_display_chat_round(
                 )
 
                 chatprocessor = ChatProcessor(
-                    requesthandler=requesthandler,
                     model_type=st.session_state["model_type"],
                     llm_config=st.session_state.chat_config_list[0],
                 )
@@ -424,10 +430,22 @@ def create_and_display_chat_round(
 
                 if isinstance(response, dict) and "error" in response:
                     st.error(response["error"])
+                    logger.error(f"Error occurred: {response['error']}")
                 else:
+                    tag_processor = ReasoningContentTagProcessor()
                     if not if_stream:
+                        tagged_reasoning_content = ""
+                        try:
+                            if response.choices[0].message.reasoning_content:
+                                reasoning_content = response.choices[0].message.reasoning_content
+                                tagged_reasoning_content = tag_processor.add(reasoning_content)
+                        except:
+                            pass
                         response_content = response.choices[0].message.content
-                        st.write(response_content)
+
+                        full_content = tagged_reasoning_content + response_content if tagged_reasoning_content else response_content
+                        
+                        st.write(full_content)
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
@@ -435,10 +453,10 @@ def create_and_display_chat_round(
                         )
 
                         st.session_state.chat_history.append(
-                            {"role": "assistant", "content": response_content}
+                            {"role": "assistant", "content": full_content}
                         )
                     else:
-                        total_response = st.write_stream(response)
+                        total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
                         st.html(
                             get_style(
                                 style_type="ASSISTANT_CHAT", st_version=st.__version__
@@ -458,13 +476,13 @@ def create_and_display_chat_round(
                 # 清空中断按钮
                 interrupt_button_placeholder.empty()
 
-
+    
 # ********** Sidebar **********
 
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGenT.py", label="💭 Chat")
+    st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
@@ -479,7 +497,7 @@ with st.sidebar:
         )
 
         def get_model_type_index():
-            options = ["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"]
+            options = [provider.value for provider in OpenAISupportedClients]
             try:
                 return options.index(
                     dialog_processor.get_dialog(
@@ -491,8 +509,9 @@ with st.sidebar:
 
         select_box0 = model_choosing_container.selectbox(
             label=i18n("Model type"),
-            options=["AOAI", "OpenAI", "Ollama", "Groq", "Llamafile"],
+            options=[provider.value for provider in OpenAISupportedClients],
             index=get_model_type_index(),
+            format_func=lambda x: x.capitalize(),
             key="model_type",
             on_change=update_config_in_db_callback,
         )
@@ -547,7 +566,7 @@ with st.sidebar:
                 key="if_stream",
                 on_change=update_config_in_db_callback,
                 help=i18n(
-                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. Default is False, which means to wait until the entire response is generated before returning it."
+                    "Whether to stream the response as it is generated, or to wait until the entire response is generated before returning it. If it is disabled, the model will wait until the entire response is generated before returning it."
                 ),
             )
             if_tools_call = st.toggle(
@@ -563,8 +582,7 @@ with st.sidebar:
             )
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
-        if select_box0 != "Llamafile":
-
+        if select_box0 != OpenAISupportedClients.OPENAI_LIKE.value:
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state.chat_config_list[0].get("model")
@@ -600,7 +618,7 @@ with st.sidebar:
                 key="model",
                 on_change=update_config_in_db_callback,
             )
-        elif select_box0 == "Llamafile":
+        elif select_box0 == OpenAISupportedClients.OPENAI_LIKE.value:
 
             def get_selected_llamafile_model() -> str:
                 if st.session_state.chat_config_list:
@@ -1066,5 +1084,20 @@ if prompt and st.session_state.model:
         image_uploader=image_uploader,
         if_tools_call=if_tools_call,
     )
+    if (
+        st.session_state.run_name == DEFAULT_DIALOG_TITLE
+    ):
+        # 为使用默认对话名称的对话生成一个内容摘要的新名称
+        try:
+            asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
+                chat_history=st.session_state.chat_history,
+                run_id=st.session_state.run_id,
+                dialog_processor=dialog_processor,
+                model_type=st.session_state.model_type,
+                llm_config=st.session_state.chat_config_list[0]
+            ))
+        except Exception as e:
+            logger.error(f"Error during thread creation: {e}")
+
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))

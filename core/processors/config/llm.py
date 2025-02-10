@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 from typing import Dict, List, Optional
+from config.constants import OPENAI_LIKE_MODEL_CONFIG_FILE_PATH
 from core.strategy import OpenAILikeModelConfigProcessStrategy, EncryptorStrategy
 from core.encryption import FernetEncryptor
 
@@ -10,7 +11,7 @@ class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):
     """
     处理 OAI-like 模型的配置的策略模式实现类
     """
-    config_path = os.path.join("dynamic_configs", "custom_model_config.json")
+    config_path = OPENAI_LIKE_MODEL_CONFIG_FILE_PATH
 
     def __init__(self, encryptor: EncryptorStrategy = None):
         """

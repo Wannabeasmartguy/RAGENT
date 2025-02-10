@@ -23,10 +23,10 @@ try:
     time.sleep(1)
 
     # 启动test_front.py作为子进程
-    # 这里放前端的代码，在 RAGenT 里是 Streamlit 的代码
+    # 这里放前端的代码，在 RAGENT 里是 Streamlit 的代码
     front_process = subprocess.Popen(
         [
-            "streamlit", "run", "RAGenT.py",
+            "streamlit", "run", "RAGENT.py",
             "--server.address", "127.0.0.1",
             "--server.port", str(os.getenv("FRONT_PORT",5998)),
         ]

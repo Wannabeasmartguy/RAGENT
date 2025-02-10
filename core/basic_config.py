@@ -53,8 +53,8 @@ def set_pages_configs_in_common(
         page_icon=page_icon_path,
         initial_sidebar_state=init_sidebar_state,
         menu_items={
-            "Get Help": "https://github.com/Wannabeasmartguy/RAGenT",
-            "Report a bug": "https://github.com/Wannabeasmartguy/RAGenT/issues",
-            "About": f"""欢迎使用 RAGenT WebUI {version}！""",
+            "Get Help": "https://github.com/Wannabeasmartguy/RAGENT",
+            "Report a bug": "https://github.com/Wannabeasmartguy/RAGENT/issues",
+            "About": f"""欢迎使用 RAGENT WebUI {version}！""",
         },
     )
