@@ -1,5 +1,6 @@
 from typing import Optional, Any, Dict, List, Union, Literal
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class BaseChatState(BaseModel):
@@ -18,6 +19,31 @@ class BaseMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str
     reasoning_content: Optional[str] = None
+    created_at: Optional[datetime] = Field(default_factory=datetime.now)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.now)
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+    
+    def to_dict(self, exclude_timestamps: bool = False, exclude_reasoning: bool = False) -> Dict[str, Any]:
+        """转换消息为字典，可以选择性地排除时间戳和推理内容
+        
+        Args:
+            exclude_timestamps: 是否排除时间戳
+            exclude_reasoning: 是否排除推理内容
+            
+        Returns:
+            Dict[str, Any]: 消息的字典表示
+        """
+        exclude = set()
+        if exclude_timestamps:
+            exclude.update({'created_at', 'updated_at'})
+        if exclude_reasoning:
+            exclude.add('reasoning_content')
+            
+        return self.model_dump(exclude=exclude)
 
 class TextContent(BaseModel):
     type: Literal["text"] = "text"

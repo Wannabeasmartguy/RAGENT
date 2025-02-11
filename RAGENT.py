@@ -382,6 +382,8 @@ def interrupt_reply_generating_callback():
 def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMessage:
     basic_user_message = UserMessage(
         content=[TextContent(type="text", text=prompt)],
+        created_at=datetime.now(),
+        updated_at=datetime.now()
     )
     if images:
         basic_user_message.content.append(ImageContent(type="image_url", image_url=images))
@@ -391,7 +393,9 @@ def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMe
 def create_assistant_message(content: str, reasoning_content: Optional[str] = None) -> AssistantMessage:
     return AssistantMessage(
         content=content,
-        reasoning_content=reasoning_content
+        reasoning_content=reasoning_content,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
     )
 
 def display_user_message(prompt: str, image_uploader: Optional[BytesIO] = None):
@@ -433,10 +437,15 @@ def prepare_messages(chat_history: List[MessageType], system_prompt: str, histor
     max_msg_transform = MessageHistoryTransform(max_size=history_length)
     processed_messages = max_msg_transform.transform(deepcopy(chat_history))
     
-    system_message = SystemMessage(content=system_prompt)
+    system_message = SystemMessage(
+        content=system_prompt,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
     processed_messages.insert(0, system_message)
     
-    return [msg.model_dump(exclude={'reasoning_content'}) for msg in processed_messages]
+    # 在转换为字典时排除时间戳和reasoning_content
+    return [msg.to_dict(exclude_timestamps=True, exclude_reasoning=True) for msg in processed_messages]
 
 def get_response_and_display_assistant_message(
     processed_messages: List[Dict],
@@ -470,98 +479,105 @@ def create_and_display_chat_round(
     if_tools_call: bool = False,
 ):
     """创建并显示一轮对话"""
-    # 显示用户消息
-    display_user_message(prompt, image_uploader)
-    
-    # 添加用户消息到历史记录
-    user_message = create_user_message(prompt=prompt, images=image_uploader)
-    st.session_state.chat_history.append(user_message)
-    
-    # 更新数据库中的对话历史
-    dialog_processor.update_chat_history(
-        run_id=st.session_state.run_id,
-        chat_history=[msg.model_dump() for msg in st.session_state.chat_history]
-    )
-    
-    # 显示助手响应
-    with st.chat_message("assistant", avatar=ai_avatar):
-        interrupt_button_placeholder = st.empty()
-        response_placeholder = st.empty()
+    try:
+        # 显示用户消息
+        display_user_message(prompt, image_uploader)
         
-        # 显示中断按钮
-        interrupt_button = interrupt_button_placeholder.button(
-            label=i18n("Interrupt"),
-            on_click=interrupt_reply_generating_callback,
-            use_container_width=True,
+        # 添加用户消息到历史记录
+        user_message = create_user_message(prompt=prompt, images=image_uploader)
+        st.session_state.chat_history.append(user_message)
+        
+        # 更新数据库中的对话历史
+        chat_history_data = [msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) 
+                           for msg in st.session_state.chat_history]
+        
+        dialog_processor.update_chat_history(
+            run_id=st.session_state.run_id,
+            chat_history=chat_history_data
         )
         
-        if interrupt_button:
-            st.session_state.if_interrupt_reply_generating = False
-            st.stop()
+        # 显示助手响应
+        with st.chat_message("assistant", avatar=ai_avatar):
+            interrupt_button_placeholder = st.empty()
+            response_placeholder = st.empty()
             
-        with response_placeholder.container():
-            with st.spinner("Thinking..."):
-                # 准备消息
-                system_prompt = (
-                    ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
-                        user_system_prompt=st.session_state.system_prompt
+            # 显示中断按钮
+            interrupt_button = interrupt_button_placeholder.button(
+                label=i18n("Interrupt"),
+                on_click=interrupt_reply_generating_callback,
+                use_container_width=True,
+            )
+            
+            if interrupt_button:
+                st.session_state.if_interrupt_reply_generating = False
+                st.stop()
+            
+            with response_placeholder.container():
+                with st.spinner("Thinking..."):
+                    # 准备消息
+                    system_prompt = (
+                        ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(
+                            user_system_prompt=st.session_state.system_prompt
+                        )
+                        if if_tools_call
+                        else st.session_state.system_prompt
                     )
-                    if if_tools_call
-                    else st.session_state.system_prompt
-                )
-                
-                processed_messages = prepare_messages(
-                    st.session_state.chat_history,
-                    system_prompt,
-                    history_length
-                )
-                
-                # 创建聊天处理器
-                chatprocessor = ChatProcessor(
-                    model_type=st.session_state["model_type"],
-                    llm_config=st.session_state.chat_config_list[0],
-                )
-                
-                # 显示助手消息并获取响应
-                reasoning_content, response_content = get_response_and_display_assistant_message(
-                    processed_messages,
-                    chatprocessor,
-                    if_tools_call
-                )
-                
-                if response_content:  # 只在有响应内容时添加助手消息
-                    assistant_message = create_assistant_message(
-                        content=response_content,
-                        reasoning_content=reasoning_content
-                    )
-                    st.session_state.chat_history.append(assistant_message)
                     
-                    # 保存对话历史
-                    dialog_processor.update_chat_history(
-                        run_id=st.session_state.run_id,
-                        chat_history=[msg.model_dump() for msg in st.session_state.chat_history]
+                    processed_messages = prepare_messages(
+                        st.session_state.chat_history,
+                        system_prompt,
+                        history_length
                     )
-                
-        # 清空中断按钮
-        interrupt_button_placeholder.empty()
+                    
+                    # 创建聊天处理器
+                    chatprocessor = ChatProcessor(
+                        model_type=st.session_state["model_type"],
+                        llm_config=st.session_state.chat_config_list[0],
+                    )
+                    
+                    # 显示助手消息并获取响应
+                    reasoning_content, response_content = get_response_and_display_assistant_message(
+                        processed_messages,
+                        chatprocessor,
+                        if_tools_call
+                    )
+                    
+                    if response_content:  # 只在有响应内容时添加助手消息
+                        assistant_message = create_assistant_message(
+                            content=response_content,
+                            reasoning_content=reasoning_content
+                        )
+                        st.session_state.chat_history.append(assistant_message)
+                        
+                        # 保存对话历史
+                        dialog_processor.update_chat_history(
+                            run_id=st.session_state.run_id,
+                            chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history]
+                        )
+                    
+            # 清空中断按钮
+            interrupt_button_placeholder.empty()
 
-        if (
-            st.session_state.run_name == DEFAULT_DIALOG_TITLE
-        ):
-            # 为使用默认对话名称的对话生成一个内容摘要的新名称
-            try:
-                asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
-                    chat_history=[msg.model_dump(exclude={'reasoning_content'}) for msg in st.session_state.chat_history],
-                    run_id=st.session_state.run_id,
-                    dialog_processor=dialog_processor,
-                    model_type=st.session_state.model_type,
-                    llm_config=st.session_state.chat_config_list[0]
-                ))
-            except Exception as e:
-                logger.error(f"Error during thread creation: {e}")
-    
-        if reasoning_content:
-            asyncio.run(rerun_page())
+            if (
+                st.session_state.run_name == DEFAULT_DIALOG_TITLE
+            ):
+                # 为使用默认对话名称的对话生成一个内容摘要的新名称
+                try:
+                    asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
+                        chat_history=[msg.to_dict(exclude_timestamps=True, exclude_reasoning=True) for msg in st.session_state.chat_history],
+                        run_id=st.session_state.run_id,
+                        dialog_processor=dialog_processor,
+                        model_type=st.session_state.model_type,
+                        llm_config=st.session_state.chat_config_list[0]
+                    ))
+                except Exception as e:
+                    logger.error(f"Error during thread creation: {e}")
+        
+            if reasoning_content:
+                asyncio.run(rerun_page())
+    except Exception as e:
+        logger.error(f"Error in create_and_display_chat_round: {e}")
+        st.error(i18n("Failed to save chat history"))
 
 
 # ********** Sidebar **********
@@ -1084,7 +1100,7 @@ with st.sidebar:
                 st.session_state.chat_history = []
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
-                    chat_history=st.session_state.chat_history,
+                    chat_history=[],  # 空列表不需要转换
                 )
                 st.session_state.current_run_id_index = run_id_list.index(
                     st.session_state.run_id
@@ -1106,7 +1122,7 @@ with st.sidebar:
                     st.session_state.chat_history = st.session_state.chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
-                    chat_history=st.session_state.chat_history,
+                    chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history]
                 )
                 logger.info(f"Dialog {st.session_state.run_id} chat history deleted")
 
@@ -1128,7 +1144,7 @@ with st.sidebar:
             )
             if export_button:
                 export_dialog(
-                    chat_history=[msg.model_dump(exclude={'reasoning_content'}) for msg in st.session_state.chat_history],
+                    chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=True) for msg in st.session_state.chat_history],
                     chat_name=st.session_state.run_name,
                     model_name=st.session_state.model,
                 )
@@ -1151,7 +1167,7 @@ with st.sidebar:
 
 float_init()
 st.title(st.session_state.run_name)
-write_chat_history([msg.model_dump() for msg in st.session_state.chat_history])
+write_chat_history([msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history])
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 if st.session_state.model == None:
