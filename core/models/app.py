@@ -19,10 +19,18 @@ class BaseMessage(BaseModel):
     content: str
     reasoning_content: Optional[str] = None
 
+class TextContent(BaseModel):
+    type: Literal["text"] = "text"
+    text: str
+
+class ImageContent(BaseModel):
+    type: Literal["image_url"] = "image_url"
+    image_url: str
+
 class UserMessage(BaseMessage):
     """User message model"""
     role: Literal["user"] = "user"
-    images: Optional[Any] = None
+    content: List[Union[TextContent, ImageContent]]
 
 class AssistantMessage(BaseMessage):
     """Assistant message model"""
