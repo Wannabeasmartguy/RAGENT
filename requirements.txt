@@ -2,7 +2,7 @@ langchain==0.3.15
 langchain-community==0.3.15
 Markdown==3.4.1
 httpx==0.27.2
-openai==1.59.3
+openai==1.61.1
 pandas==1.5.3
 python-dotenv==1.0.0
 chromadb==0.5.0
@@ -12,7 +12,7 @@ unstructured-inference==0.5.31
 unstructured.pytesseract==0.3.12
 tiktoken==0.5.2
 pdf2image==1.16.3
-Requests==2.31.0
+requests==2.32.0
 tabulate==0.9.0
 loguru==0.7.2
 sentence-transformers==2.3.1
@@ -28,6 +28,6 @@ streamlit-float==0.3.5
 openai-whisper==20231117
 fake-useragent==1.5.1
 duckduckgo_search==6.3.5
-autogen-agentchat==0.4.2
-autogen-ext==0.4.2
+autogen-agentchat==0.4.6
+autogen-ext==0.4.6
 markitdown==0.0.1a3
