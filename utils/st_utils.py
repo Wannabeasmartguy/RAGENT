@@ -196,7 +196,7 @@ def write_chat_history(
                 pass
             with st.chat_message(message["role"], avatar=user_avatar if message["role"] == "user" else ai_avatar):
                 st.html(f"<span class='chat-{message['role']}'></span>")
-                if message["reasoning_content"]:
+                if "reasoning_content" in message and message["reasoning_content"]:
                     st.caption(message['reasoning_content'])
                 if isinstance(message["content"], str):
                     st.markdown(message["content"])

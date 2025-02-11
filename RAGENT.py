@@ -29,7 +29,8 @@ from core.models.app import (
     SystemMessage, 
     MessageType,
     TextContent,
-    ImageContent
+    ImageContent,
+    SerializationMode,
 )
 from core.storage.db.sqlite import SqlAssistantStorage
 from modules.chat.transform import (
@@ -444,8 +445,8 @@ def prepare_messages(chat_history: List[MessageType], system_prompt: str, histor
     )
     processed_messages.insert(0, system_message)
     
-    # 在转换为字典时排除时间戳和reasoning_content
-    return [msg.to_dict(exclude_timestamps=True, exclude_reasoning=True) for msg in processed_messages]
+    # 使用MODEL模式序列化消息
+    return [msg.to_dict(mode=SerializationMode.MODEL) for msg in processed_messages]
 
 def get_response_and_display_assistant_message(
     processed_messages: List[Dict],
@@ -488,7 +489,7 @@ def create_and_display_chat_round(
         st.session_state.chat_history.append(user_message)
         
         # 更新数据库中的对话历史
-        chat_history_data = [msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) 
+        chat_history_data = [msg.to_dict(mode=SerializationMode.MODEL) 
                            for msg in st.session_state.chat_history]
         
         dialog_processor.update_chat_history(
@@ -552,7 +553,7 @@ def create_and_display_chat_round(
                         # 保存对话历史
                         dialog_processor.update_chat_history(
                             run_id=st.session_state.run_id,
-                            chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history]
+                            chat_history=[msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history]
                         )
                     
             # 清空中断按钮
@@ -564,7 +565,7 @@ def create_and_display_chat_round(
                 # 为使用默认对话名称的对话生成一个内容摘要的新名称
                 try:
                     asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
-                        chat_history=[msg.to_dict(exclude_timestamps=True, exclude_reasoning=True) for msg in st.session_state.chat_history],
+                        chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history],
                         run_id=st.session_state.run_id,
                         dialog_processor=dialog_processor,
                         model_type=st.session_state.model_type,
@@ -1122,7 +1123,7 @@ with st.sidebar:
                     st.session_state.chat_history = st.session_state.chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
-                    chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history]
+                    chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history]
                 )
                 logger.info(f"Dialog {st.session_state.run_id} chat history deleted")
 
@@ -1144,7 +1145,7 @@ with st.sidebar:
             )
             if export_button:
                 export_dialog(
-                    chat_history=[msg.to_dict(exclude_timestamps=False, exclude_reasoning=True) for msg in st.session_state.chat_history],
+                    chat_history=[msg.to_dict(mode=SerializationMode.EXPORT) for msg in st.session_state.chat_history],
                     chat_name=st.session_state.run_name,
                     model_name=st.session_state.model,
                 )
@@ -1167,7 +1168,7 @@ with st.sidebar:
 
 float_init()
 st.title(st.session_state.run_name)
-write_chat_history([msg.to_dict(exclude_timestamps=False, exclude_reasoning=False) for msg in st.session_state.chat_history])
+write_chat_history([msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history])
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 if st.session_state.model == None:
