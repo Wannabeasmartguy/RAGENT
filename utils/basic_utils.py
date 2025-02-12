@@ -124,7 +124,10 @@ async def generate_new_run_name_with_llm_for_the_first_time(
             {"role": "user", "content": chat_history_md},
         ],
     )
-    new_run_name = chat_history_summary.choices[0].message.content
+
+    from modules.chat.transform import ReasoningContentTagProcessor
+    tag_processor = ReasoningContentTagProcessor()
+    _, new_run_name = tag_processor.extract(chat_history_summary.choices[0].message.content)
     dialog_processor.update_dialog_name(
         run_id=run_id,
         new_name=new_run_name,
