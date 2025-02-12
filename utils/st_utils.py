@@ -136,6 +136,8 @@ def keep_login_or_logout_and_redirect_to_login_page(
         authenticator.logout(location="sidebar",key=logout_key)
     else:
         logger.debug("Not logged in, redirected to the login page")
+        # 清除所有session_state
+        st.session_state.clear()
         st.switch_page(login_page)
 
 

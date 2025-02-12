@@ -240,20 +240,27 @@ class SqlAssistantStorage(Sqlstorage):
     def get_all_runs(
             self, 
             user_id: Optional[str] = None, 
-            filter: Optional[Literal["created_at", "updated_at"]] = "created_at"
+            filter: Optional[Literal["created_at", "updated_at"]] = "created_at",
+            debug_mode: bool = False
         ) -> List[AssistantRun]:
         conversations: List[AssistantRun] = []
         try:
+            # 在调试模式下，允许返回所有对话
+            if debug_mode:
+                logger.debug("Debug mode: returning all dialogs")
+            # 在正常模式下，如果没有提供user_id，直接返回空列表
+            elif user_id is None:
+                logger.debug("No user_id provided, returning empty list")
+                return []
+            
             with self.Session() as sess:
                 # get all runs for this user
                 stmt = select(self.table)
-                if user_id is not None:
+                if not debug_mode and user_id is not None:
                     stmt = stmt.where(self.table.c.user_id == user_id)
                 if filter == "created_at":
-                    # order by created_at desc by default
                     stmt = stmt.order_by(self.table.c.created_at.desc())
                 elif filter == "updated_at":
-                    # order by updated_at desc
                     stmt = stmt.order_by(self.table.c.updated_at.desc())
                 # execute query
                 rows = sess.execute(stmt).fetchall()
@@ -266,23 +273,24 @@ class SqlAssistantStorage(Sqlstorage):
             pass
         return conversations
     
-    def get_specific_run(self, run_id: str, user_id: Optional[str] = None) -> AssistantRun:
+    def get_specific_run(self, run_id: str, user_id: Optional[str] = None) -> Optional[AssistantRun]:
         try:
+            # 如果没有提供user_id，直接返回None
+            if user_id is None:
+                logger.debug("No user_id provided, returning None")
+                return None
+            
             with self.Session() as sess:
-                # get specific run for this user
-                stmt = select(self.table).where(self.table.c.run_id == run_id)
-                if user_id is not None:
-                    stmt = stmt.where(self.table.c.user_id == user_id)
-                    
-                # execute query
+                stmt = select(self.table).where(
+                    self.table.c.run_id == run_id,
+                    self.table.c.user_id == user_id
+                )
                 row = sess.execute(stmt).first()
                 if row is not None:
                     decrypted_row = self._decrypt_sensitive_data(row)
                     return AssistantRun.model_validate(decrypted_row)
-            
         except OperationalError:
             logger.debug(f"Table does not exist: {self.table.name}")
-            pass
         return None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=15))

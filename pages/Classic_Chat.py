@@ -155,6 +155,8 @@ def create_default_dialog(
     new_run_id = str(uuid4())
     new_chat_state = ClassicChatState(
         current_run_id=new_run_id,
+        user_id=st.session_state['email'],
+        user_data={"name": st.session_state['name']},
         run_name=DEFAULT_DIALOG_TITLE,
         config_list=[generate_client_config(
             source=OpenAISupportedClients.AOAI.value,
@@ -168,6 +170,7 @@ def create_default_dialog(
     dialog_processor.create_dialog(
         run_id=new_chat_state.current_run_id,
         run_name=new_chat_state.run_name,
+        user_id=new_chat_state.user_id,
         llm_config=new_chat_state.config_list[0],
         assistant_data={
             "model_type": new_chat_state.llm_model_type,
@@ -227,10 +230,21 @@ if "oai_like_model_config_dict" not in st.session_state:
         "noneed": {"base_url": "http://127.0.0.1:8080/v1", "api_key": "noneed"}
     }
 
-run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
-if len(run_id_list) == 0:
-    create_default_dialog(dialog_processor, priority="normal")
-    run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+# 在页面开始处添加登录检查
+if not st.session_state.get('authentication_status'):
+    keep_login_or_logout_and_redirect_to_login_page()
+    st.stop()  # 防止后续代码执行
+
+# 初始化session state时添加错误处理
+try:
+    run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
+    if len(run_id_list) == 0:
+        create_default_dialog(dialog_processor, priority="normal")
+        run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
+except Exception as e:
+    logger.error(f"Error initializing dialogs: {e}")
+    keep_login_or_logout_and_redirect_to_login_page()
+    st.stop()
 
 if "current_run_id_index" not in st.session_state:
     st.session_state.current_run_id_index = 0
@@ -242,13 +256,16 @@ if "run_id" not in st.session_state:
 # initialize config
 if "chat_config_list" not in st.session_state:
     st.session_state.chat_config_list = [
-        # chat_history_storage.get_specific_run(st.session_state.run_id).llm
-        dialog_processor.get_dialog(st.session_state.run_id).llm
+        dialog_processor.get_dialog(
+            run_id=st.session_state.run_id, 
+            user_id=st.session_state['email']
+        ).llm
     ]
 # initialize chat history
 if "chat_history" not in st.session_state:
     db_chat_history = dialog_processor.get_dialog(
-        st.session_state.run_id
+        run_id=st.session_state.run_id,
+        user_id=st.session_state['email']
     ).memory["chat_history"]
     
     # Convert dict messages to message objects
@@ -358,6 +375,7 @@ def update_config_in_db_callback():
     
     current_chat_state = ClassicChatState(
         current_run_id=st.session_state.run_id,
+        user_id=st.session_state['email'],
         run_name=st.session_state.run_name,
         config_list=config_list,
         system_prompt=st.session_state["system_prompt"],
@@ -366,6 +384,7 @@ def update_config_in_db_callback():
     
     dialog_processor.update_dialog_config(
         run_id=current_chat_state.current_run_id,
+        user_id=current_chat_state.user_id,
         llm_config=current_chat_state.config_list[0],
         assistant_data={
             "model_type": current_chat_state.llm_model_type,
@@ -495,6 +514,7 @@ def create_and_display_chat_round(
         
         dialog_processor.update_chat_history(
             run_id=st.session_state.run_id,
+            user_id=st.session_state['email'],
             chat_history=chat_history_data
         )
         
@@ -554,6 +574,7 @@ def create_and_display_chat_round(
                         # 保存对话历史
                         dialog_processor.update_chat_history(
                             run_id=st.session_state.run_id,
+                            user_id=st.session_state['email'],
                             chat_history=[msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history]
                         )
                     
@@ -592,6 +613,11 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
+    if st.session_state['authentication_status']:
+        with st.expander(label="User Info"):
+            st.write(f"Hello, {st.session_state['name']}!")
+            st.write(f"Your email is {st.session_state['email']}.")
+
     dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
     )
@@ -606,7 +632,8 @@ with st.sidebar:
             try:
                 return options.index(
                     dialog_processor.get_dialog(
-                        st.session_state.run_id
+                        run_id=st.session_state.run_id,
+                        user_id=st.session_state['email']
                     ).assistant_data["model_type"]
                 )
             except:
@@ -858,6 +885,7 @@ with st.sidebar:
                         
                         current_chat_state = ClassicChatState(
                             current_run_id=st.session_state.run_id,
+                            user_id=st.session_state['email'],
                             config_list=st.session_state.chat_config_list,
                             system_prompt=st.session_state.system_prompt,
                             llm_model_type=st.session_state.model_type,
@@ -866,6 +894,7 @@ with st.sidebar:
 
                         dialog_processor.update_dialog_config(
                             run_id=current_chat_state.current_run_id,
+                            user_id=current_chat_state.user_id,
                             llm_config=current_chat_state.config_list[0],
                             assistant_data={
                                 "model_type": current_chat_state.llm_model_type,
@@ -913,7 +942,10 @@ with st.sidebar:
         def get_system_prompt(run_id: Optional[str]):
             if run_id:
                 try:
-                    return dialog_processor.get_dialog(run_id).assistant_data[
+                    return dialog_processor.get_dialog(
+                        run_id=run_id,
+                        user_id=st.session_state['email']
+                    ).assistant_data[
                         "system_prompt"
                     ]
                 except:
@@ -938,6 +970,7 @@ with st.sidebar:
                 try:
                     selected_run = st.session_state.saved_dialog
                     current_chat_state = ClassicChatState(
+                        user_id=st.session_state['email'],
                         config_list=st.session_state.chat_config_list,
                         system_prompt=st.session_state.system_prompt,
                         llm_model_type=st.session_state.model_type,
@@ -955,6 +988,7 @@ with st.sidebar:
                         
                         dialog_processor.update_dialog_config(
                             run_id=current_chat_state.current_run_id,
+                            user_id=current_chat_state.user_id,
                             llm_config=current_chat_state.config_list[0],
                             assistant_data={
                                 "model_type": current_chat_state.llm_model_type,
@@ -978,7 +1012,7 @@ with st.sidebar:
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
-                options=dialog_processor.get_all_dialogs(),
+                options=dialog_processor.get_all_dialogs(user_id=st.session_state['email']),
                 format_func=lambda x: (
                     x.run_name[:15] + "..." if len(x.run_name) > 15 else x.run_name
                 ),
@@ -1014,16 +1048,19 @@ with st.sidebar:
 
                 def delete_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.run_id)
-                    if len(dialog_processor.get_all_dialogs()) == 0:
+                    if len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])) == 0:
                         new_chat_state = create_default_dialog(dialog_processor, priority="high")
                         st.session_state.run_id = new_chat_state.current_run_id
                     else:
-                        while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
+                        while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])):
                             st.session_state.current_run_id_index -= 1
-                        st.session_state.run_id = dialog_processor.get_all_dialogs()[
+                        st.session_state.run_id = dialog_processor.get_all_dialogs(user_id=st.session_state['email'])[
                             st.session_state.current_run_id_index
                         ].run_id
-                    current_run = dialog_processor.get_dialog(st.session_state.run_id)
+                    current_run = dialog_processor.get_dialog(
+                        run_id=st.session_state.run_id,
+                        user_id=st.session_state['email']
+                    )
                     st.session_state.chat_history = transform_chat_history(current_run.memory["chat_history"])
                     st.session_state.chat_config_list = [current_run.llm]
                     logger.info(
@@ -1051,6 +1088,7 @@ with st.sidebar:
             def system_prompt_change_callback():
                 """系统提示更改回调"""
                 current_chat_state = ClassicChatState(
+                    user_id=st.session_state['email'],
                     config_list=st.session_state.chat_config_list,
                     system_prompt=st.session_state.system_prompt,
                     llm_model_type=st.session_state.model_type,
@@ -1059,6 +1097,7 @@ with st.sidebar:
                 )
                 dialog_processor.update_dialog_config(
                     run_id=current_chat_state.current_run_id,
+                    user_id=current_chat_state.user_id,
                     llm_config=current_chat_state.config_list[0],
                     assistant_data={
                         "model_type": st.session_state.model_type,
@@ -1070,7 +1109,10 @@ with st.sidebar:
 
             dialog_name = dialog_details_settings_popover.text_input(
                 label=i18n("Dialog name"),
-                value=dialog_processor.get_dialog(st.session_state.run_id).run_name,
+                value=dialog_processor.get_dialog(
+                    run_id=st.session_state.run_id,
+                    user_id=st.session_state['email']
+                ).run_name,
                 key="run_name",
                 on_change=dialog_name_change_callback,
             )
@@ -1079,7 +1121,8 @@ with st.sidebar:
                 label=i18n("System prompt"),
                 height=300,
                 value=dialog_processor.get_dialog(
-                    st.session_state.run_id
+                    run_id=st.session_state.run_id,
+                    user_id=st.session_state['email']
                 ).assistant_data.get("system_prompt", ""),
                 key="system_prompt",
                 on_change=system_prompt_change_callback,
@@ -1102,6 +1145,7 @@ with st.sidebar:
                 st.session_state.chat_history = []
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
+                    user_id=st.session_state['email'],
                     chat_history=[],  # 空列表不需要转换
                 )
                 st.session_state.current_run_id_index = run_id_list.index(
@@ -1124,6 +1168,7 @@ with st.sidebar:
                     st.session_state.chat_history = st.session_state.chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
+                    user_id=st.session_state['email'],
                     chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history]
                 )
                 logger.info(f"Dialog {st.session_state.run_id} chat history deleted")

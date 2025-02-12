@@ -5,6 +5,7 @@ from queue import Queue
 from threading import Lock, Thread
 import time
 from loguru._logger import Logger
+import streamlit as st
 
 from core.strategy import BaseDialogProcessStrategy
 from core.storage.db.base import Sqlstorage
@@ -133,6 +134,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         llm_config: Dict[str, Any],
         run_data: Optional[Dict[str, Any]] = None,
         assistant_data: Optional[Dict[str, Any]] = None,
@@ -141,13 +143,14 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
     ):
         """更新对话配置"""
         def _update():
-            current_run = self.storage.get_specific_run(run_id)
+            current_run = self.storage.get_specific_run(run_id, user_id)
             if not current_run:
                 raise ValueError(f"Dialog with run_id {run_id} not found")
             
             self.storage.upsert(
                 AssistantRun(
                     run_id=run_id,
+                    user_id=user_id,
                     name=current_run.name,
                     run_name=current_run.run_name,
                     llm=llm_config,
@@ -164,6 +167,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         chat_history: List[Dict[str, Any]],
         assistant_data: Optional[Dict[str, Any]] = None,
         task_data: Optional[Dict[str, Any]] = None,
@@ -172,13 +176,14 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
     ):
         """更新对话历史"""
         def _update():
-            current_run = self.storage.get_specific_run(run_id)
+            current_run = self.storage.get_specific_run(run_id, user_id)
             if not current_run:
                 raise ValueError(f"Dialog with run_id {run_id} not found")
             
             self.storage.upsert(
                 AssistantRun(
                     run_id=run_id,
+                    user_id=user_id,
                     name=current_run.name,
                     run_name=current_run.run_name,
                     llm=current_run.llm,
@@ -195,6 +200,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         run_name: str,
         llm_config: Dict[str, Any],
         name: str = "assistant",
@@ -213,6 +219,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
                     AssistantRun(
                         name=name,
                         run_id=run_id,
+                        user_id=user_id,
                         run_name=run_name,
                         llm=llm_config,
                         memory={"chat_history": []},
@@ -236,19 +243,25 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
             self.storage.delete_run(run_id)
         self._enqueue_operation(_delete)
     
-    def get_dialog(self, run_id: str) -> Optional[AssistantRun]:
+    def get_dialog(self, run_id: str, user_id: Optional[str] = None) -> Optional[AssistantRun]:
         """获取对话（同步操作）"""
         with self.lock:
-            return self.storage.get_specific_run(run_id)
+            return self.storage.get_specific_run(
+                run_id=run_id,
+                user_id=user_id
+            )
     
-    def get_all_dialogs(self) -> List[AssistantRun]:
+    def get_all_dialogs(self, user_id: Optional[str] = None, debug_mode: bool = False) -> List[AssistantRun]:
         """获取所有对话（同步操作）"""
         try:
             # 等待所有操作完成
             self.operation_queue.join()
             
             with self.lock:
-                dialogs = self.storage.get_all_runs()
+                dialogs = self.storage.get_all_runs(
+                    user_id=user_id,
+                    debug_mode=debug_mode
+                )
                 self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
                 return dialogs
         except Exception as e:
@@ -405,16 +418,22 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
     def get_dialog(self, run_id: str) -> Optional[AssistantRun]:
         """获取对话（同步操作）"""
         with self.lock:
-            return self.storage.get_specific_run(run_id)
+            return self.storage.get_specific_run(
+                run_id=run_id,
+                user_id=st.session_state.get('email')
+            )
         
-    def get_all_dialogs(self) -> List[AssistantRun]:
+    def get_all_dialogs(self, user_id: Optional[str] = None, debug_mode: bool = False) -> List[AssistantRun]:
         """获取所有对话（同步操作）"""
         try:
             # 等待所有操作完成
             self.operation_queue.join()
             
             with self.lock:
-                dialogs = self.storage.get_all_runs()
+                dialogs = self.storage.get_all_runs(
+                    user_id=user_id,
+                    debug_mode=debug_mode
+                )
                 self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
                 return dialogs
         except Exception as e:
