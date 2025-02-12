@@ -48,6 +48,7 @@ from utils.basic_utils import (
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
     set_pages_configs_in_common,
+    keep_login_or_logout_and_redirect_to_login_page,
     export_dialog,
     back_to_top,
     back_to_bottom,
@@ -94,6 +95,7 @@ def create_default_rag_dialog(
     new_run_id = str(uuid4())
     new_chat_state = RAGChatState(
         current_run_id=new_run_id,
+        user_id=st.session_state['email'],
         run_name=DEFAULT_DIALOG_TITLE,
         config_list=[generate_client_config(
             source=OpenAISupportedClients.AOAI.value,
@@ -106,6 +108,7 @@ def create_default_rag_dialog(
     )
     dialog_processor.create_dialog(
         run_id=new_chat_state.current_run_id,
+        user_id=new_chat_state.user_id,
         run_name=new_chat_state.run_name,
         llm_config=new_chat_state.config_list[0],
         task_data={
@@ -124,6 +127,7 @@ def save_rag_chat_history() -> None:
     """
     dialog_processor.update_chat_history(
         run_id=st.session_state.rag_run_id,
+        user_id=st.session_state['email'],
         chat_history=st.session_state.custom_rag_chat_history,
         task_data={"source_documents": st.session_state.custom_rag_sources},
         assistant_data={
@@ -376,7 +380,7 @@ if "oai_like_model_config_dict" not in st.session_state:
     }
 
 # 初始化对话列表
-rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 
 # 如果没有对话，创建一个默认对话
 if len(rag_run_id_list) == 0:
@@ -385,7 +389,7 @@ if len(rag_run_id_list) == 0:
         priority="normal"
     )
     # 重新获取对话列表
-    rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+    rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 
 # 初始化当前对话索引
 if "rag_current_run_id_index" not in st.session_state:
@@ -405,10 +409,16 @@ if "rag_run_id" not in st.session_state:
 # initialize config
 if "rag_chat_config_list" not in st.session_state:
     st.session_state.rag_chat_config_list = [
-        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
+        dialog_processor.get_dialog(
+            run_id=st.session_state.rag_run_id,
+            user_id=st.session_state['email']
+        ).llm
     ]
 if "knowledge_base_config" not in st.session_state:
-    kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
+    kb_config = dialog_processor.get_knowledge_base_config(
+        run_id=st.session_state.rag_run_id,
+        user_id=st.session_state['email']
+    )
     # 获取可用的知识库列表
     available_collections = get_collection_options()
     
@@ -429,12 +439,14 @@ if "knowledge_base_config" not in st.session_state:
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
     st.session_state.custom_rag_chat_history = dialog_processor.get_dialog(
-        st.session_state.rag_run_id
+        run_id=st.session_state.rag_run_id,
+        user_id=st.session_state['email']
     ).memory["chat_history"]
 if "custom_rag_sources" not in st.session_state:
     try:
         st.session_state.custom_rag_sources = dialog_processor.get_dialog(
-            st.session_state.rag_run_id
+            run_id=st.session_state.rag_run_id,
+            user_id=st.session_state['email']
         ).task_data["source_documents"]
     except TypeError:
         # TypeError 意味着数据库中没有这个 run_id 的source_documents，因此初始化
@@ -548,6 +560,7 @@ def update_rag_config_in_db_callback():
 
     current_chat_state = RAGChatState(
         current_run_id=st.session_state.rag_run_id,
+        user_id=st.session_state['email'],
         run_name=st.session_state.rag_run_name,
         current_run_index=st.session_state.rag_current_run_id_index,
         config_list=config_list,
@@ -556,6 +569,7 @@ def update_rag_config_in_db_callback():
     
     dialog_processor.update_dialog_config(
         run_id=current_chat_state.current_run_id,
+        user_id=current_chat_state.user_id,
         llm_config=current_chat_state.config_list[0],
         assistant_data={
             "model_type": current_chat_state.llm_model_type,
@@ -653,6 +667,7 @@ def update_knowledge_base_config():
 
     dialog_processor.update_knowledge_base_config(
         run_id=st.session_state.rag_run_id, 
+        user_id=st.session_state['email'],
         knowledge_base_config=knowledge_base_config.model_dump()
     )
     logger.info(f"Knowledge base config updated in db: {st.session_state.rag_run_id}")
@@ -663,7 +678,10 @@ def restore_knowledge_base_config():
     """
     恢复知识库配置，如果配置的知识库不存在则重置配置
     """
-    kb_config = dialog_processor.get_knowledge_base_config(st.session_state.rag_run_id)
+    kb_config = dialog_processor.get_knowledge_base_config(
+        run_id=st.session_state.rag_run_id,
+        user_id=st.session_state['email']
+    )
     if kb_config:
         # 获取当前可用的知识库列表
         available_collections = get_collection_options()
@@ -681,6 +699,7 @@ def restore_knowledge_base_config():
             # 更新数据库中的配置
             dialog_processor.update_knowledge_base_config(
                 run_id=st.session_state.rag_run_id,
+                user_id=st.session_state['email'],
                 knowledge_base_config=KnowledgebaseConfigInRAGChatState(
                     collection_name= st.session_state.collection_name,
                     query_mode = "collection",
@@ -733,6 +752,7 @@ def restore_knowledge_base_config():
                     # 更新数据库中的配置
                     dialog_processor.update_knowledge_base_config(
                         run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email'],
                         knowledge_base_config=KnowledgebaseConfigInRAGChatState(
                             collection_name= st.session_state.collection_name,
                             query_mode = "collection",
@@ -805,7 +825,7 @@ with st.sidebar:
                         # 更新对话ID和索引
                         st.session_state.rag_run_id = selected_run.run_id
                         st.session_state.rag_current_run_id_index = [
-                            run.run_id for run in dialog_processor.get_all_dialogs()
+                            run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])
                         ].index(st.session_state.rag_run_id)
                         
                         # 更新配置
@@ -830,7 +850,7 @@ with st.sidebar:
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
-                options=dialog_processor.get_all_dialogs(),
+                options=dialog_processor.get_all_dialogs(user_id=st.session_state['email']),
                 format_func=lambda x: (
                     x.run_name[:15] + "..." if len(x.run_name) > 15 else x.run_name
                 ),
@@ -867,29 +887,34 @@ with st.sidebar:
 
                 def delete_rag_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.rag_run_id)
-                    if len(dialog_processor.get_all_dialogs()) == 0:
+                    if len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])) == 0:
                         new_chat_state = create_default_rag_dialog(
                             dialog_processor=dialog_processor,
                             priority="high"
                         )
                         st.session_state.rag_run_id = new_chat_state.current_run_id
                     else:
-                        while st.session_state.rag_current_run_id_index >= len(dialog_processor.get_all_dialogs()):
+                        while st.session_state.rag_current_run_id_index >= len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])):
                             st.session_state.rag_current_run_id_index -= 1
                         st.session_state.rag_run_id = [
-                            run.run_id for run in dialog_processor.get_all_dialogs()
+                            run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])
                         ][st.session_state.rag_current_run_id_index]
                     st.session_state.rag_chat_config_list = [
-                        dialog_processor.get_dialog(st.session_state.rag_run_id).llm
+                        dialog_processor.get_dialog(
+                            run_id=st.session_state.rag_run_id,
+                            user_id=st.session_state['email']
+                        ).llm
                     ]
                     st.session_state.custom_rag_chat_history = (
                         dialog_processor.get_dialog(
-                            st.session_state.rag_run_id
+                            run_id=st.session_state.rag_run_id,
+                            user_id=st.session_state['email']
                         ).memory["chat_history"]
                     )
                     st.session_state.custom_rag_sources = (
                         dialog_processor.get_dialog(
-                            st.session_state.rag_run_id
+                            run_id=st.session_state.rag_run_id,
+                            user_id=st.session_state['email']
                         ).task_data["source_documents"]
                     )
                     logger.info(
@@ -917,13 +942,14 @@ with st.sidebar:
                         f"RAG dialog name changed from {origin_run_name} to {st.session_state.rag_run_name}.(run_id: {st.session_state.rag_run_id})"
                     )
                     st.session_state.rag_current_run_id_index = [
-                        run.run_id for run in dialog_processor.get_all_dialogs()
+                        run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])
                     ].index(st.session_state.rag_run_id)
 
                 dialog_name = dialog_details_settings_popover.text_input(
                     label=i18n("Dialog name"),
                     value=dialog_processor.get_dialog(
-                        st.session_state.rag_run_id
+                        run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email']
                     ).run_name,
                     key="rag_run_name",
                     on_change=rag_dialog_name_change_callback,
@@ -955,7 +981,8 @@ with st.sidebar:
             try:
                 return options.index(
                     dialog_processor.get_dialog(
-                        st.session_state.rag_run_id
+                        run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email']
                     ).assistant_data["model_type"]
                 )
             except:
@@ -1202,6 +1229,7 @@ with st.sidebar:
                         )
                         dialog_processor.update_dialog_config(
                             run_id=st.session_state.rag_run_id,
+                            user_id=st.session_state['email'],
                             llm_config=st.session_state["rag_chat_config_list"][0],
                             assistant_data={
                                 "model_type": st.session_state["model_type"],
@@ -1376,6 +1404,7 @@ with st.sidebar:
         st.session_state.custom_rag_sources = {}
         dialog_processor.update_chat_history(
             run_id=st.session_state.rag_run_id,
+            user_id=st.session_state['email'],
             chat_history=st.session_state.custom_rag_chat_history,
             task_data={"source_documents": st.session_state.custom_rag_sources},
         )
@@ -1417,6 +1446,7 @@ with st.sidebar:
 
         dialog_processor.update_chat_history(
             run_id=st.session_state.rag_run_id,
+            user_id=st.session_state['email'],
             chat_history=st.session_state.custom_rag_chat_history,
             task_data={"source_documents": st.session_state.custom_rag_sources},
         )
@@ -1444,6 +1474,12 @@ with st.sidebar:
             chat_name=st.session_state.rag_run_name,
             model_name=st.session_state.model,
         )
+
+    if os.getenv("LOGIN_ENABLED") == "True":
+        keep_login_or_logout_and_redirect_to_login_page()
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "Test User"
 
     back_to_top_placeholder0 = st.empty()
     back_to_top_placeholder1 = st.empty()

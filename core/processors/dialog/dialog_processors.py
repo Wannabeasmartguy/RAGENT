@@ -290,6 +290,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
         self, 
         *, 
         run_id: str, 
+        user_id: str,
         knowledge_base_config: Dict[str, Any]
     ):
         """
@@ -307,7 +308,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
         """
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
                 
@@ -335,11 +336,11 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
                 
         self._enqueue_operation(_update)
     
-    def get_knowledge_base_config(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_knowledge_base_config(self, run_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """获取当前对话指向的知识库配置"""
         with self.lock:
             try:
-                run = self.storage.get_specific_run(run_id)
+                run = self.storage.get_specific_run(run_id, user_id)
                 if run and run.run_data:
                     return run.run_data.get("knowledge_base_config", {})
                 return {}

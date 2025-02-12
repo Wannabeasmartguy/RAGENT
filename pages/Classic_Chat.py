@@ -49,6 +49,7 @@ from utils.log.logger_config import (
 try:
     from utils.st_utils import (
         set_pages_configs_in_common,
+        keep_login_or_logout_and_redirect_to_login_page,
         float_chat_input_with_audio_recorder,
         write_chat_history,
         get_style,
@@ -58,8 +59,6 @@ try:
     )
 except:
     st.rerun()
-
-from utils.st_utils import keep_login_or_logout_and_redirect_to_login_page
 
 from config.constants import (
     VERSION,
@@ -232,8 +231,12 @@ if "oai_like_model_config_dict" not in st.session_state:
 
 # 在页面开始处添加登录检查
 if not st.session_state.get('authentication_status'):
-    keep_login_or_logout_and_redirect_to_login_page()
-    st.stop()  # 防止后续代码执行
+    if os.getenv("LOGIN_ENABLED") == "True":
+        keep_login_or_logout_and_redirect_to_login_page()
+        st.stop()  # 防止后续代码执行
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "Test User"
 
 # 初始化session state时添加错误处理
 try:
@@ -613,10 +616,11 @@ with st.sidebar:
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
-    if st.session_state['authentication_status']:
-        with st.expander(label="User Info"):
-            st.write(f"Hello, {st.session_state['name']}!")
-            st.write(f"Your email is {st.session_state['email']}.")
+    if os.getenv("LOGIN_ENABLED") == "True":
+        if st.session_state['authentication_status']:
+            with st.expander(label="User Info"):
+                st.write(f"Hello, {st.session_state['name']}!")
+                st.write(f"Your email is {st.session_state['email']}.")
 
     dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
@@ -1207,7 +1211,8 @@ with st.sidebar:
     if os.getenv("LOGIN_ENABLED") == "True":
         keep_login_or_logout_and_redirect_to_login_page()
     else:
-        pass
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "Test User"
 
     # Fix the bug: "Go to top/bottom of page" cause problem that will make `write_chat_history` can't correctly show the chat history during `write_stream`
     back_to_top_placeholder0 = st.empty()
