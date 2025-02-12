@@ -5,10 +5,8 @@ from uuid import uuid4
 from typing import List, Union, Coroutine, AsyncGenerator, Literal, Dict, Optional
 from loguru import logger
 
-from core.basic_config import (
-    I18nAuto,
-    set_pages_configs_in_common,
-)
+from core.basic_config import I18nAuto
+from utils.st_utils import set_pages_configs_in_common
 from config.constants import (
     VERSION,
     LOGO_DIR,
@@ -326,7 +324,7 @@ with st.sidebar:
 
     st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link(

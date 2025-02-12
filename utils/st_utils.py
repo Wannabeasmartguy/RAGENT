@@ -100,6 +100,45 @@ STYLE_CONSTANTS = {
 }
 
 
+def set_pages_configs_in_common(
+    title,
+    version: str = "0.0.1",
+    page_icon_path=os.path.dirname(__file__),
+    init_sidebar_state: Literal["expanded", "collapsed", "auto"] = "expanded",
+    layout: Literal["wide", "centered"] = "centered",
+):
+    st.set_page_config(
+        page_title=title,
+        page_icon=page_icon_path,
+        initial_sidebar_state=init_sidebar_state,
+        layout=layout,
+        menu_items={
+            "Get Help": "https://github.com/Wannabeasmartguy/RAGENT",
+            "Report a bug": "https://github.com/Wannabeasmartguy/RAGENT/issues",
+            "About": f"""欢迎使用 RAGENT WebUI {version}！""",
+        },
+    )
+
+
+def keep_login_or_logout_and_redirect_to_login_page(
+    logout_key: str = "classic_chat_logout",
+    login_page: str = "RAGENT.py"
+):
+    """
+    登出并重定向到登录页面
+    """
+    from utils.user_login_utils import load_and_create_authenticator
+    from utils.log.logger_config import setup_logger
+    from loguru import logger
+
+    if st.session_state['authentication_status']:
+        authenticator = load_and_create_authenticator()
+        authenticator.logout(location="sidebar",key=logout_key)
+    else:
+        logger.debug("Not logged in, redirected to the login page")
+        st.switch_page(login_page)
+
+
 def get_scroll_button_js(
     scroll_type: Literal["BACK_TO_TOP", "BACK_TO_BOTTOM"],
     st_version: str

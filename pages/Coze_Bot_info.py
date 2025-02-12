@@ -1,7 +1,8 @@
 import streamlit as st
 import os
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common
+from core.basic_config import I18nAuto
+from utils.st_utils import set_pages_configs_in_common
 from utils.coze_utils import display_bot_info
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 

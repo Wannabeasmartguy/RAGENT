@@ -21,7 +21,7 @@ from config.constants import (
     USER_AVATAR_SVG,
     AI_AVATAR_SVG,
 )
-from core.basic_config import I18nAuto, set_pages_configs_in_common
+from core.basic_config import I18nAuto
 from core.processors import (
     RAGChatProcessor,
     RAGChatDialogProcessor,
@@ -47,6 +47,7 @@ from utils.basic_utils import (
 )
 from utils.log.logger_config import setup_logger, log_dict_changes
 from utils.st_utils import (
+    set_pages_configs_in_common,
     export_dialog,
     back_to_top,
     back_to_bottom,
@@ -764,7 +765,7 @@ with st.sidebar:
 
     st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link(

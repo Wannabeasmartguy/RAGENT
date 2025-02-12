@@ -565,7 +565,7 @@ with st.sidebar:
 
     st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
 
 st.title(i18n("Agent Setting"))
 
