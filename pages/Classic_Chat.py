@@ -12,6 +12,7 @@ import streamlit as st
 from core.llm._client_info import (
     generate_client_config,
     OpenAISupportedClients,
+    generate_multi_client_configs,
 )
 from core.basic_config import I18nAuto
 from core.processors import (
@@ -152,16 +153,23 @@ def create_default_dialog(
         priority = OperationPriority.NORMAL
 
     new_run_id = str(uuid4())
+    
+    # 使用新的多配置生成函数
+    config_list = [
+        config.model_dump() 
+        for config in generate_multi_client_configs(
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
+            stream=True,
+        )
+    ]
+    
     new_chat_state = ClassicChatState(
         current_run_id=new_run_id,
         user_id=st.session_state['email'],
         user_data={"name": st.session_state['name']},
         run_name=DEFAULT_DIALOG_TITLE,
-        config_list=[generate_client_config(
-            source=OpenAISupportedClients.AOAI.value,
-            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
-            stream=True,
-        ).model_dump()],
+        config_list=config_list,  # 使用配置列表
         llm_model_type=OpenAISupportedClients.AOAI.value,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         chat_history=[],

@@ -1,5 +1,6 @@
-from typing import Literal, Dict, Type
+from typing import Literal, Dict, Type, List
 from enum import Enum
+import os
 
 from core.models.llm import *
 
@@ -20,6 +21,67 @@ class OpenAISupportedClients(Enum):
     OLLAMA = "ollama"
     GROQ = "groq"
     OPENAI_LIKE = "openai-like"
+
+
+def parse_env_list(env_key: str, prefix: str = "") -> List[str]:
+    """
+    解析环境变量中的列表配置
+    例如: AZURE_OAI_KEY_LIST="key1,key2,key3"
+    """
+    value = os.getenv(f"{prefix}{env_key}_LIST", "")
+    if not value:
+        # 如果没有配置列表，则尝试获取单个值
+        single_value = os.getenv(f"{prefix}{env_key}")
+        return [single_value] if single_value else []
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+def generate_multi_client_configs(
+    source: Literal["openai", "azureopenai", "ollama", "groq", "openai-like"],
+    **kwargs,
+) -> List[LLMBaseConfig]:
+    """
+    生成多个客户端配置
+
+    Args:
+        source (str): 数据源
+        **kwargs: 配置参数
+    Returns:
+        List[LLMBaseConfig]: LLM配置列表
+    """
+    config_class = SUPPORTED_SOURCES[source]
+    
+    if source == OpenAISupportedClients.AOAI.value:
+        api_keys = parse_env_list("AZURE_OAI_KEY")
+        endpoints = parse_env_list("AZURE_OAI_ENDPOINT")
+        
+        # 确保 keys 和 endpoints 数量匹配
+        if len(endpoints) == 1:
+            endpoints = endpoints * len(api_keys)
+        elif len(api_keys) != len(endpoints):
+            raise ValueError("Number of API keys and endpoints must match")
+            
+        return [
+            config_class.from_env(
+                api_key=key,
+                base_url=endpoint,
+                **kwargs
+            )
+            for key, endpoint in zip(api_keys, endpoints)
+        ]
+        
+    elif source == OpenAISupportedClients.OPENAI.value:
+        api_keys = parse_env_list("OPENAI_API_KEY")
+        return [
+            config_class.from_env(
+                api_key=key,
+                **kwargs
+            )
+            for key in api_keys
+        ]
+        
+    # 其他类型的配置可以类似处理...
+    
+    return [config_class.from_env(**kwargs)]
 
 
 def generate_client_config(

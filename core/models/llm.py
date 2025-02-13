@@ -67,10 +67,10 @@ class AzureOpenAIConfig(LLMBaseConfig):
         """从环境变量和kwargs创建配置"""
         return cls(
             model=kwargs.get("model", "gpt-3.5-turbo"),
-            api_key=os.getenv("AZURE_OAI_KEY", kwargs.get("api_key", "noaoaikey")),
-            base_url=os.getenv("AZURE_OAI_ENDPOINT", kwargs.get("base_url", "noaoaiendpoint")),
-            api_type=os.getenv("API_TYPE", kwargs.get("api_type", "azure")),
-            api_version=os.getenv("API_VERSION", kwargs.get("api_version", "2024-02-15-preview")),
+            api_key=kwargs.get("api_key") or os.getenv("AZURE_OAI_KEY", "noaoaikey"),
+            base_url=kwargs.get("base_url") or os.getenv("AZURE_OAI_ENDPOINT", "noaoaiendpoint"),
+            api_type=kwargs.get("api_type") or os.getenv("API_TYPE", "azure"),
+            api_version=kwargs.get("api_version") or os.getenv("API_VERSION", "2024-02-15-preview"),
             params=LLMParams.init_params(**kwargs)
         )
     
@@ -95,8 +95,8 @@ class OpenAIConfig(LLMBaseConfig):
         """从环境变量和kwargs创建配置"""
         return cls(
             model=kwargs.get("model", "gpt-3.5-turbo"),
-            api_key=os.getenv("OPENAI_API_KEY", kwargs.get("api_key", "noopenaikey")),
-            base_url=os.getenv("OPENAI_API_ENDPOINT", kwargs.get("base_url", "noopenaiendpoint")),
+            api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY", "noopenaikey"),
+            base_url=kwargs.get("base_url") or os.getenv("OPENAI_API_ENDPOINT", "noopenaiendpoint"),
             params=LLMParams.init_params(**kwargs)
         )
     
