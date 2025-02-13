@@ -104,14 +104,14 @@ class SqlAssistantStorage(Sqlstorage):
                     # 确保 datetime 对象被正确序列化
                     if field == 'memory' and 'chat_history' in encrypted_data[field]:
                         chat_history = encrypted_data[field]['chat_history']
-                        logger.debug(f"Processing chat history for encryption, length: {len(chat_history)}")
+                        # logger.debug(f"Processing chat history for encryption, length: {len(chat_history)}")
                         for msg in chat_history:
                             if isinstance(msg.get('created_at'), datetime):
                                 msg['created_at'] = msg['created_at'].isoformat()
                             if isinstance(msg.get('updated_at'), datetime):
                                 msg['updated_at'] = msg['updated_at'].isoformat()
                     
-                    logger.debug(f"Encrypting field '{field}' with type: {type(encrypted_data[field])}")
+                    # logger.debug(f"Encrypting field '{field}' with type: {type(encrypted_data[field])}")
                     encrypted_data[field] = self.encryptor.encrypt(json.dumps(encrypted_data[field]))
         except Exception as e:
             logger.error(f"Error encrypting '{field}': {e}")
@@ -126,13 +126,13 @@ class SqlAssistantStorage(Sqlstorage):
         try:
             for field in sensitive_fields:
                 if field in decrypted_data and decrypted_data[field]:
-                    logger.debug(f"Decrypting field '{field}'")
+                    # logger.debug(f"Decrypting field '{field}'")
                     decrypted = json.loads(self.encryptor.decrypt(decrypted_data[field]))
                     
                     # 将时间戳字符串转换回 datetime 对象
                     if field == 'memory' and 'chat_history' in decrypted:
                         chat_history = decrypted['chat_history']
-                        logger.debug(f"Processing chat history for decryption, length: {len(chat_history)}")
+                        # logger.debug(f"Processing chat history for decryption, length: {len(chat_history)}")
                         for msg in chat_history:
                             if 'created_at' in msg:
                                 msg['created_at'] = datetime.fromisoformat(msg['created_at'])
