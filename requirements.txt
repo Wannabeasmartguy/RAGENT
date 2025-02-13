@@ -31,3 +31,4 @@ duckduckgo_search==6.3.5
 autogen-agentchat==0.4.6
 autogen-ext==0.4.6
 markitdown==0.0.1a3
+streamlit-authenticator==0.4.1
