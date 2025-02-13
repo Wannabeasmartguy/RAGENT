@@ -434,27 +434,44 @@ def display_user_message(prompt: str, image_uploader: Optional[BytesIO] = None):
 def process_assistant_response(response: Dict, if_stream: bool = True) -> Tuple[str, str]:
     """处理助手的响应"""
     tag_processor = ReasoningContentTagProcessor()
+    reasoning_content = ""
+    response_content = ""
     
-    if not if_stream:
-        reasoning_content = ""
-        try:
-            if response.choices[0].message.reasoning_content:
-                reasoning_content = response.choices[0].message.reasoning_content
+    try:
+        if not if_stream:
+            # 处理非流式响应
+            try:
+                if response.choices[0].message.reasoning_content:
+                    reasoning_content = response.choices[0].message.reasoning_content
+                    response_content = response.choices[0].message.content
+                elif tag_processor.detect(response.choices[0].message.content):
+                    reasoning_content, response_content = tag_processor.extract(response.choices[0].message.content)
+                else:
+                    response_content = response.choices[0].message.content
+            except AttributeError:
                 response_content = response.choices[0].message.content
-            elif tag_processor.detect(response.choices[0].message.content):
-                reasoning_content, response_content = tag_processor.extract(response.choices[0].message.content)
-        except:
-            pass
-
-        st.caption(reasoning_content)
-        st.write(response_content)
+                
+            st.caption(reasoning_content)
+            st.write(response_content)
+            
+        else:
+            # 处理流式响应
+            try:
+                total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
+                if tag_processor.detect(total_response):
+                    reasoning_content, response_content = tag_processor.extract(total_response)
+                else:
+                    response_content = total_response
+            except Exception as e:
+                logger.error(f"Error in stream processing: {e}")
+                response_content = "Error processing stream response"
         
-    else:
-        total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
-        reasoning_content, response_content = tag_processor.extract(total_response)
+        return reasoning_content, response_content
         
-    st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
-    return reasoning_content, response_content
+    except Exception as e:
+        logger.error(f"Error in process_assistant_response: {e}")
+        st.error(i18n("Failed to process assistant response"))
+        return "", ""
 
 def prepare_messages(chat_history: List[MessageType], system_prompt: str, history_length: int) -> List[Dict]:
     """准备发送给模型的消息列表"""
@@ -476,25 +493,25 @@ def get_response_and_display_assistant_message(
     chatprocessor: ChatProcessor,
     if_tools_call: bool = False
 ) -> Tuple[str, str]:
-    """获取助手消息并显示"""
-    logger.debug(f"processed_messages: {processed_messages}")
     try:
         response = generate_response(
             processed_messages=processed_messages,
             chatprocessor=chatprocessor,
             if_tools_call=if_tools_call
         )
+        
+        if isinstance(response, dict) and "error" in response:
+            st.error(response["error"])
+            logger.error(f"Error occurred: {response['error']}")
+            return "", ""  # 返回空字符串而不是 None
+            
+        return process_assistant_response(response, st.session_state.if_stream)
     except Exception as e:
-        response = dict(error=str(e))
-        
-    st.html("<span class='chat-assistant'></span>")
-    
-    if isinstance(response, dict) and "error" in response:
-        st.error(response["error"])
-        logger.error(f"Error occurred: {response['error']}")
-        return "", ""
-        
-    return process_assistant_response(response, st.session_state.if_stream)
+        logger.error(f"Error in get_response_and_display_assistant_message: {e}")
+        st.error(i18n("Failed to get response from assistant"))
+        return "", ""  # 确保在异常情况下也返回有效值
+    finally:
+        st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
 
 def create_and_display_chat_round(
     prompt: str,

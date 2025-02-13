@@ -1,8 +1,11 @@
 import os
 from typing import TypeVar
 from abc import ABC, abstractmethod
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+
+load_dotenv(override=True)
 
 class LLMParams(BaseModel):
     """LLM 参数配置"""
@@ -17,7 +20,7 @@ class LLMParams(BaseModel):
         default=4096, gt=0, description="Maximum number of tokens to generate"
     )
     stream: bool = Field(
-        default=False, description="If true, the LLM will stream the response"
+        default=True, description="If true, the LLM will stream the response"
     )
 
     @classmethod
@@ -26,7 +29,7 @@ class LLMParams(BaseModel):
             temperature=kwargs.get("temperature", 0.5),
             top_p=kwargs.get("top_p", 1.0),
             max_tokens=kwargs.get("max_tokens", 4096),
-            stream=kwargs.get("stream", False)
+            stream=kwargs.get("stream", True)
         )
 
 
