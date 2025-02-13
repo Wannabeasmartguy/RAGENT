@@ -14,7 +14,20 @@ from loguru import logger
 
 async def reset_session_state_after_switch_page():
     if st.session_state.get("switch_to_login_page"):
+        # 保存需要保留的状态
+        auth_status = st.session_state.get('authentication_status')
+        email = st.session_state.get('email')
+        name = st.session_state.get('name')
+        
+        # 清除其他session state
         st.session_state.clear()
+        
+        # 恢复登录状态
+        if auth_status:
+            st.session_state['authentication_status'] = auth_status
+            st.session_state['email'] = email
+            st.session_state['name'] = name
+            
         st.session_state['switch_to_login_page'] = False
         st.rerun()
 
@@ -53,7 +66,6 @@ if os.getenv("LOGIN_ENABLED") == "True":
 
     if st.session_state['authentication_status']:
         logger.debug("Login success, redirect to Classic Chat")
-        authenticator.logout(location='sidebar')
         st.switch_page("pages/Classic_Chat.py")
     elif st.session_state['authentication_status'] is False:
         st.error('用户名或密码错误')

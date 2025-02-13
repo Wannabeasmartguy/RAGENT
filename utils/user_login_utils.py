@@ -23,14 +23,27 @@ def generate_random_string(length=32):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-_DEFAULT_COOKIE = {
-    'expiry_days': 30,
-    'key': generate_random_string(64),
-    'name': f'session_id_{generate_random_string(16)}'
-}
+def load_cookie_config():
+    """
+    从配置文件加载cookie配置，如果不存在则创建默认配置
+    """
+    secrets_path = './secrets/secrets.yaml'
+    if os.path.exists(secrets_path):
+        with open(secrets_path, 'r') as file:
+            config = yaml.load(file, Loader=yaml.SafeLoader)
+            return config['cookie']
+    
+    # 如果配置不存在，创建新的配置
+    cookie_config = {
+        'expiry_days': 30,
+        'key': generate_random_string(64),
+        'name': f'session_id_{generate_random_string(16)}'
+    }
+    return cookie_config
 
+_DEFAULT_COOKIE = load_cookie_config()
 
-def generate_secrets_yaml(credentials=_DEFAULT_USER_CREDENTIALS, cookie=_DEFAULT_COOKIE):
+def generate_secrets_yaml(credentials=_DEFAULT_USER_CREDENTIALS, cookie=None):
     """
     仅在 secrets.yaml 文件不存在时生成新的配置文件
 
@@ -42,6 +55,10 @@ def generate_secrets_yaml(credentials=_DEFAULT_USER_CREDENTIALS, cookie=_DEFAULT
     # 如果配置文件已存在，直接返回
     if os.path.exists(secrets_path):
         return
+        
+    # 如果没有传入cookie配置，使用默认配置
+    if cookie is None:
+        cookie = _DEFAULT_COOKIE
         
     data = {
         'credentials': {
@@ -65,14 +82,15 @@ def load_and_create_authenticator():
     with open('./secrets/secrets.yaml', 'r', encoding='utf-8') as file:
         config = yaml.load(file, Loader=yaml.SafeLoader)
 
-    Hasher.hash_passwords(config['credentials'])
+    hashed_passwords = Hasher.hash_passwords(config['credentials'])
 
     authenticator = stauth.Authenticate(
-        config['credentials'],
-        config['cookie']['name'],
-        config['cookie']['key'],
-        config['cookie']['expiry_days'],
+        credentials=hashed_passwords,
+        cookie_name=config['cookie']['name'],
+        cookie_key=config['cookie']['key'],
+        cookie_expiry_days=config['cookie']['expiry_days'],
     )
+    print(authenticator.cookie_controller.get_cookie())
     return authenticator
 
 
