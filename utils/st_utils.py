@@ -131,13 +131,14 @@ def keep_login_or_logout_and_redirect_to_login_page(
     from utils.log.logger_config import setup_logger
     from loguru import logger
 
-    if st.session_state['authentication_status']:
+    if st.session_state.get('authentication_status'):
         authenticator = load_and_create_authenticator()
         authenticator.logout(location="sidebar",key=logout_key)
     else:
         logger.debug("Not logged in, redirected to the login page")
         # 清除所有session_state
-        st.session_state.clear()
+        # st.session_state.clear()
+        st.session_state['switch_to_login_page'] = True
         st.switch_page(login_page)
 
 

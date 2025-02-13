@@ -379,8 +379,22 @@ if "oai_like_model_config_dict" not in st.session_state:
         "noneed": {"base_url": "http://127.0.0.1:8080/v1", "api_key": "noneed"}
     }
 
+# 在页面开始处添加登录检查
+if not st.session_state.get('authentication_status'):
+    if os.getenv("LOGIN_ENABLED") == "True":
+        keep_login_or_logout_and_redirect_to_login_page()
+        st.stop()  # 防止后续代码执行
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "Test User"
+
 # 初始化对话列表
-rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
+try:
+    rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
+except Exception as e:
+    logger.error(f"Error getting all dialogs: {e}")
+    keep_login_or_logout_and_redirect_to_login_page()
+    st.stop()
 
 # 如果没有对话，创建一个默认对话
 if len(rag_run_id_list) == 0:

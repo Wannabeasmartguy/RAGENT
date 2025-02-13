@@ -1,4 +1,5 @@
 import os
+import asyncio
 from dotenv import load_dotenv
 
 from core.basic_config import I18nAuto
@@ -10,6 +11,12 @@ from utils.user_login_utils import load_and_create_authenticator
 import streamlit as st
 from loguru import logger
 
+
+async def reset_session_state_after_switch_page():
+    if st.session_state.get("switch_to_login_page"):
+        st.session_state.clear()
+        st.session_state['switch_to_login_page'] = False
+        st.rerun()
 
 load_dotenv(override=True)
 
@@ -23,6 +30,7 @@ try:
 except:
     st.rerun()
 
+asyncio.run(reset_session_state_after_switch_page())
 
 if os.getenv("LOGIN_ENABLED") == "True":
     from utils.user_login_utils import generate_secrets_yaml
