@@ -1241,6 +1241,10 @@ with st.sidebar:
 
 float_init()
 st.title(st.session_state.run_name)
+
+st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
+st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
+
 write_chat_history([msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history])
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)

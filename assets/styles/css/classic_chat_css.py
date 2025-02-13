@@ -38,15 +38,22 @@ USER_CHAT_STYLE_ST_V39 = """
 
 ASSISTANT_CHAT_STYLE = """
 <style>
-    .stChatMessage:has(.chat-assistant) {
+    /* 使用更具体的选择器 */
+    div[data-testid="stChatMessage"] {
         flex-direction: row;
         text-align: left;
-        // width: 85%;
-        // margin-left: 0;
-        // margin-right: auto;
         background-color: #F3F4F6;
         border-radius: 10px;
         padding: 20px;
+    }
+    
+    /* 确保样式优先级 */
+    div[data-testid="stChatMessage"]:has(.chat-assistant) {
+        flex-direction: row;
+        text-align: left;
+        background-color: #F3F4F6 !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
     }
 </style>
 """
