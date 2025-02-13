@@ -1,4 +1,4 @@
-from typing import Literal, List, Dict, Any, Generator, Optional
+from typing import Literal, List, Dict, Any, Generator, Optional, Union
 from functools import partial
 from uuid import uuid4
 from deprecated import deprecated
@@ -6,6 +6,7 @@ import os
 import json
 import uuid
 import requests
+import time
 
 from loguru import logger
 from openai.types.chat.chat_completion import ChatCompletion
@@ -33,12 +34,29 @@ class ChatProcessor(ChatProcessStrategy):
     def __init__(
             self, 
             model_type: str,
-            llm_config: Dict
+            llm_config: Union[Dict, List[Dict]]
         ) -> None:
         self.model_type = model_type
-        self.llm_config = validate_client_config(model_type, llm_config)
-        self.create_tools_call_completion = partial(create_tools_call_completion, config_list=[llm_config])
+        self.llm_configs = [llm_config] if isinstance(llm_config, dict) else llm_config
+        self.llm_configs = [validate_client_config(model_type, config) for config in self.llm_configs]
+        self.create_tools_call_completion = partial(create_tools_call_completion, config_list=self.llm_configs)
+        
+        self.current_config_index = 0
+        self.config_usage = {i: {"usage": 0, "last_used": 0} for i in range(len(self.llm_configs))}
     
+    def _get_next_config(self) -> Dict:
+        """
+        使用轮询策略选择下一个配置
+        可以根据需要实现更复杂的负载均衡策略
+        """
+        selected_index = self.current_config_index
+        self.current_config_index = (self.current_config_index + 1) % len(self.llm_configs)
+        
+        self.config_usage[selected_index]["usage"] += 1
+        self.config_usage[selected_index]["last_used"] = time.time()
+        
+        return self.llm_configs[selected_index]
+
     def create_completion(
         self,
         messages: List[Dict[str, str]],
@@ -58,29 +76,30 @@ class ChatProcessor(ChatProcessStrategy):
         if source not in SUPPORTED_CLIENTS:
             raise ValueError(f"Unsupported source: {source}")
         
-        # if source in OPENAI_SUPPORTED_CLIENTS:
         if any(client.value == source for client in OpenAISupportedClients):
+            current_config = self._get_next_config()
+            
             try:
-                if self.llm_config.get("api_type") != "azure":
+                if current_config.get("api_type") != "azure":
                     from openai import OpenAI
                     client = OpenAI(
-                        api_key=self.llm_config.get("api_key"),
-                        base_url=self.llm_config.get("base_url"),
+                        api_key=current_config.get("api_key"),
+                        base_url=current_config.get("base_url"),
                     )
                 else:
                     from openai import AzureOpenAI
                     client = AzureOpenAI(
-                        api_key=self.llm_config.get("api_key"),
-                        azure_endpoint=self.llm_config.get("base_url"),
-                        api_version=self.llm_config.get("api_version"),
+                        api_key=current_config.get("api_key"),
+                        azure_endpoint=current_config.get("base_url"),
+                        api_version=current_config.get("api_version"),
                     )
                     
                 params = {
-                    "model": self.llm_config.get("model").replace(".", "") if self.llm_config.get("api_type") == "azure" else self.llm_config.get("model"),
+                    "model": current_config.get("model").replace(".", "") if current_config.get("api_type") == "azure" else current_config.get("model"),
                     "messages": messages,
-                    "temperature": self.llm_config.get("params", {}).get("temperature", 0.5),
-                    "top_p": self.llm_config.get("params", {}).get("top_p", 0.1),
-                    "max_tokens": self.llm_config.get("params", {}).get("max_tokens", 4096),
+                    "temperature": current_config.get("params", {}).get("temperature", 0.5),
+                    "top_p": current_config.get("params", {}).get("top_p", 0.1),
+                    "max_tokens": current_config.get("params", {}).get("max_tokens", 4096),
                     "stream": stream
                 }
                 
@@ -88,6 +107,9 @@ class ChatProcessor(ChatProcessStrategy):
                 return response
                 
             except Exception as e:
+                if len(self.llm_configs) > 1:
+                    logger.warning(f"Error with config {self.current_config_index}, trying next config...")
+                    return self.create_completion(messages, stream)
                 raise ValueError(f"Error creating completion: {str(e)}") from e
 
 
