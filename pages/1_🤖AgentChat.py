@@ -30,7 +30,7 @@ from autogen_agentchat.messages import TextMessage, MultiModalMessage
 from autogen_agentchat.teams import BaseGroupChat
 
 
-async def save_team_state(team: BaseGroupChat, run_id: str, user_id: str, dialog_processor: AgenChatDialogProcessor):
+def save_team_state(team: BaseGroupChat, run_id: str, user_id: str, dialog_processor: AgenChatDialogProcessor):
     """
     保存团队状态并更新对话处理器中的团队状态。
 
