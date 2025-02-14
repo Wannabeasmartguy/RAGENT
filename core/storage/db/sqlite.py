@@ -362,8 +362,14 @@ class SqlAssistantStorage(Sqlstorage):
             logger.debug(f"Deleting table: {self.table_name}")
             self.table.drop(self.db_engine)
     
-    def delete_run(self, run_id: str) -> None:
+    def delete_run(self, run_id: str, user_id: Optional[str] = None) -> None:
+        if user_id is None:
+            logger.debug("No user_id provided, skipping deletion")
+            return
         with self.Session() as sess, sess.begin():
-            stmt = delete(self.table).where(self.table.c.run_id == run_id)
+            stmt = delete(self.table).where(
+                self.table.c.run_id == run_id,
+                self.table.c.user_id == user_id
+            )
             sess.execute(stmt)
             logger.info(f"Deleted assistant run: run_id = {run_id}")

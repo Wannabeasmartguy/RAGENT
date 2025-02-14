@@ -901,7 +901,10 @@ with st.sidebar:
             with delete_dialog_column:
 
                 def delete_rag_dialog_callback():
-                    dialog_processor.delete_dialog(st.session_state.rag_run_id)
+                    dialog_processor.delete_dialog(
+                        run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email']
+                    )
                     if len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])) == 0:
                         new_chat_state = create_default_rag_dialog(
                             dialog_processor=dialog_processor,
