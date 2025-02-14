@@ -582,7 +582,7 @@ def create_and_display_chat_round(
                     # 创建聊天处理器
                     chatprocessor = ChatProcessor(
                         model_type=st.session_state["model_type"],
-                        llm_config=st.session_state.chat_config_list[0],
+                        llm_config=st.session_state.chat_config_list,
                     )
                     
                     # 显示助手消息并获取响应
