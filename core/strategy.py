@@ -36,11 +36,11 @@ class EncryptorStrategy(ABC):
 
 class OpenAILikeModelConfigProcessStrategy(ABC):
     @abstractmethod
-    def get_config(self):
+    def list_model_configs(self):
         pass
 
     @abstractmethod
-    def update_config(self):
+    def add_model_config(self):
         pass
 
     @abstractmethod

@@ -530,6 +530,7 @@ def update_rag_config_in_db_callback():
     if st.session_state["model_type"] == OpenAISupportedClients.OPENAI_LIKE.value:
         # 先获取模型配置
         model_config = oailike_config_processor.get_model_config(
+            user_id=st.session_state['email'],
             model=st.session_state.model
         )
         if model_config and len(model_config) > 1:
@@ -1167,7 +1168,8 @@ with st.sidebar:
                 )
 
                 def save_oai_like_config_button_callback():
-                    config_id = oailike_config_processor.update_config(
+                    config_id = oailike_config_processor.add_model_config(
+                        user_id=st.session_state['email'],
                         model=select_box1,
                         base_url=llamafile_endpoint,
                         api_key=llamafile_api_key,
@@ -1190,7 +1192,7 @@ with st.sidebar:
 
                 st.write("---")
 
-                config_list = oailike_config_processor.list_model_configs()
+                config_list = oailike_config_processor.list_model_configs(user_id=st.session_state['email'])
                 config_options = [
                     f"{config['model']} - {config['description']}"
                     for config in config_list
@@ -1213,6 +1215,7 @@ with st.sidebar:
 
                     logger.info(f"Loading model config: {selected_config_id}")
                     config = oailike_config_processor.get_model_config(
+                        user_id=st.session_state['email'],
                         config_id=selected_config_id
                     )
 
@@ -1265,7 +1268,10 @@ with st.sidebar:
                 def delete_oai_like_config_button_callback():
                     selected_index = config_options.index(st.session_state.selected_config)
                     selected_config_id = config_list[selected_index]["id"]
-                    oailike_config_processor.delete_model_config(selected_config_id)
+                    oailike_config_processor.delete_model_config(
+                        user_id=st.session_state['email'],
+                        config_id=selected_config_id
+                    )
                     st.toast(i18n("Model config deleted successfully"), icon="🗑️")
                     # st.rerun()
 

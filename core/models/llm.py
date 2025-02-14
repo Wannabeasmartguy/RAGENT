@@ -1,12 +1,34 @@
 import os
-from typing import TypeVar
+import uuid
+from typing import TypeVar, Optional
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 load_dotenv(override=True)
 
+# 用于存储 OpenAI-like 模型配置的数据模型
+class OpenAILikeConfigInStorage(BaseModel):
+    """OpenAI-like 本地存储配置数据模型"""
+    user_id: str = Field(..., description="关联的用户ID")
+    config_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="配置唯一标识")
+    model: str = Field(..., description="模型名称")
+    base_url: str = Field(..., description="API基础地址")
+    api_key: str = Field(..., description="API密钥")
+    custom_name: str = Field("", description="自定义配置名称")
+    description: str = Field("", description="配置描述")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+# 用于构建请求 LLM 的参数的模型
 class LLMParams(BaseModel):
     """LLM 参数配置"""
 

@@ -430,7 +430,7 @@ def create_model_select_container(key_suffix: str = ""):
                 )
 
                 def save_oai_like_config_button_callback():
-                    config_id = oailike_config_processor.update_config(
+                    config_id = oailike_config_processor.add_model_config(
                         model=model,
                         base_url=llamafile_endpoint,
                         api_key=llamafile_api_key,
