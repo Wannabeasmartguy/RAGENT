@@ -103,6 +103,7 @@ def oai_model_config_selector(oai_model_config:Dict):
 async def generate_new_run_name_with_llm_for_the_first_time(
     chat_history: List[Dict[str, Union[str, Dict, List]]],
     run_id: str,
+    user_id: str,
     model_type: str,
     llm_config: Dict,
     dialog_processor: ALLDIAGLOGPROCESSOR,
@@ -130,6 +131,7 @@ async def generate_new_run_name_with_llm_for_the_first_time(
     _, new_run_name = tag_processor.extract(chat_history_summary.choices[0].message.content)
     dialog_processor.update_dialog_name(
         run_id=run_id,
+        user_id=user_id,
         new_name=new_run_name,
     )
 

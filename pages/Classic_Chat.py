@@ -618,6 +618,7 @@ def create_and_display_chat_round(
                     asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
                         chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history],
                         run_id=st.session_state.run_id,
+                        user_id=st.session_state['email'],
                         dialog_processor=dialog_processor,
                         model_type=st.session_state.model_type,
                         llm_config=st.session_state.chat_config_list[0]

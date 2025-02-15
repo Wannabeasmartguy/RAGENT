@@ -1551,6 +1551,7 @@ if prompt and st.session_state.model and collection_selectbox:
             asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
                 chat_history=st.session_state.custom_rag_chat_history,
                 run_id=st.session_state.rag_run_id,
+                user_id=st.session_state['email'],
                 dialog_processor=dialog_processor,
                 model_type=st.session_state.model_type,
                 llm_config=st.session_state.rag_chat_config_list[0]
