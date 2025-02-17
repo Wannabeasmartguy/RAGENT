@@ -6,7 +6,7 @@ from config.constants import OPENAI_LIKE_MODEL_CONFIG_FILE_PATH
 from core.strategy import OpenAILikeModelConfigProcessStrategy, EncryptorStrategy
 from core.encryption import FernetEncryptor
 from core.models.llm import OpenAILikeConfigInStorage
-from core.storage.oai_config import OpenAIConfigSQLiteStorage
+from core.storage.db.sqlite.oai_config import OpenAIConfigSQLiteStorage
 
 
 class OAILikeConfigProcessor(OpenAILikeModelConfigProcessStrategy):

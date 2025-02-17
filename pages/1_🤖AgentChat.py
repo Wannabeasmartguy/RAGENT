@@ -18,7 +18,7 @@ from config.constants import (
 from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from core.storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from core.models.app import AgentChatState
 from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT_HISTORY_DB_FILE
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE

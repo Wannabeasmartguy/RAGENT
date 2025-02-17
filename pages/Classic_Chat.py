@@ -30,7 +30,7 @@ from core.models.app import (
     ImageContent,
     SerializationMode,
 )
-from core.storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from modules.chat.transform import (
     MessageHistoryTransform, 
     ReasoningContentTagProcessor

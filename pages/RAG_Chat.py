@@ -33,7 +33,7 @@ from core.models.embeddings import (
     EmbeddingConfiguration,
 )
 from core.models.app import RAGChatState, KnowledgebaseConfigInRAGChatState
-from core.storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from core.llm._client_info import (
     generate_client_config,
     OpenAISupportedClients,
