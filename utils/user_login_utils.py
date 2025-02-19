@@ -79,17 +79,12 @@ def load_and_create_authenticator():
 
     :return: Authenticator instance.
     """
-    with open('./secrets/secrets.yaml', 'r', encoding='utf-8') as file:
-        config = yaml.load(file, Loader=yaml.SafeLoader)
+    # with open('./secrets/secrets.yaml', 'r', encoding='utf-8') as file:
+    #     config = yaml.load(file, Loader=yaml.SafeLoader)
 
-    hashed_passwords = Hasher.hash_passwords(config['credentials'])
+    # hashed_passwords = Hasher.hash_passwords(config['credentials'])
 
-    authenticator = stauth.Authenticate(
-        credentials=hashed_passwords,
-        cookie_name=config['cookie']['name'],
-        cookie_key=config['cookie']['key'],
-        cookie_expiry_days=config['cookie']['expiry_days'],
-    )
+    authenticator = stauth.Authenticate(credentials="./secrets/secrets.yaml")
     print(authenticator.cookie_controller.get_cookie())
     return authenticator
 

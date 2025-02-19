@@ -60,6 +60,7 @@ try:
     )
 except:
     st.rerun()
+from utils.user_login_utils import load_and_create_authenticator
 
 from config.constants import (
     VERSION,
@@ -205,7 +206,7 @@ if not chat_history_storage.table_exists():
 
 
 logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
-logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
+logo_text_path = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
 # 将SVG编码为base64
 user_avatar = f"data:image/svg+xml;base64,{base64.b64encode(USER_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
 ai_avatar = f"data:image/svg+xml;base64,{base64.b64encode(AI_AVATAR_SVG.encode('utf-8')).decode('utf-8')}"
@@ -636,11 +637,12 @@ def create_and_display_chat_round(
 # ********** Sidebar **********
 
 with st.sidebar:
-    st.logo(logo_text, icon_image=logo_path)
+    st.logo(logo_text_path, icon_image=logo_path)
 
     st.page_link("pages/Classic_Chat.py", label="💭 Classic Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
+    st.page_link("pages/user_setting.py", label="👤 User Setting")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
     if os.getenv("LOGIN_ENABLED") == "True":
@@ -1119,7 +1121,9 @@ with st.sidebar:
             def dialog_name_change_callback():
                 """对话名称更改回调"""
                 dialog_processor.update_dialog_name(
-                    run_id=st.session_state.run_id, new_name=st.session_state.run_name
+                    run_id=st.session_state.run_id, 
+                    user_id=st.session_state['email'],
+                    new_name=st.session_state.run_name
                 )
                 logger.info(f"Dialog {st.session_state.run_id} name updated to {st.session_state.run_name}")
 
@@ -1243,7 +1247,12 @@ with st.sidebar:
             )
 
     if os.getenv("LOGIN_ENABLED") == "True":
-        keep_login_or_logout_and_redirect_to_login_page()
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="classic_chat_logout",
+            login_page="RAGENT.py"
+        )
     else:
         st.session_state['email'] = "test@test.com"
         st.session_state['name'] = "Test User"

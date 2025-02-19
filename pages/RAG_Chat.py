@@ -56,6 +56,7 @@ from utils.st_utils import (
     get_style,
     get_combined_style,
 )
+from utils.user_login_utils import load_and_create_authenticator
 
 from modules.types.rag import BaseRAGResponse
 from modules.chat.transform import MessageHistoryTransform
@@ -802,6 +803,7 @@ with st.sidebar:
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+    st.page_link("pages/user_setting.py", label="👤 User Setting")
     st.write(i18n("Sub pages"))
     st.page_link(
         "pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting"))
@@ -954,6 +956,7 @@ with st.sidebar:
                     origin_run_name = saved_dialog.run_name
                     dialog_processor.update_dialog_name(
                         run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email'],
                         new_name=st.session_state.rag_run_name,
                     )
                     logger.info(
@@ -1499,7 +1502,12 @@ with st.sidebar:
         )
 
     if os.getenv("LOGIN_ENABLED") == "True":
-        keep_login_or_logout_and_redirect_to_login_page()
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
     else:
         st.session_state['email'] = "test@test.com"
         st.session_state['name'] = "Test User"
