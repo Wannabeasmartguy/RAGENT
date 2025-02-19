@@ -387,7 +387,7 @@ if not st.session_state.get('authentication_status'):
         st.stop()  # 防止后续代码执行
     else:
         st.session_state['email'] = "test@test.com"
-        st.session_state['name'] = "Test User"
+        st.session_state['name'] = "test"
 
 # 初始化对话列表
 try:
@@ -803,11 +803,18 @@ with st.sidebar:
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
-    st.page_link("pages/user_setting.py", label="👤 User Setting")
+    if os.getenv("LOGIN_ENABLED") == "True":
+        st.page_link("pages/user_setting.py", label="👤 User Setting")
     st.write(i18n("Sub pages"))
     st.page_link(
         "pages/2_📖Knowledge_Base_Setting.py", label=(i18n("📖 Knowledge Base Setting"))
     )
+
+    if os.getenv("LOGIN_ENABLED") == "True":
+        if st.session_state['authentication_status']:
+            with st.expander(label=i18n("User Info")):
+                st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
+                st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
     rag_dialog_settings_tab, rag_model_settings_tab, rag_knowledge_base_settings_tab = (
         st.tabs(
@@ -1510,7 +1517,7 @@ with st.sidebar:
         )
     else:
         st.session_state['email'] = "test@test.com"
-        st.session_state['name'] = "Test User"
+        st.session_state['name'] = "test"
 
     back_to_top_placeholder0 = st.empty()
     back_to_top_placeholder1 = st.empty()

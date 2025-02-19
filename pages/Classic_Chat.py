@@ -245,7 +245,7 @@ if not st.session_state.get('authentication_status'):
         st.stop()  # 防止后续代码执行
     else:
         st.session_state['email'] = "test@test.com"
-        st.session_state['name'] = "Test User"
+        st.session_state['name'] = "test"
 
 # 初始化session state时添加错误处理
 try:
@@ -642,14 +642,14 @@ with st.sidebar:
     st.page_link("pages/Classic_Chat.py", label="💭 Classic Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
-    st.page_link("pages/user_setting.py", label="👤 User Setting")
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
     if os.getenv("LOGIN_ENABLED") == "True":
+        st.page_link("pages/user_setting.py", label="👤 User Setting")
         if st.session_state['authentication_status']:
-            with st.expander(label="User Info"):
-                st.write(f"Hello, {st.session_state['name']}!")
-                st.write(f"Your email is {st.session_state['email']}.")
+            with st.expander(label=i18n("User Info")):
+                st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
+                st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
     dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
@@ -1255,7 +1255,7 @@ with st.sidebar:
         )
     else:
         st.session_state['email'] = "test@test.com"
-        st.session_state['name'] = "Test User"
+        st.session_state['name'] = "test"
 
     # Fix the bug: "Go to top/bottom of page" cause problem that will make `write_chat_history` can't correctly show the chat history during `write_stream`
     back_to_top_placeholder0 = st.empty()

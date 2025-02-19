@@ -14,6 +14,14 @@ _DEFAULT_USER_CREDENTIALS = {
         'password': 'test_pwd.123',
         'role': 'admin'
     },
+    'test': {
+        'email': 'test@test.com',
+        'failed_login_attempts': 0,
+        'logged_in': False,
+        'name': 'test',
+        'password': 'test_pwd.123',
+        'role': 'admin'
+    }
 }
 
 def generate_random_string(length=32):

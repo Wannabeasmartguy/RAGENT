@@ -207,5 +207,12 @@
     "Detail info": "详情信息",
     "The Collection You Want to Delete": "将要删除的知识库",
     "Please select a knowledge base collection": "请选择一个知识库",
-    "Previously configured knowledge base no longer exists. Please select a new one.": "之前配置的知识库不再存在。请选择一个新的知识库。"
+    "Previously configured knowledge base no longer exists. Please select a new one.": "之前配置的知识库不再存在。请选择一个新的知识库。",
+    "User Setting": "用户设置",
+    "User Info": "用户信息",
+    "Reset Password": "重置密码",
+    "Password reset successfully": "密码重置成功",
+    "Password reset failed": "密码重置失败",
+    "Hello": "你好",
+    "Your email is": "你的邮箱是"
 }

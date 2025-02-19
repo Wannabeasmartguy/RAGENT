@@ -30,13 +30,6 @@ try:
 except:
     st.rerun()
 
-authenticator = load_and_create_authenticator()
-keep_login_or_logout_and_redirect_to_login_page(
-    authenticator=authenticator,
-    logout_key="user_setting_logout",
-    login_page="RAGENT.py"
-)
-
 with st.sidebar:
     st.logo(logo_text_path)
 
@@ -44,11 +37,18 @@ with st.sidebar:
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
     st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
 
-st.title(i18n("User Setting"))
-st.subheader(i18n("User Info"))
-st.write(f"Hello, {st.session_state['name']}!")
-st.write(f"Your email is {st.session_state['email']}.")
+if os.getenv("LOGIN_ENABLED") == "True":
+    authenticator = load_and_create_authenticator()
+    keep_login_or_logout_and_redirect_to_login_page(
+        authenticator=authenticator,
+        logout_key="user_setting_logout",
+        login_page="RAGENT.py"
+    )
+    st.title(i18n("User Setting"))
+    st.subheader(i18n("User Info"))
+    st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
+    st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
-st.subheader(i18n("Reset Password"))
-reset_user_password(authenticator)
+    st.subheader(i18n("Reset Password"))
+    reset_user_password(authenticator)
 

@@ -207,5 +207,12 @@
     "Detail info": "Detail info",
     "The Collection You Want to Delete": "The Collection You Want to Delete",
     "Please select a knowledge base collection": "Please select a knowledge base collection",
-    "Previously configured knowledge base no longer exists. Please select a new one.": "Previously configured knowledge base no longer exists. Please select a new one."
+    "Previously configured knowledge base no longer exists. Please select a new one.": "Previously configured knowledge base no longer exists. Please select a new one.",
+    "User Setting": "User Setting",
+    "User Info": "User Info",
+    "Reset Password": "Reset Password",
+    "Password reset successfully": "Password reset successfully",
+    "Password reset failed": "Password reset failed",
+    "Hello": "Hello",
+    "Your email is": "Your email is"
 }
