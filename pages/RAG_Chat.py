@@ -35,7 +35,7 @@ from core.models.embeddings import (
 from core.models.app import RAGChatState, KnowledgebaseConfigInRAGChatState
 from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from core.llm._client_info import (
-    generate_client_config,
+    generate_multi_client_configs,
     OpenAISupportedClients,
 )
 from utils.basic_utils import (
@@ -94,15 +94,21 @@ def create_default_rag_dialog(
         priority = OperationPriority.NORMAL
 
     new_run_id = str(uuid4())
+
+    # 使用新的多配置生成函数
+    config_list = [
+        config.model_dump() 
+        for config in generate_multi_client_configs(
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
+            stream=True,
+        )
+    ]
     new_chat_state = RAGChatState(
         current_run_id=new_run_id,
         user_id=st.session_state['email'],
         run_name=DEFAULT_DIALOG_TITLE,
-        config_list=[generate_client_config(
-            source=OpenAISupportedClients.AOAI.value,
-            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
-            stream=True,
-        ).model_dump()],
+        config_list=config_list,
         llm_model_type=OpenAISupportedClients.AOAI.value,
         chat_history=[],
         source_documents={},
@@ -114,6 +120,9 @@ def create_default_rag_dialog(
         llm_config=new_chat_state.config_list[0],
         task_data={
             "source_documents": new_chat_state.source_documents,
+        },
+        assistant_data={
+            "model_type": new_chat_state.llm_model_type,
         },
         priority=priority,
     )
@@ -383,7 +392,12 @@ if "oai_like_model_config_dict" not in st.session_state:
 # 在页面开始处添加登录检查
 if not st.session_state.get('authentication_status'):
     if os.getenv("LOGIN_ENABLED") == "True":
-        keep_login_or_logout_and_redirect_to_login_page()
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
         st.stop()  # 防止后续代码执行
     else:
         st.session_state['email'] = "test@test.com"
@@ -394,7 +408,11 @@ try:
     rag_run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 except Exception as e:
     logger.error(f"Error getting all dialogs: {e}")
-    keep_login_or_logout_and_redirect_to_login_page()
+    keep_login_or_logout_and_redirect_to_login_page(
+        authenticator=authenticator,
+        logout_key="rag_chat_logout",
+        login_page="RAGENT.py"
+    )
     st.stop()
 
 # 如果没有对话，创建一个默认对话

@@ -241,7 +241,12 @@ if "oai_like_model_config_dict" not in st.session_state:
 # 在页面开始处添加登录检查
 if not st.session_state.get('authentication_status'):
     if os.getenv("LOGIN_ENABLED") == "True":
-        keep_login_or_logout_and_redirect_to_login_page()
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="classic_chat_logout",
+            login_page="RAGENT.py"
+        )
         st.stop()  # 防止后续代码执行
     else:
         st.session_state['email'] = "test@test.com"
@@ -255,7 +260,11 @@ try:
         run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 except Exception as e:
     logger.error(f"Error initializing dialogs: {e}")
-    keep_login_or_logout_and_redirect_to_login_page()
+    keep_login_or_logout_and_redirect_to_login_page(
+        authenticator=authenticator,
+        logout_key="classic_chat_logout",
+        login_page="RAGENT.py"
+    )
     st.stop()
 
 if "current_run_id_index" not in st.session_state:
