@@ -320,6 +320,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
                 self.storage.upsert(
                     AssistantRun(
                         run_id=run_id,
+                        user_id=user_id,
                         name=current_run.name,
                         run_name=current_run.run_name,
                         llm=current_run.llm,
