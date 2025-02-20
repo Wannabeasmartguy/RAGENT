@@ -9,11 +9,11 @@ import requests
 import time
 import random
 from datetime import datetime, timedelta
-from enum import Enum
 
 from loguru import logger
 from openai.types.chat.chat_completion import ChatCompletion
 
+from core.processors.chat.base import LoadBalanceStrategy
 from core.llm._client_info import SUPPORTED_SOURCES as SUPPORTED_CLIENTS
 from core.llm._client_info import (
     OpenAISupportedClients,
@@ -29,14 +29,6 @@ from core.encryption import FernetEncryptor
 from utils.tool_utils import create_tools_call_completion
 from utils.log.logger_config import setup_logger, get_load_balance_logger
 
-
-class LoadBalanceStrategy(Enum):
-    """负载均衡策略枚举"""
-    ROUND_ROBIN = "round_robin"  # 轮询
-    LEAST_CONNECTIONS = "least_connections"  # 最少连接数
-    WEIGHTED_ROUND_ROBIN = "weighted_round_robin"  # 加权轮询
-    RANDOM = "random"  # 随机
-    LEAST_RESPONSE_TIME = "least_response_time"  # 最短响应时间
 
 class ChatProcessor(ChatProcessStrategy):
     """

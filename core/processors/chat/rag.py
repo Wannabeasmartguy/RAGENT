@@ -1,9 +1,10 @@
 import os
 import json
 import copy
-from typing import List, Dict, Optional
+from typing import List, Dict, Generator, Union, Optional, Literal, Tuple
 
 from core.strategy import RAGChatProcessStrategy
+from core.processors.chat.base import LoadBalanceStrategy
 from modules.rag.builder.builder import RAGBuilder
 from modules.llm.openai import OpenAILLM
 from modules.llm.aoai import AzureOpenAILLM
@@ -17,22 +18,33 @@ from modules.types.rag import BaseRAGResponse
 
 
 class RAGChatProcessor(RAGChatProcessStrategy):
-    """
-    处理 Agent Chat 消息的策略模式实现类
-    """
-
-    def __init__(self, model_type: str, llm_config: Dict) -> None:
+    def __init__(
+        self,
+        model_type: str,
+        llm_config: Union[Dict, List[Dict]],
+        load_balance_strategy: LoadBalanceStrategy = LoadBalanceStrategy.ROUND_ROBIN
+    ) -> None:
         self.model_type = model_type
-        self.llm_config = llm_config
+        self.llm_configs = [llm_config] if isinstance(llm_config, dict) else llm_config
+        self.load_balance_strategy = load_balance_strategy
 
-    def _parse_llm_config(self, llm_config: Dict) -> Dict:
+    def _parse_llm_config(self) -> Tuple[List[Dict], Dict]:
         """
-        解析LLM配置，返回config和params
+        解析LLM配置，返回config_list和params
         """
-        config_copy = copy.deepcopy(llm_config)
-        params = config_copy.pop("params")
-        params.pop("stream")
-        return config_copy, params
+        configs = []
+        params = None
+        
+        for config in self.llm_configs:
+            config_copy = copy.deepcopy(config)
+            if params is None:
+                params = config_copy.pop("params")
+                params.pop("stream")
+            else:
+                config_copy.pop("params")
+            configs.append(config_copy)
+            
+        return configs, params
 
     def _parse_messages(self, messages: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """
@@ -56,21 +68,26 @@ class RAGChatProcessor(RAGChatProcessStrategy):
         hybrid_retriever_weight: float = 0.5,
         selected_file: Optional[str] = None,
     ) -> BaseRAGResponse:
-        """
-        使用完全自定义的 RAG 模块，创建一个 RAG 响应
-        """
         # 处理messages
         context_messages, user_prompt = self._parse_messages(messages)
 
         # 处理config
-        config_copy, params = self._parse_llm_config(self.llm_config)
+        configs, params = self._parse_llm_config()
 
-        # 创建LLM
-        if "api_type" in config_copy:
-            if config_copy["api_type"] == "azure":
-                llm = AzureOpenAILLM(**config_copy, **params)
+        # 创建LLM，传入完整的配置列表
+        if "api_type" in configs[0]:
+            if configs[0]["api_type"] == "azure":
+                llm = AzureOpenAILLM(
+                    configs=configs,
+                    load_balance_strategy=self.load_balance_strategy,
+                    **params
+                )
         else:
-            llm = OpenAILLM(**config_copy, **params)
+            llm = OpenAILLM(
+                configs=configs,
+                load_balance_strategy=self.load_balance_strategy,
+                **params
+            )
 
         # 创建retriever
         # 先读取embedding配置
