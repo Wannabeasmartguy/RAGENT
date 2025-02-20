@@ -366,7 +366,8 @@ def update_config_in_db_callback():
             selected_model_config = {}
 
         config_list = [
-            generate_client_config(
+            config.model_dump()
+            for config in generate_multi_client_configs(
                 source=st.session_state["model_type"].lower(),
                 model=(
                     st.session_state.model
@@ -379,18 +380,19 @@ def update_config_in_db_callback():
                 top_p=st.session_state.top_p,
                 max_tokens=st.session_state.max_tokens,
                 stream=st.session_state.if_stream,
-            ).model_dump()
+            )
         ]
     else:
         config_list = [
-            generate_client_config(
+            config.model_dump()
+            for config in generate_multi_client_configs(
                 source=st.session_state["model_type"].lower(),
                 model=st.session_state.model,
                 temperature=st.session_state.temperature,
                 top_p=st.session_state.top_p,
                 max_tokens=st.session_state.max_tokens,
                 stream=st.session_state.if_stream,
-            ).model_dump()
+            )
         ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])

@@ -79,8 +79,18 @@ def generate_multi_client_configs(
             for key in api_keys
         ]
         
-    # 其他类型的配置可以类似处理...
+    elif source == OpenAISupportedClients.GROQ.value:
+        api_keys = parse_env_list("GROQ_API_KEY")
+        return [
+            config_class.from_env(
+                api_key=key,
+                **kwargs
+            )
+            for key in api_keys
+        ]
     
+    # 其他类型的配置可以类似处理...
+    # 未作处理的类型则直接使用传入的参数生成单个配置
     return [config_class.from_env(**kwargs)]
 
 
