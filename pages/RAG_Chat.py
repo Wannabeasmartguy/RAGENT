@@ -448,26 +448,35 @@ if "rag_chat_config_list" not in st.session_state:
         ).llm
     ]
 if "knowledge_base_config" not in st.session_state:
+    logger.info("Initializing knowledge base config")
     kb_config = dialog_processor.get_knowledge_base_config(
         run_id=st.session_state.rag_run_id,
         user_id=st.session_state['email']
     )
+    logger.info(f"Retrieved knowledge base config: {kb_config}")
+    
     # 获取可用的知识库列表
     available_collections = get_collection_options()
+    logger.info(f"Available collections: {available_collections}")
     
     configured_collection = kb_config.get("collection_name")
+    logger.info(f"Configured collection: {configured_collection}")
+    
     if configured_collection and configured_collection in available_collections:
         st.session_state.collection_name = configured_collection
+        logger.info(f"Set collection name to: {configured_collection}")
     else:
         # 如果配置的知识库不存在或未配置，配置为None
         st.session_state.collection_name = None
+        logger.info("No valid collection found, setting collection name to None")
         
     # 其他配置项的初始化
     st.session_state.query_mode_toggle = True if kb_config.get("query_mode") == "file" else False
-    st.session_state.selected_collection_file = None
+    st.session_state.selected_collection_file = kb_config.get("selected_file")
     st.session_state.is_rerank = kb_config.get("is_rerank", False)
     st.session_state.is_hybrid_retrieve = kb_config.get("is_hybrid_retrieve", False)
     st.session_state.hybrid_retrieve_weight = kb_config.get("hybrid_retrieve_weight", 0.5)
+    logger.info(f"Initialized session state: {dict_filter(st.session_state, ['query_mode_toggle', 'selected_collection_file', 'is_rerank', 'is_hybrid_retrieve', 'hybrid_retrieve_weight'])}")
 
 # Initialize RAG chat history, to avoid error when reloading the page
 if "custom_rag_chat_history" not in st.session_state:
@@ -690,6 +699,10 @@ def update_knowledge_base_config():
         if st.session_state.get("query_mode_toggle")
         else None
     )
+
+    logger.debug(f"Current selected_file: {selected_file}")
+    logger.debug(f"Current query_mode: {query_mode}")
+    logger.debug(f"Session state: {st.session_state}")
     
     knowledge_base_config = KnowledgebaseConfigInRAGChatState(
         collection_name=st.session_state.get("collection_name"),
@@ -699,6 +712,7 @@ def update_knowledge_base_config():
         is_hybrid_retrieve=st.session_state.get("is_hybrid_retrieve", False),
         hybrid_retrieve_weight=st.session_state.get("hybrid_retrieve_weight", 0.5),
     )
+    logger.info(f"Knowledge base config to be updated: {knowledge_base_config}")
 
     dialog_processor.update_knowledge_base_config(
         run_id=st.session_state.rag_run_id, 
@@ -742,7 +756,7 @@ def restore_knowledge_base_config():
                     is_rerank = False,
                     is_hybrid_retrieve = False,
                     hybrid_retrieve_weight = 0.5,
-                )
+                ).model_dump()
             )
             st.toast(i18n("Previously configured knowledge base no longer exists. Please select a new one."), icon="❗️")
             return
@@ -795,7 +809,7 @@ def restore_knowledge_base_config():
                             is_rerank = st.session_state.is_rerank,
                             is_hybrid_retrieve = st.session_state.is_hybrid_retrieve,
                             hybrid_retrieve_weight=st.session_state.hybrid_retrieve_weight,
-                        )
+                        ).model_dump()
                     )
                     st.warning(i18n("Previously selected file no longer exists in the knowledge base."))
             except Exception as e:
@@ -1321,9 +1335,11 @@ with st.sidebar:
         )
 
     with rag_knowledge_base_settings_tab:
+        logger.info("Rendering knowledge base settings tab")
         with st.container(border=True):
 
             def update_collection_processor_callback():
+                logger.info("update_collection_processor_callback is called")
                 with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
                     embedding_config = json.load(f)
 
@@ -1344,6 +1360,7 @@ with st.sidebar:
                 update_collection_processor_callback()
 
             collections = get_collection_options()
+            logger.info(f"Available collections: {collections}")
             if collections:
                 collection_selectbox = st.selectbox(
                     label=i18n("Collection"),
@@ -1352,6 +1369,7 @@ with st.sidebar:
                     on_change=change_collection_callback,
                     key="collection_name",
                 )
+                logger.info(f"Selected collection: {collection_selectbox}")
             else:
                 st.warning(i18n("No knowledge base available. Please create one first."))
                 collection_selectbox = None
@@ -1368,6 +1386,7 @@ with st.sidebar:
                 on_change=update_collection_processor_callback,
                 key="query_mode_toggle",
             )
+            logger.info(f"Query mode toggle value: {query_mode_toggle}")
 
             if collection_selectbox and query_mode_toggle:
                 with open(EMBEDDING_CONFIG_FILE_PATH, "r", encoding="utf-8") as f:
@@ -1545,6 +1564,7 @@ with st.sidebar:
 
 
 float_init()
+logger.info("Starting page rendering")
 # st.write(st.session_state.rag_chat_config_list)
 st.title(st.session_state.rag_run_name)
 write_custom_rag_chat_history(
