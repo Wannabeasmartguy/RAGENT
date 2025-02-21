@@ -959,24 +959,15 @@ with st.sidebar:
                         st.session_state.rag_run_id = [
                             run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])
                         ][st.session_state.rag_current_run_id_index]
-                    st.session_state.rag_chat_config_list = [
-                        dialog_processor.get_dialog(
-                            run_id=st.session_state.rag_run_id,
-                            user_id=st.session_state['email']
-                        ).llm
-                    ]
-                    st.session_state.custom_rag_chat_history = (
-                        dialog_processor.get_dialog(
-                            run_id=st.session_state.rag_run_id,
-                            user_id=st.session_state['email']
-                        ).memory["chat_history"]
+                    from time import sleep
+                    sleep(0.1)
+                    current_dialog = dialog_processor.get_dialog(
+                        run_id=st.session_state.rag_run_id,
+                        user_id=st.session_state['email']
                     )
-                    st.session_state.custom_rag_sources = (
-                        dialog_processor.get_dialog(
-                            run_id=st.session_state.rag_run_id,
-                            user_id=st.session_state['email']
-                        ).task_data["source_documents"]
-                    )
+                    st.session_state.rag_chat_config_list = [current_dialog.llm]
+                    st.session_state.custom_rag_chat_history = current_dialog.memory["chat_history"]
+                    st.session_state.custom_rag_sources = current_dialog.task_data["source_documents"]
                     logger.info(
                         f"Delete a RAG dialog, deleted dialog name: {st.session_state.rag_run_name}, deleted dialog id: {st.session_state.rag_run_id}"
                     )
