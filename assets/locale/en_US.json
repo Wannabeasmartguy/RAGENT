@@ -214,5 +214,10 @@
     "Password reset successfully": "Password reset successfully",
     "Password reset failed": "Password reset failed",
     "Hello": "Hello",
-    "Your email is": "Your email is"
+    "Your email is": "Your email is",
+    "💭 Classic Chat": "💭 Classic Chat",
+    "🧩 RAG Chat": "🧩 RAG Chat",
+    "🤖 Agent Chat": "🤖 Agent Chat",
+    "👤 User Setting": "👤 User Setting",
+    "⚙️ Agent Setting": "⚙️ Agent Setting"
 }

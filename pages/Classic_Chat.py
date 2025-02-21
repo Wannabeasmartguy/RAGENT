@@ -650,13 +650,13 @@ def create_and_display_chat_round(
 with st.sidebar:
     st.logo(logo_text_path, icon_image=logo_path)
 
-    st.page_link("pages/Classic_Chat.py", label="💭 Classic Chat")
-    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
+    st.page_link("pages/Classic_Chat.py", label=i18n("💭 Classic Chat"))
+    st.page_link("pages/RAG_Chat.py", label=i18n("🧩 RAG Chat"))
+    st.page_link("pages/1_🤖AgentChat.py", label=i18n("🤖 Agent Chat"))
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
     if os.getenv("LOGIN_ENABLED") == "True":
-        st.page_link("pages/user_setting.py", label="👤 User Setting")
+        st.page_link("pages/user_setting.py", label=i18n("👤 User Setting"))
         if st.session_state['authentication_status']:
             with st.expander(label=i18n("User Info")):
                 st.write(f"{i18n('Hello')}, {st.session_state['name']}!")

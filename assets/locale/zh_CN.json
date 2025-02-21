@@ -214,5 +214,10 @@
     "Password reset successfully": "密码重置成功",
     "Password reset failed": "密码重置失败",
     "Hello": "你好",
-    "Your email is": "你的邮箱是"
+    "Your email is": "你的邮箱是",
+    "💭 Classic Chat": "💭 经典对话",
+    "🧩 RAG Chat": "🧩 知识库对话",
+    "🤖 Agent Chat": "🤖 智能体对话",
+    "👤 User Setting": "👤 用户设置",
+    "⚙️ Agent Setting": "⚙️ 智能体设置"
 }

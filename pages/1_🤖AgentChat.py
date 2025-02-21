@@ -334,9 +334,9 @@ except:
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGENT.py", label="💭 Chat")
-    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
+    st.page_link("RAGENT.py", label=i18n("💭 Classic Chat"))
+    st.page_link("pages/RAG_Chat.py", label=i18n("🧩 RAG Chat"))
+    st.page_link("pages/1_🤖AgentChat.py", label=i18n("🤖 Agent Chat"))
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
     st.write(i18n("Sub pages"))
     st.page_link(
