@@ -15,7 +15,10 @@ from langchain_core.documents.base import Document
 from loguru import logger
 
 from core.basic_config import I18nAuto
-from config.constants.paths import KNOWLEDGE_BASE_DIR
+from config.constants import (
+    KNOWLEDGE_BASE_DIR,
+    EMBEDDING_CONFIG_FILE_PATH,
+)
 from api.routers.knowledgebase import (
     EmbeddingModelConfig,
 )
@@ -25,11 +28,6 @@ from core.models.embeddings import (
     GlobalSettings,
     EmbeddingConfiguration,
 )
-
-
-EMBEDDING_CONFIG_FILE_PATH = os.path.join("dynamic_configs", "embedding_config.json")
-
-DEFAULT_COLLECTION_NAME = "default_collection"
 
 
 class ChromaVectorStoreProcessStrategy(ABC):

@@ -17,6 +17,11 @@ from config.constants import (
 )
 from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
+from core.llm._client_info import (
+    generate_client_config,
+    get_client_config_model,
+)
+from utils.basic_utils import model_selector
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
 from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from core.models.app import AgentChatState
@@ -24,6 +29,12 @@ from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 from ext.autogen.teams.factory import TeamBuilderFactory, TeamType
 from ext.autogen.manager.template import AgentTemplateFileManager
+from utils.user_login_utils import(
+    load_and_create_authenticator,
+)
+from utils.st_utils import (
+    keep_login_or_logout_and_redirect_to_login_page
+)
 
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import TextMessage, MultiModalMessage
@@ -267,7 +278,24 @@ def create_default_dialog(
     try:
         default_template = list(team_template_manager.agent_templates.values())[0]
     except IndexError:
-        raise ValueError("No agent templates found")
+        logger.warning("No agent templates found in team_template_manager during initializing Agent Chat page.")
+        st.toast(i18n("No agent templates found! Please create one in Agent Setting page first."))
+        
+        default_template_dict = {
+            "id": str(uuid4()),
+            "name": "Default Template",
+            "description": "No description",
+            "llm": generate_client_config("openai").to_dict(),
+            "template_type": "reflection",
+            "primary_agent_system_message": "not set",
+            "critic_agent_system_message": "not set",
+            "max_messages": 10,
+            "termination_text": "not set",
+        }
+        logger.debug(default_template_dict)
+        default_template = team_template_manager.create_agent_template(default_template_dict)
+        team_template_manager.add_agent_template_to_file(default_template)
+        default_template = default_template.model_dump()
     dialog_processor.create_dialog(
         run_id=new_run_id,
         user_id=user_id,
@@ -280,6 +308,20 @@ def create_default_dialog(
     return new_run_id
 
 
+# 在页面开始处添加登录检查
+if not st.session_state.get('authentication_status'):
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="agent_chat_logout",
+            login_page="RAGENT.py"
+        )
+        st.stop()  # 防止后续代码执行
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
+
 if not os.path.exists(CHAT_HISTORY_DIR):
     os.makedirs(CHAT_HISTORY_DIR)
 chat_history_storage = SqlAssistantStorage(
@@ -290,7 +332,7 @@ if not chat_history_storage.table_exists():
     chat_history_storage.create()
 dialog_processor = AgenChatDialogProcessor(storage=chat_history_storage)
 oailike_config_processor = OAILikeConfigProcessor()
-team_template_manager = AgentTemplateFileManager()
+team_template_manager = AgentTemplateFileManager(user_id=st.session_state['email'])
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -300,7 +342,7 @@ i18n = I18nAuto(
 
 run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 if len(run_id_list) == 0:
-    create_default_dialog(dialog_processor, priority="normal")
+    create_default_dialog(dialog_processor, priority="normal", user_id=st.session_state['email'])
     run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 
 if "agent_chat_current_run_id_index" not in st.session_state:
@@ -338,10 +380,18 @@ with st.sidebar:
     st.page_link("pages/RAG_Chat.py", label=i18n("🧩 RAG Chat"))
     st.page_link("pages/1_🤖AgentChat.py", label=i18n("🤖 Agent Chat"))
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+    if os.getenv("LOGIN_ENABLED") == "True":
+        st.page_link("pages/user_setting.py", label=i18n("👤 User Setting"))
     st.write(i18n("Sub pages"))
     st.page_link(
         "pages/Agent_Setting.py", label=(i18n("⚙️ Agent Setting"))
     )
+
+    if os.getenv("LOGIN_ENABLED") == "True":
+        if st.session_state['authentication_status']:
+            with st.expander(label=i18n("User Info")):
+                st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
+                st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
     dialog_settings_tab, team_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Team Settings"), i18n("Multimodal Settings")],
@@ -582,6 +632,17 @@ with st.sidebar:
             if team_template.get("team_type") == "reflection":
                 st.write(i18n("Primary Agent System Message") + ": " + "{primary_agent_system_message}".format(primary_agent_system_message=team_template.get("primary_agent_system_message")))
                 st.write(i18n("Critic Agent System Message") + ": " + "{critic_agent_system_message}".format(critic_agent_system_message=team_template.get("critic_agent_system_message")))
+    
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
 
 
 st.title(st.session_state.agent_chat_run_name)

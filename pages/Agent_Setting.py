@@ -21,6 +21,12 @@ from utils.basic_utils import (
     oai_model_config_selector
 )
 from utils.log.logger_config import setup_logger
+from utils.user_login_utils import(
+    load_and_create_authenticator,
+)
+from utils.st_utils import (
+    keep_login_or_logout_and_redirect_to_login_page
+)
 from ext.autogen.models.agent import ReflectionAgentTeamTemplate, AgentTemplateType
 from ext.autogen.manager.template import AgentTemplateFileManager
 
@@ -28,7 +34,20 @@ import streamlit as st
 from loguru import logger
 
 
-agent_template_file_manager = AgentTemplateFileManager()
+# 在页面开始处添加登录检查
+if not st.session_state.get('authentication_status'):
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
+        st.stop()  # 防止后续代码执行
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
+agent_template_file_manager = AgentTemplateFileManager(user_id=st.session_state["email"])
 
 
 def update_llm_config_list(key_suffix: str = ""):
@@ -563,9 +582,20 @@ st.set_page_config(
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGENT.py", label="💭 Chat")
-    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
+    st.page_link("RAGENT.py", label=i18n("💭 Classic Chat"))
+    st.page_link("pages/RAG_Chat.py", label=i18n("🧩 RAG Chat"))
+    st.page_link("pages/1_🤖AgentChat.py", label=i18n("🤖 Agent Chat"))
+
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
 
 st.title(i18n("Agent Setting"))
 

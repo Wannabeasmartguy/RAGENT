@@ -373,7 +373,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         run_id: str,
         user_id: str,
         run_name: str,
-        template: Dict[str, Any],
+        template: Optional[Dict[str, Any]] = None,
         name: str = "assistant",
         team_state: Optional[Dict[str, Any]] = None,
         agent_state: Optional[Dict[str, Any]] = None,
