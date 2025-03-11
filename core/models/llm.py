@@ -44,7 +44,6 @@ class LLMParams(BaseModel):
     )
     stream: bool = Field(
         default=True, description="If true, the LLM will stream the response"
-        default=True, description="If true, the LLM will stream the response"
     )
 
     @classmethod
@@ -53,7 +52,6 @@ class LLMParams(BaseModel):
             temperature=kwargs.get("temperature", 0.5),
             top_p=kwargs.get("top_p", 1.0),
             max_tokens=kwargs.get("max_tokens", 4096),
-            stream=kwargs.get("stream", True)
             stream=kwargs.get("stream", True)
         )
 
@@ -96,10 +94,6 @@ class AzureOpenAIConfig(LLMBaseConfig):
             base_url=kwargs.get("base_url") or os.getenv("AZURE_OAI_ENDPOINT", "noaoaiendpoint"),
             api_type=kwargs.get("api_type") or os.getenv("API_TYPE", "azure"),
             api_version=kwargs.get("api_version") or os.getenv("API_VERSION", "2024-02-15-preview"),
-            api_key=kwargs.get("api_key") or os.getenv("AZURE_OAI_KEY", "noaoaikey"),
-            base_url=kwargs.get("base_url") or os.getenv("AZURE_OAI_ENDPOINT", "noaoaiendpoint"),
-            api_type=kwargs.get("api_type") or os.getenv("API_TYPE", "azure"),
-            api_version=kwargs.get("api_version") or os.getenv("API_VERSION", "2024-02-15-preview"),
             params=LLMParams.init_params(**kwargs)
         )
     
@@ -126,8 +120,6 @@ class OpenAIConfig(LLMBaseConfig):
             model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY", "noopenaikey"),
             base_url=kwargs.get("base_url") or os.getenv("OPENAI_API_ENDPOINT", "noopenaiendpoint"),
-            api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY", "noopenaikey"),
-            base_url=kwargs.get("base_url") or os.getenv("OPENAI_API_ENDPOINT", "noopenaiendpoint"),
             params=LLMParams.init_params(**kwargs)
         )
     
@@ -150,8 +142,6 @@ class OpenAILikeConfig(OpenAIConfig):
         """从环境变量和kwargs创建配置"""
         return cls(
             model=kwargs.get("model"),
-            api_key=kwargs.get("api_key", "noopenaikey"),
-            base_url=kwargs.get("base_url", "noopenaiendpoint"),
             api_key=kwargs.get("api_key", "noopenaikey"),
             base_url=kwargs.get("base_url", "noopenaiendpoint"),
             params=LLMParams.init_params(**kwargs)

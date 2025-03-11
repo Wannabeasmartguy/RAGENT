@@ -1,5 +1,4 @@
 from typing import Literal, List, Dict, Any, Generator, Optional, Union
-from typing import Literal, List, Dict, Any, Generator, Optional, Union
 from functools import partial
 from uuid import uuid4
 from deprecated import deprecated
@@ -38,8 +37,6 @@ class ChatProcessor(ChatProcessStrategy):
     def __init__(
             self, 
             model_type: str,
-            llm_config: Union[Dict, List[Dict]],
-            load_balance_strategy: LoadBalanceStrategy = LoadBalanceStrategy.ROUND_ROBIN
             llm_config: Union[Dict, List[Dict]],
             load_balance_strategy: LoadBalanceStrategy = LoadBalanceStrategy.ROUND_ROBIN
         ) -> None:
@@ -232,37 +229,6 @@ class ChatProcessor(ChatProcessStrategy):
                 config_index=idx
             )
         return self.config_usage
-
-        self.llm_configs = [llm_config] if isinstance(llm_config, dict) else llm_config
-        self.llm_configs = [validate_client_config(model_type, config) for config in self.llm_configs]
-        self.create_tools_call_completion = partial(create_tools_call_completion, config_list=self.llm_configs)
-        
-        self.current_config_index = 0
-        self.load_balance_strategy = load_balance_strategy
-        self.config_usage = {
-            i: {
-                "usage": 0,  # 使用次数
-                "last_used": 0,  # 最后使用时间
-                "total_response_time": 0,  # 总响应时间
-                "avg_response_time": 0,  # 平均响应时间
-                "weight": 1,  # 权重，默认为1
-                "errors": 0,  # 错误次数
-                "last_error": None  # 最后错误时间
-            } 
-            for i in range(len(self.llm_configs))
-        }
-        
-        self.lb_logger = get_load_balance_logger(load_balance_strategy.value)
-        self.lb_logger.info(
-            f"Initializing ChatProcessor with {len(self.llm_configs)} configurations"
-        )
-        
-        # 记录每个配置的基本信息
-        for i, config in enumerate(self.llm_configs):
-            logger.debug(
-                f"Config {i}: model={config.get('model')}, "
-                f"base_url={config.get('base_url', '******')}"
-            )
     
     def _get_next_config(self) -> Dict:
         """根据选择的负载均衡策略获取下一个配置"""
@@ -428,12 +394,10 @@ class ChatProcessor(ChatProcessStrategy):
         stream: bool = False
     ) -> ChatCompletion | Generator:
         start_time = time.time()
-        start_time = time.time()
         source = self.model_type.lower()
         
         
         if source not in SUPPORTED_CLIENTS:
-            logger.error(f"Unsupported source: {source}")
             logger.error(f"Unsupported source: {source}")
             raise ValueError(f"Unsupported source: {source}")
         
@@ -441,16 +405,10 @@ class ChatProcessor(ChatProcessStrategy):
             current_config = self._get_next_config()
             config_index = self.llm_configs.index(current_config)
             
-            current_config = self._get_next_config()
-            config_index = self.llm_configs.index(current_config)
-            
             try:
-                if current_config.get("api_type") != "azure":
                 if current_config.get("api_type") != "azure":
                     from openai import OpenAI
                     client = OpenAI(
-                        api_key=current_config.get("api_key"),
-                        base_url=current_config.get("base_url"),
                         api_key=current_config.get("api_key"),
                         base_url=current_config.get("base_url"),
                     )
@@ -460,18 +418,11 @@ class ChatProcessor(ChatProcessStrategy):
                         api_key=current_config.get("api_key"),
                         azure_endpoint=current_config.get("base_url"),
                         api_version=current_config.get("api_version"),
-                        api_key=current_config.get("api_key"),
-                        azure_endpoint=current_config.get("base_url"),
-                        api_version=current_config.get("api_version"),
                     )
                     
                 params = {
                     "model": current_config.get("model").replace(".", "") if current_config.get("api_type") == "azure" else current_config.get("model"),
-                    "model": current_config.get("model").replace(".", "") if current_config.get("api_type") == "azure" else current_config.get("model"),
                     "messages": messages,
-                    "temperature": current_config.get("params", {}).get("temperature", 0.5),
-                    "top_p": current_config.get("params", {}).get("top_p", 0.1),
-                    "max_tokens": current_config.get("params", {}).get("max_tokens", 4096),
                     "temperature": current_config.get("params", {}).get("temperature", 0.5),
                     "top_p": current_config.get("params", {}).get("top_p", 0.1),
                     "max_tokens": current_config.get("params", {}).get("max_tokens", 4096),
@@ -484,21 +435,9 @@ class ChatProcessor(ChatProcessStrategy):
                 response_time = time.time() - start_time
                 self.update_response_time(config_index, response_time)
                 
-                
-                # 更新响应时间统计
-                response_time = time.time() - start_time
-                self.update_response_time(config_index, response_time)
-                
                 return response
                 
-            except Exception as e:
-                logger.error(f"Error with config {config_index}: {str(e)}")
-                self.update_error_stats(config_index)
-                
-                if len(self.llm_configs) > 1:
-                    logger.warning("Trying next config...")
-                    return self.create_completion(messages, stream)
-                    
+            except Exception as e:                  
                 logger.error(f"Error with config {config_index}: {str(e)}")
                 self.update_error_stats(config_index)
                 
