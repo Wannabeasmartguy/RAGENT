@@ -23,20 +23,17 @@ from core.processors import (
     ClassicChatDialogProcessor,
 )
 from core.models.app import (
-    ClassicChatState, 
-    UserMessage, 
-    AssistantMessage, 
-    SystemMessage, 
+    ClassicChatState,
+    UserMessage,
+    AssistantMessage,
+    SystemMessage,
     MessageType,
     TextContent,
     ImageContent,
     SerializationMode,
 )
 from core.storage.db.sqlite import SqlAssistantStorage
-from modules.chat.transform import (
-    MessageHistoryTransform, 
-    ReasoningContentTagProcessor
-)
+from modules.chat.transform import MessageHistoryTransform, ReasoningContentTagProcessor
 from modules.chat.wrapper import stream_with_reasoning_content_wrapper
 from utils.basic_utils import (
     model_selector,
@@ -49,6 +46,7 @@ from utils.log.logger_config import (
     setup_logger,
     log_dict_changes,
 )
+
 try:
     from utils.st_utils import (
         float_chat_input_with_audio_recorder,
@@ -94,6 +92,7 @@ async def rerun_page():
     """
     await st.rerun()
 
+
 def generate_response(
     *,
     processed_messages: List[Dict[str, Union[str, Dict, List]]],
@@ -123,7 +122,9 @@ def generate_response(
     return response
 
 
-def transform_chat_history(chat_history: List[Dict[str, Union[str, Dict, List]]]) -> List[MessageType]:
+def transform_chat_history(
+    chat_history: List[Dict[str, Union[str, Dict, List]]],
+) -> List[MessageType]:
     """
     将数据库中的聊天记录转换为MessageType对象列表
     """
@@ -146,6 +147,7 @@ def create_default_dialog(
     创建默认对话
     """
     from core.processors.dialog.dialog_processors import OperationPriority
+
     if priority == "high":
         priority = OperationPriority.HIGH
     elif priority == "normal":
@@ -155,11 +157,13 @@ def create_default_dialog(
     new_chat_state = ClassicChatState(
         current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
-        config_list=[generate_client_config(
-            source=OpenAISupportedClients.AOAI.value,
-            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
-            stream=True,
-        ).model_dump()],
+        config_list=[
+            generate_client_config(
+                source=OpenAISupportedClients.AOAI.value,
+                model=model_selector(OpenAISupportedClients.AOAI.value)[0],
+                stream=True,
+            ).model_dump()
+        ],
         llm_model_type=OpenAISupportedClients.AOAI.value,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         chat_history=[],
@@ -273,17 +277,19 @@ def debounced_dialog_change():
     改进的防抖函数，主要用于性能优化和用户体验提升
     """
     import time
-    
+
     current_time = time.time()
-    
+
     # 如果当前有锁，直接返回 False
     if st.session_state.dialog_lock:
         st.toast(i18n("Please wait..."), icon="🔄")
         return False
-        
+
     # 检查是否满足防抖延迟
-    if (current_time - st.session_state.last_dialog_change_time 
-        > st.session_state.debounce_delay):
+    if (
+        current_time - st.session_state.last_dialog_change_time
+        > st.session_state.debounce_delay
+    ):
         try:
             st.session_state.dialog_lock = True
             st.session_state.last_dialog_change_time = current_time
@@ -291,17 +297,14 @@ def debounced_dialog_change():
         finally:
             # 确保锁一定会被释放
             st.session_state.dialog_lock = False
-            
+
     # 如果间隔太短，给出提示
     else:
         remaining = st.session_state.debounce_delay - (
             current_time - st.session_state.last_dialog_change_time
         )
-        if remaining > 0.1: # 只在延迟较明显时提示
-            st.toast(
-                i18n("Please slow down a bit..."), 
-                icon="⏳"
-            )
+        if remaining > 0.1:  # 只在延迟较明显时提示
+            st.toast(i18n("Please slow down a bit..."), icon="⏳")
     return False
 
 
@@ -330,7 +333,8 @@ def update_config_in_db_callback():
                 source=st.session_state["model_type"].lower(),
                 model=(
                     st.session_state.model
-                    if selected_model_config and len(selected_model_config) > 0  # 检查配置是否存在且非空
+                    if selected_model_config
+                    and len(selected_model_config) > 0  # 检查配置是否存在且非空
                     else "Not given"
                 ),
                 api_key=selected_model_config.get("api_key", "Not given"),
@@ -354,7 +358,7 @@ def update_config_in_db_callback():
         ]
     st.session_state["chat_config_list"] = config_list
     log_dict_changes(original_dict=origin_config_list[0], new_dict=config_list[0])
-    
+
     current_chat_state = ClassicChatState(
         current_run_id=st.session_state.run_id,
         run_name=st.session_state.run_name,
@@ -362,7 +366,7 @@ def update_config_in_db_callback():
         system_prompt=st.session_state["system_prompt"],
         llm_model_type=st.session_state["model_type"],
     )
-    
+
     dialog_processor.update_dialog_config(
         run_id=current_chat_state.current_run_id,
         llm_config=current_chat_state.config_list[0],
@@ -384,20 +388,26 @@ def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMe
     basic_user_message = UserMessage(
         content=[TextContent(type="text", text=prompt)],
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
     if images:
-        basic_user_message.content.append(ImageContent(type="image_url", image_url=images))
+        basic_user_message.content.append(
+            ImageContent(type="image_url", image_url=images)
+        )
     return basic_user_message
 
+
 # Add assistant message to chat history
-def create_assistant_message(content: str, reasoning_content: Optional[str] = None) -> AssistantMessage:
+def create_assistant_message(
+    content: str, reasoning_content: Optional[str] = None
+) -> AssistantMessage:
     return AssistantMessage(
         content=content,
         reasoning_content=reasoning_content,
         created_at=datetime.now(),
-        updated_at=datetime.now()
+        updated_at=datetime.now(),
     )
+
 
 def display_user_message(prompt: str, image_uploader: Optional[BytesIO] = None):
     """显示用户消息"""
@@ -408,10 +418,13 @@ def display_user_message(prompt: str, image_uploader: Optional[BytesIO] = None):
             st.image(image_uploader)
         st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
 
-def process_assistant_response(response: Dict, if_stream: bool = True) -> Tuple[str, str]:
+
+def process_assistant_response(
+    response: Dict, if_stream: bool = True
+) -> Tuple[str, str]:
     """处理助手的响应"""
     tag_processor = ReasoningContentTagProcessor()
-    
+
     if not if_stream:
         reasoning_content = ""
         try:
@@ -419,39 +432,45 @@ def process_assistant_response(response: Dict, if_stream: bool = True) -> Tuple[
                 reasoning_content = response.choices[0].message.reasoning_content
                 response_content = response.choices[0].message.content
             elif tag_processor.detect(response.choices[0].message.content):
-                reasoning_content, response_content = tag_processor.extract(response.choices[0].message.content)
+                reasoning_content, response_content = tag_processor.extract(
+                    response.choices[0].message.content
+                )
         except:
             pass
 
         st.caption(reasoning_content)
         st.write(response_content)
-        
+
     else:
-        total_response = st.write_stream(stream_with_reasoning_content_wrapper(response))
+        total_response = st.write_stream(
+            stream_with_reasoning_content_wrapper(response)
+        )
         reasoning_content, response_content = tag_processor.extract(total_response)
-        
+
     st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
     return reasoning_content, response_content
 
-def prepare_messages(chat_history: List[MessageType], system_prompt: str, history_length: int) -> List[Dict]:
+
+def prepare_messages(
+    chat_history: List[MessageType], system_prompt: str, history_length: int
+) -> List[Dict]:
     """准备发送给模型的消息列表"""
     max_msg_transform = MessageHistoryTransform(max_size=history_length)
     processed_messages = max_msg_transform.transform(deepcopy(chat_history))
-    
+
     system_message = SystemMessage(
-        content=system_prompt,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        content=system_prompt, created_at=datetime.now(), updated_at=datetime.now()
     )
     processed_messages.insert(0, system_message)
-    
+
     # 使用MODEL模式序列化消息
     return [msg.to_dict(mode=SerializationMode.MODEL) for msg in processed_messages]
+
 
 def get_response_and_display_assistant_message(
     processed_messages: List[Dict],
     chatprocessor: ChatProcessor,
-    if_tools_call: bool = False
+    if_tools_call: bool = False,
 ) -> Tuple[str, str]:
     """获取助手消息并显示"""
     logger.debug(f"processed_messages: {processed_messages}")
@@ -459,19 +478,20 @@ def get_response_and_display_assistant_message(
         response = generate_response(
             processed_messages=processed_messages,
             chatprocessor=chatprocessor,
-            if_tools_call=if_tools_call
+            if_tools_call=if_tools_call,
         )
     except Exception as e:
         response = dict(error=str(e))
-        
+
     st.html("<span class='chat-assistant'></span>")
-    
+
     if isinstance(response, dict) and "error" in response:
         st.error(response["error"])
         logger.error(f"Error occurred: {response['error']}")
         return "", ""
-        
+
     return process_assistant_response(response, st.session_state.if_stream)
+
 
 def create_and_display_chat_round(
     prompt: str,
@@ -483,36 +503,37 @@ def create_and_display_chat_round(
     try:
         # 显示用户消息
         display_user_message(prompt, image_uploader)
-        
+
         # 添加用户消息到历史记录
         user_message = create_user_message(prompt=prompt, images=image_uploader)
         st.session_state.chat_history.append(user_message)
-        
+
         # 更新数据库中的对话历史
-        chat_history_data = [msg.to_dict(mode=SerializationMode.MODEL) 
-                           for msg in st.session_state.chat_history]
-        
+        chat_history_data = [
+            msg.to_dict(mode=SerializationMode.MODEL)
+            for msg in st.session_state.chat_history
+        ]
+
         dialog_processor.update_chat_history(
-            run_id=st.session_state.run_id,
-            chat_history=chat_history_data
+            run_id=st.session_state.run_id, chat_history=chat_history_data
         )
-        
+
         # 显示助手响应
         with st.chat_message("assistant", avatar=ai_avatar):
             interrupt_button_placeholder = st.empty()
             response_placeholder = st.empty()
-            
+
             # 显示中断按钮
             interrupt_button = interrupt_button_placeholder.button(
                 label=i18n("Interrupt"),
                 on_click=interrupt_reply_generating_callback,
                 use_container_width=True,
             )
-            
+
             if interrupt_button:
                 st.session_state.if_interrupt_reply_generating = False
                 st.stop()
-            
+
             with response_placeholder.container():
                 with st.spinner("Thinking..."):
                     # 准备消息
@@ -523,57 +544,61 @@ def create_and_display_chat_round(
                         if if_tools_call
                         else st.session_state.system_prompt
                     )
-                    
+
                     processed_messages = prepare_messages(
-                        st.session_state.chat_history,
-                        system_prompt,
-                        history_length
+                        st.session_state.chat_history, system_prompt, history_length
                     )
-                    
+
                     # 创建聊天处理器
                     chatprocessor = ChatProcessor(
                         model_type=st.session_state["model_type"],
                         llm_config=st.session_state.chat_config_list[0],
                     )
-                    
+
                     # 显示助手消息并获取响应
-                    reasoning_content, response_content = get_response_and_display_assistant_message(
-                        processed_messages,
-                        chatprocessor,
-                        if_tools_call
+                    reasoning_content, response_content = (
+                        get_response_and_display_assistant_message(
+                            processed_messages, chatprocessor, if_tools_call
+                        )
                     )
-                    
+
                     if response_content:  # 只在有响应内容时添加助手消息
                         assistant_message = create_assistant_message(
                             content=response_content,
-                            reasoning_content=reasoning_content
+                            reasoning_content=reasoning_content,
                         )
                         st.session_state.chat_history.append(assistant_message)
-                        
+
                         # 保存对话历史
                         dialog_processor.update_chat_history(
                             run_id=st.session_state.run_id,
-                            chat_history=[msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history]
+                            chat_history=[
+                                msg.to_dict(mode=SerializationMode.STORAGE)
+                                for msg in st.session_state.chat_history
+                            ],
                         )
-                    
+
             # 清空中断按钮
             interrupt_button_placeholder.empty()
 
-            if (
-                st.session_state.run_name == DEFAULT_DIALOG_TITLE
-            ):
+            if st.session_state.run_name == DEFAULT_DIALOG_TITLE:
                 # 为使用默认对话名称的对话生成一个内容摘要的新名称
                 try:
-                    asyncio.run(generate_new_run_name_with_llm_for_the_first_time(
-                        chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history],
-                        run_id=st.session_state.run_id,
-                        dialog_processor=dialog_processor,
-                        model_type=st.session_state.model_type,
-                        llm_config=st.session_state.chat_config_list[0]
-                    ))
+                    asyncio.run(
+                        generate_new_run_name_with_llm_for_the_first_time(
+                            chat_history=[
+                                msg.to_dict(mode=SerializationMode.MODEL)
+                                for msg in st.session_state.chat_history
+                            ],
+                            run_id=st.session_state.run_id,
+                            dialog_processor=dialog_processor,
+                            model_type=st.session_state.model_type,
+                            llm_config=st.session_state.chat_config_list[0],
+                        )
+                    )
                 except Exception as e:
                     logger.error(f"Error during thread creation: {e}")
-        
+
             if reasoning_content:
                 asyncio.run(rerun_page())
     except Exception as e:
@@ -687,6 +712,7 @@ with st.sidebar:
 
         # 为了让 update_config_in_db_callback 能够更新上面的多个参数，需要把model选择放在他们下面
         if select_box0 != OpenAISupportedClients.OPENAI_LIKE.value:
+
             def get_selected_non_llamafile_model_index(model_type) -> int:
                 try:
                     model = st.session_state.chat_config_list[0].get("model")
@@ -854,7 +880,7 @@ with st.sidebar:
                         logger.info(
                             f"Chat config list updated: {st.session_state.chat_config_list}"
                         )
-                        
+
                         current_chat_state = ClassicChatState(
                             current_run_id=st.session_state.run_id,
                             config_list=st.session_state.chat_config_list,
@@ -872,7 +898,9 @@ with st.sidebar:
                             },
                             updated_at=datetime.now(),
                         )
-                        logger.info(f"Dialog {st.session_state.run_id} llm config updated with OpenAI-like model {current_chat_state.config_list[0]['model']}")
+                        logger.info(
+                            f"Dialog {st.session_state.run_id} llm config updated with OpenAI-like model {current_chat_state.config_list[0]['model']}"
+                        )
                         st.toast(i18n("Model config loaded successfully"), icon="✅")
                     else:
                         st.toast(i18n("Failed to load model config"), icon="❌")
@@ -890,7 +918,9 @@ with st.sidebar:
                     )
                     selected_config_id = config_list[selected_index]["id"]
                     oailike_config_processor.delete_model_config(selected_config_id)
-                    logger.info(f"OpenAI-like model {st.session_state.model}'s config deleted")
+                    logger.info(
+                        f"OpenAI-like model {st.session_state.model}'s config deleted"
+                    )
                     st.toast(i18n("Model config deleted successfully"), icon="🗑️")
                     # st.rerun()
 
@@ -943,33 +973,43 @@ with st.sidebar:
                         current_run_id=st.session_state.run_id,
                         run_name=st.session_state.run_name,
                     )
-                    
+
                     # 如果是同一个对话，不进行更新
                     if selected_run.run_id == current_chat_state.current_run_id:
-                        logger.debug(f"Same dialog selected, skipping update") 
+                        logger.debug(f"Same dialog selected, skipping update")
                         return
-                        
+
                     # 先保存当前对话的状态
                     if current_chat_state.current_run_id:
-                        
+
                         dialog_processor.update_dialog_config(
                             run_id=current_chat_state.current_run_id,
                             llm_config=current_chat_state.config_list[0],
                             assistant_data={
                                 "model_type": current_chat_state.llm_model_type,
-                                "system_prompt": current_chat_state.system_prompt
+                                "system_prompt": current_chat_state.system_prompt,
                             },
-                            updated_at=datetime.now()
+                            updated_at=datetime.now(),
                         )
-                        
-                    # 再加载新对话的状态    
-                    st.session_state.run_id = selected_run.run_id
-                    st.session_state.current_run_id_index = run_id_list.index(st.session_state.run_id)
-                    st.session_state.chat_config_list = [selected_run.llm] if selected_run.llm else []
-                    st.session_state.chat_history = transform_chat_history(selected_run.memory["chat_history"])
-                    st.session_state.system_prompt = selected_run.assistant_data.get("system_prompt", "")
 
-                    logger.info(f"Chat dialog changed, from {current_chat_state.current_run_id} to {selected_run.run_id}")
+                    # 再加载新对话的状态
+                    st.session_state.run_id = selected_run.run_id
+                    st.session_state.current_run_id_index = run_id_list.index(
+                        st.session_state.run_id
+                    )
+                    st.session_state.chat_config_list = (
+                        [selected_run.llm] if selected_run.llm else []
+                    )
+                    st.session_state.chat_history = transform_chat_history(
+                        selected_run.memory["chat_history"]
+                    )
+                    st.session_state.system_prompt = selected_run.assistant_data.get(
+                        "system_prompt", ""
+                    )
+
+                    logger.info(
+                        f"Chat dialog changed, from {current_chat_state.current_run_id} to {selected_run.run_id}"
+                    )
 
                 except Exception as e:
                     logger.error(f"Error during dialog change: {e}")
@@ -993,7 +1033,9 @@ with st.sidebar:
             with add_dialog_column:
 
                 def add_dialog_button_callback():
-                    new_chat_state = create_default_dialog(dialog_processor, priority="normal")
+                    new_chat_state = create_default_dialog(
+                        dialog_processor, priority="normal"
+                    )
                     st.session_state.run_id = new_chat_state.current_run_id
                     st.session_state.run_name = new_chat_state.run_name
                     st.session_state.system_prompt = new_chat_state.system_prompt
@@ -1014,16 +1056,22 @@ with st.sidebar:
                 def delete_dialog_callback():
                     dialog_processor.delete_dialog(st.session_state.run_id)
                     if len(dialog_processor.get_all_dialogs()) == 0:
-                        new_chat_state = create_default_dialog(dialog_processor, priority="high")
+                        new_chat_state = create_default_dialog(
+                            dialog_processor, priority="high"
+                        )
                         st.session_state.run_id = new_chat_state.current_run_id
                     else:
-                        while st.session_state.current_run_id_index >= len(dialog_processor.get_all_dialogs()):
+                        while st.session_state.current_run_id_index >= len(
+                            dialog_processor.get_all_dialogs()
+                        ):
                             st.session_state.current_run_id_index -= 1
                         st.session_state.run_id = dialog_processor.get_all_dialogs()[
                             st.session_state.current_run_id_index
                         ].run_id
                     current_run = dialog_processor.get_dialog(st.session_state.run_id)
-                    st.session_state.chat_history = transform_chat_history(current_run.memory["chat_history"])
+                    st.session_state.chat_history = transform_chat_history(
+                        current_run.memory["chat_history"]
+                    )
                     st.session_state.chat_config_list = [current_run.llm]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.saved_dialog.run_name}, deleted dialog id: {st.session_state.run_id}"
@@ -1045,7 +1093,9 @@ with st.sidebar:
                 dialog_processor.update_dialog_name(
                     run_id=st.session_state.run_id, new_name=st.session_state.run_name
                 )
-                logger.info(f"Dialog {st.session_state.run_id} name updated to {st.session_state.run_name}")
+                logger.info(
+                    f"Dialog {st.session_state.run_id} name updated to {st.session_state.run_name}"
+                )
 
             def system_prompt_change_callback():
                 """系统提示更改回调"""
@@ -1064,7 +1114,9 @@ with st.sidebar:
                         "system_prompt": st.session_state.system_prompt,
                     },
                 )
-                logger.info(f"Dialog {st.session_state.run_id} system prompt updated, length: {len(st.session_state.system_prompt)}")
+                logger.info(
+                    f"Dialog {st.session_state.run_id} system prompt updated, length: {len(st.session_state.system_prompt)}"
+                )
                 st.toast(i18n("System prompt updated"), icon="✅")
 
             dialog_name = dialog_details_settings_popover.text_input(
@@ -1123,7 +1175,10 @@ with st.sidebar:
                     st.session_state.chat_history = st.session_state.chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.run_id,
-                    chat_history=[msg.to_dict(mode=SerializationMode.MODEL) for msg in st.session_state.chat_history]
+                    chat_history=[
+                        msg.to_dict(mode=SerializationMode.MODEL)
+                        for msg in st.session_state.chat_history
+                    ],
                 )
                 logger.info(f"Dialog {st.session_state.run_id} chat history deleted")
 
@@ -1145,7 +1200,10 @@ with st.sidebar:
             )
             if export_button:
                 export_dialog(
-                    chat_history=[msg.to_dict(mode=SerializationMode.EXPORT) for msg in st.session_state.chat_history],
+                    chat_history=[
+                        msg.to_dict(mode=SerializationMode.EXPORT)
+                        for msg in st.session_state.chat_history
+                    ],
                     chat_name=st.session_state.run_name,
                     model_name=st.session_state.model,
                 )
@@ -1168,7 +1226,16 @@ with st.sidebar:
 
 float_init()
 st.title(st.session_state.run_name)
-write_chat_history([msg.to_dict(mode=SerializationMode.STORAGE) for msg in st.session_state.chat_history])
+
+st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
+st.html(get_style(style_type="ASSISTANT_CHAT", st_version=st.__version__))
+
+write_chat_history(
+    [
+        msg.to_dict(mode=SerializationMode.STORAGE)
+        for msg in st.session_state.chat_history
+    ]
+)
 back_to_top(back_to_top_placeholder0, back_to_top_placeholder1)
 back_to_bottom(back_to_top_bottom_placeholder0, back_to_top_bottom_placeholder1)
 if st.session_state.model == None:
