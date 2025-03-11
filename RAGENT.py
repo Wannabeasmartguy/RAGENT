@@ -11,6 +11,7 @@ import streamlit as st
 
 from core.llm._client_info import (
     generate_client_config,
+    generate_multi_client_configs,
     OpenAISupportedClients,
 )
 from core.basic_config import (
@@ -153,17 +154,19 @@ def create_default_dialog(
     elif priority == "normal":
         priority = OperationPriority.NORMAL
 
+    config_list = [
+        config.model_dump() 
+        for config in generate_multi_client_configs(
+            source=OpenAISupportedClients.AOAI.value,
+            model=model_selector(OpenAISupportedClients.AOAI.value)[0],
+            stream=True,
+        )
+    ]
     new_run_id = str(uuid4())
     new_chat_state = ClassicChatState(
         current_run_id=new_run_id,
         run_name=DEFAULT_DIALOG_TITLE,
-        config_list=[
-            generate_client_config(
-                source=OpenAISupportedClients.AOAI.value,
-                model=model_selector(OpenAISupportedClients.AOAI.value)[0],
-                stream=True,
-            ).model_dump()
-        ],
+        config_list=config_list,
         llm_model_type=OpenAISupportedClients.AOAI.value,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         chat_history=[],
