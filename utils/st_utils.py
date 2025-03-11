@@ -5,6 +5,8 @@ import time
 import base64
 from typing import List, Dict, Optional, Literal, Tuple
 
+import streamlit_authenticator as stauth
+
 from config.constants import (
     I18N_DIR, 
     SUPPORTED_LANGUAGES,
@@ -98,6 +100,69 @@ STYLE_CONSTANTS = {
         "v39": RAG_CHAT_ASSISTANT_STYLE_ST_V39,
     }
 }
+
+
+def set_pages_configs_in_common(
+    title,
+    version: str = "0.0.1",
+    page_icon_path=os.path.dirname(__file__),
+    init_sidebar_state: Literal["expanded", "collapsed", "auto"] = "expanded",
+    layout: Literal["wide", "centered"] = "centered",
+):
+    st.set_page_config(
+        page_title=title,
+        page_icon=page_icon_path,
+        initial_sidebar_state=init_sidebar_state,
+        layout=layout,
+        menu_items={
+            "Get Help": "https://github.com/Wannabeasmartguy/RAGENT",
+            "Report a bug": "https://github.com/Wannabeasmartguy/RAGENT/issues",
+            "About": f"""欢迎使用 RAGENT WebUI {version}！""",
+        },
+    )
+
+
+def keep_login_or_logout_and_redirect_to_login_page(
+    authenticator: stauth.Authenticate,
+    logout_key: str = "classic_chat_logout",
+    login_page: str = "RAGENT.py"
+):
+    """
+    登出并重定向到登录页面
+    """
+    from utils.log.logger_config import setup_logger
+    from loguru import logger
+
+    authenticator.login()
+    if st.session_state.get('authentication_status'):
+        authenticator.logout(location="sidebar",key=logout_key)
+
+    else:
+        logger.debug("Not logged in, redirected to the login page")
+        # 清除所有session_state
+        # st.session_state.clear()
+        st.session_state['switch_to_login_page'] = True
+        st.switch_page(login_page)
+
+
+def reset_user_password(
+    authenticator: stauth.Authenticate,
+    reset_password_key: str = "classic_chat_reset_user_password_button",
+):
+    from utils.log.logger_config import setup_logger
+    from loguru import logger
+    try:
+        with st.expander(i18n("Reset Password")):
+            if authenticator.reset_password(
+                username=st.session_state['name'], 
+                location="main",
+                key=reset_password_key
+            ):
+                st.toast(i18n("Password reset successfully"), icon="✅")
+                logger.info(f"Password reset successfully for user: {st.session_state['name']}")
+    except Exception as e:
+        logger.error(f"Reset password failed: {e}")
+        st.error(i18n("Reset password failed")+f": {e}")
 
 
 def get_scroll_button_js(

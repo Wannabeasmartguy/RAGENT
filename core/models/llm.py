@@ -1,12 +1,35 @@
 import os
-from typing import TypeVar
+import uuid
+from typing import TypeVar, Optional
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 load_dotenv(override=True)
 
+# 用于存储 OpenAI-like 模型配置的数据模型
+class OpenAILikeConfigInStorage(BaseModel):
+    """OpenAI-like 本地存储配置数据模型"""
+    user_id: str = Field(..., description="关联的用户ID")
+    config_id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="配置唯一标识")
+    model: str = Field(..., description="模型名称")
+    base_url: str = Field(..., description="API基础地址")
+    api_key: str = Field(..., description="API密钥")
+    custom_name: str = Field("", description="自定义配置名称")
+    description: str = Field("", description="配置描述")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+# 用于构建请求 LLM 的参数的模型
 class LLMParams(BaseModel):
     """LLM 参数配置"""
 
@@ -21,6 +44,7 @@ class LLMParams(BaseModel):
     )
     stream: bool = Field(
         default=True, description="If true, the LLM will stream the response"
+        default=True, description="If true, the LLM will stream the response"
     )
 
     @classmethod
@@ -29,6 +53,7 @@ class LLMParams(BaseModel):
             temperature=kwargs.get("temperature", 0.5),
             top_p=kwargs.get("top_p", 1.0),
             max_tokens=kwargs.get("max_tokens", 4096),
+            stream=kwargs.get("stream", True)
             stream=kwargs.get("stream", True)
         )
 
@@ -71,6 +96,10 @@ class AzureOpenAIConfig(LLMBaseConfig):
             base_url=kwargs.get("base_url") or os.getenv("AZURE_OAI_ENDPOINT", "noaoaiendpoint"),
             api_type=kwargs.get("api_type") or os.getenv("API_TYPE", "azure"),
             api_version=kwargs.get("api_version") or os.getenv("API_VERSION", "2024-02-15-preview"),
+            api_key=kwargs.get("api_key") or os.getenv("AZURE_OAI_KEY", "noaoaikey"),
+            base_url=kwargs.get("base_url") or os.getenv("AZURE_OAI_ENDPOINT", "noaoaiendpoint"),
+            api_type=kwargs.get("api_type") or os.getenv("API_TYPE", "azure"),
+            api_version=kwargs.get("api_version") or os.getenv("API_VERSION", "2024-02-15-preview"),
             params=LLMParams.init_params(**kwargs)
         )
     
@@ -97,6 +126,8 @@ class OpenAIConfig(LLMBaseConfig):
             model=kwargs.get("model", "gpt-3.5-turbo"),
             api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY", "noopenaikey"),
             base_url=kwargs.get("base_url") or os.getenv("OPENAI_API_ENDPOINT", "noopenaiendpoint"),
+            api_key=kwargs.get("api_key") or os.getenv("OPENAI_API_KEY", "noopenaikey"),
+            base_url=kwargs.get("base_url") or os.getenv("OPENAI_API_ENDPOINT", "noopenaiendpoint"),
             params=LLMParams.init_params(**kwargs)
         )
     
@@ -119,6 +150,8 @@ class OpenAILikeConfig(OpenAIConfig):
         """从环境变量和kwargs创建配置"""
         return cls(
             model=kwargs.get("model"),
+            api_key=kwargs.get("api_key", "noopenaikey"),
+            base_url=kwargs.get("base_url", "noopenaiendpoint"),
             api_key=kwargs.get("api_key", "noopenaikey"),
             base_url=kwargs.get("base_url", "noopenaiendpoint"),
             params=LLMParams.init_params(**kwargs)

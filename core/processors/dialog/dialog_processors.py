@@ -5,6 +5,7 @@ from queue import Queue
 from threading import Lock, Thread
 import time
 from loguru._logger import Logger
+import streamlit as st
 
 from core.strategy import BaseDialogProcessStrategy
 from core.storage.db.base import Sqlstorage
@@ -117,12 +118,13 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
             logger=logger
         )
     
-    def update_dialog_name(self, *, run_id: str, new_name: str):
+    def update_dialog_name(self, *, run_id: str, user_id: str, new_name: str):
         """更新对话名称"""
         def _update():
             self.storage.upsert(
                 AssistantRun(
                     run_id=run_id,
+                    user_id=user_id,
                     run_name=new_name,
                     updated_at=datetime.now()
                 )
@@ -133,6 +135,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         llm_config: Dict[str, Any],
         run_data: Optional[Dict[str, Any]] = None,
         assistant_data: Optional[Dict[str, Any]] = None,
@@ -141,13 +144,14 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
     ):
         """更新对话配置"""
         def _update():
-            current_run = self.storage.get_specific_run(run_id)
+            current_run = self.storage.get_specific_run(run_id, user_id)
             if not current_run:
                 raise ValueError(f"Dialog with run_id {run_id} not found")
             
             self.storage.upsert(
                 AssistantRun(
                     run_id=run_id,
+                    user_id=user_id,
                     name=current_run.name,
                     run_name=current_run.run_name,
                     llm=llm_config,
@@ -164,6 +168,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         chat_history: List[Dict[str, Any]],
         assistant_data: Optional[Dict[str, Any]] = None,
         task_data: Optional[Dict[str, Any]] = None,
@@ -172,13 +177,14 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
     ):
         """更新对话历史"""
         def _update():
-            current_run = self.storage.get_specific_run(run_id)
+            current_run = self.storage.get_specific_run(run_id, user_id)
             if not current_run:
                 raise ValueError(f"Dialog with run_id {run_id} not found")
             
             self.storage.upsert(
                 AssistantRun(
                     run_id=run_id,
+                    user_id=user_id,
                     name=current_run.name,
                     run_name=current_run.run_name,
                     llm=current_run.llm,
@@ -195,6 +201,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         run_name: str,
         llm_config: Dict[str, Any],
         name: str = "assistant",
@@ -213,6 +220,7 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
                     AssistantRun(
                         name=name,
                         run_id=run_id,
+                        user_id=user_id,
                         run_name=run_name,
                         llm=llm_config,
                         memory={"chat_history": []},
@@ -230,25 +238,31 @@ class ClassicChatDialogProcessor(BaseDialogProcessor):
         
         self._enqueue_operation(_create, priority=priority)
     
-    def delete_dialog(self, run_id: str):
+    def delete_dialog(self, run_id: str, user_id: str):
         """删除对话"""
         def _delete():
-            self.storage.delete_run(run_id)
+            self.storage.delete_run(run_id, user_id)
         self._enqueue_operation(_delete)
     
-    def get_dialog(self, run_id: str) -> Optional[AssistantRun]:
+    def get_dialog(self, run_id: str, user_id: Optional[str] = None) -> Optional[AssistantRun]:
         """获取对话（同步操作）"""
         with self.lock:
-            return self.storage.get_specific_run(run_id)
+            return self.storage.get_specific_run(
+                run_id=run_id,
+                user_id=user_id
+            )
     
-    def get_all_dialogs(self) -> List[AssistantRun]:
+    def get_all_dialogs(self, user_id: Optional[str] = None, debug_mode: bool = False) -> List[AssistantRun]:
         """获取所有对话（同步操作）"""
         try:
             # 等待所有操作完成
             self.operation_queue.join()
             
             with self.lock:
-                dialogs = self.storage.get_all_runs()
+                dialogs = self.storage.get_all_runs(
+                    user_id=user_id,
+                    debug_mode=debug_mode
+                )
                 self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
                 return dialogs
         except Exception as e:
@@ -277,6 +291,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
         self, 
         *, 
         run_id: str, 
+        user_id: str,
         knowledge_base_config: Dict[str, Any]
     ):
         """
@@ -294,7 +309,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
         """
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
                 
@@ -305,6 +320,7 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
                 self.storage.upsert(
                     AssistantRun(
                         run_id=run_id,
+                        user_id=user_id,
                         name=current_run.name,
                         run_name=current_run.run_name,
                         llm=current_run.llm,
@@ -322,11 +338,11 @@ class RAGChatDialogProcessor(ClassicChatDialogProcessor):
                 
         self._enqueue_operation(_update)
     
-    def get_knowledge_base_config(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_knowledge_base_config(self, run_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """获取当前对话指向的知识库配置"""
         with self.lock:
             try:
-                run = self.storage.get_specific_run(run_id)
+                run = self.storage.get_specific_run(run_id, user_id)
                 if run and run.run_data:
                     return run.run_data.get("knowledge_base_config", {})
                 return {}
@@ -355,8 +371,9 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         self,
         *,
         run_id: str,
+        user_id: str,
         run_name: str,
-        template: Dict[str, Any],
+        template: Optional[Dict[str, Any]] = None,
         name: str = "assistant",
         team_state: Optional[Dict[str, Any]] = None,
         agent_state: Optional[Dict[str, Any]] = None,
@@ -380,6 +397,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
                         name=name,
                         run_id=run_id,
                         run_name=run_name,
+                        user_id=user_id,
                         llm=template.get("llm", {}),
                         memory={"chat_history": []},
                         run_data=run_data,
@@ -396,42 +414,49 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         
         self._enqueue_operation(_create, priority=priority)
 
-    def delete_dialog(self, run_id: str):
+    def delete_dialog(self, run_id: str, user_id: str):
         """删除对话"""
         def _delete():
-            self.storage.delete_run(run_id)
+            self.storage.delete_run(run_id, user_id)
         self._enqueue_operation(_delete)
 
-    def get_dialog(self, run_id: str) -> Optional[AssistantRun]:
+    def get_dialog(self, run_id: str, user_id: Optional[str] = None) -> Optional[AssistantRun]:
         """获取对话（同步操作）"""
         with self.lock:
-            return self.storage.get_specific_run(run_id)
+            return self.storage.get_specific_run(
+                run_id=run_id,
+                user_id=user_id
+            )
         
-    def get_all_dialogs(self) -> List[AssistantRun]:
+    def get_all_dialogs(self, user_id: Optional[str] = None, debug_mode: bool = False) -> List[AssistantRun]:
         """获取所有对话（同步操作）"""
         try:
             # 等待所有操作完成
             self.operation_queue.join()
             
             with self.lock:
-                dialogs = self.storage.get_all_runs()
+                dialogs = self.storage.get_all_runs(
+                    user_id=user_id,
+                    debug_mode=debug_mode
+                )
                 self._logger.debug(f"Retrieved {len(dialogs)} dialogs")
                 return dialogs
         except Exception as e:
             self._logger.error(f"Error getting dialogs: {e}")
             return []
 
-    def update_dialog_name(self, *, run_id: str, new_name: str):
+    def update_dialog_name(self, *, run_id: str, user_id: str, new_name: str):
         """更新对话名称"""
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
             
                 self.storage.upsert(
                     AssistantRun(
                         run_id=run_id,
+                        user_id=user_id,
                         run_name=new_name,
                         updated_at=datetime.now()
                     )
@@ -446,6 +471,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         self, 
         *, 
         run_id: str, 
+        user_id: str,
         template: Dict[str, Any]
     ):
         """
@@ -457,7 +483,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         """
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
 
@@ -485,11 +511,11 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
             
         self._enqueue_operation(_update)
 
-    def get_template(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_template(self, run_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """获取当前对话指向的 Agent team 模板"""
         with self.lock:
             try:
-                run = self.storage.get_specific_run(run_id)
+                run = self.storage.get_specific_run(run_id, user_id)
                 if run and run.assistant_data:
                     return run.assistant_data.get("template", {})
                 return {}
@@ -497,11 +523,11 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
                 self._logger.error(f"Error getting template: {e}")
                 return {}
     
-    def update_team_state(self, run_id: str, team_state: Dict[str, Any]):
+    def update_team_state(self, run_id: str, user_id: str, team_state: Dict[str, Any]):
         """更新团队状态"""
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
             
@@ -511,6 +537,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
                 self.storage.upsert(
                     AssistantRun(
                         run_id=run_id, 
+                        user_id=user_id,
                         assistant_data=current_assistant_data
                     )
                 )
@@ -521,34 +548,40 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
         
         self._enqueue_operation(_update)
 
-    def get_team_state(self, run_id: str) -> Optional[Dict[str, Any]]:
+    def get_team_state(self, run_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """获取团队状态"""
         with self.lock:
-            run = self.storage.get_specific_run(run_id)
+            run = self.storage.get_specific_run(run_id, user_id)
             if run and run.assistant_data:
                 return run.assistant_data.get("team_state", {})
             return {}
     
-    def update_run_name(self, run_id: str, run_name: str):
+    def update_run_name(self, run_id: str, user_id: str, run_name: str):
         """更新对话名称"""
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
                 
-                self.storage.upsert(AssistantRun(run_id=run_id, run_name=run_name))
+                self.storage.upsert(
+                    AssistantRun(
+                        run_id=run_id, 
+                        user_id=user_id, 
+                        run_name=run_name
+                    )
+                )
                 self._logger.info(f"Successfully updated run name for: {run_id}")
             except Exception as e:
                 self._logger.error(f"Failed to update run name: {e}")
                 raise
         self._enqueue_operation(_update)
 
-    def update_template_and_team_state(self, run_id: str, template: Dict[str, Any], team_state: Dict[str, Any]):
+    def update_template_and_team_state(self, run_id: str, user_id: str, template: Dict[str, Any], team_state: Dict[str, Any]):
         """更新对话模板和团队状态"""
         def _update():
             try:
-                current_run = self.storage.get_specific_run(run_id)
+                current_run = self.storage.get_specific_run(run_id, user_id)
                 if not current_run:
                     raise ValueError(f"Dialog with run_id {run_id} not found")
                 
@@ -559,6 +592,7 @@ class AgenChatDialogProcessor(BaseDialogProcessor):
                 self.storage.upsert(
                     AssistantRun(
                         run_id=run_id,
+                        user_id=user_id,
                         assistant_data=current_assistant_data
                     )
                 )

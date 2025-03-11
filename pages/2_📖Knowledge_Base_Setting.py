@@ -13,10 +13,8 @@ from config.constants import (
     EMBEDDING_DIR,
     EMBEDDING_CONFIG_FILE_PATH,
 )
-from core.basic_config import (
-    I18nAuto,
-    set_pages_configs_in_common,
-)
+from core.basic_config import I18nAuto
+from utils.st_utils import set_pages_configs_in_common
 from core.processors import (
     ChromaVectorStoreProcessorWithNoApi,
     ChromaCollectionProcessorWithNoApi,

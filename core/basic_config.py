@@ -41,20 +41,3 @@ class I18nAuto:
         else:
             return key
 
-
-def set_pages_configs_in_common(
-    title,
-    version: str = "0.0.1",
-    page_icon_path=os.path.dirname(__file__),
-    init_sidebar_state: Literal["expanded", "collapsed", "auto"] = "expanded",
-):
-    st.set_page_config(
-        page_title=title,
-        page_icon=page_icon_path,
-        initial_sidebar_state=init_sidebar_state,
-        menu_items={
-            "Get Help": "https://github.com/Wannabeasmartguy/RAGENT",
-            "Report a bug": "https://github.com/Wannabeasmartguy/RAGENT/issues",
-            "About": f"""欢迎使用 RAGENT WebUI {version}！""",
-        },
-    )

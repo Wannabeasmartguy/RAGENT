@@ -2,10 +2,11 @@ import streamlit as st
 import os
 import uuid
 
-from core.basic_config import I18nAuto, set_pages_configs_in_common
+from core.basic_config import I18nAuto
 from core.processors.chat.classic import CozeChatProcessor
 from core.storage.displayer.coze import display_cozebot_response, display_coze_conversation
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
+from utils.st_utils import set_pages_configs_in_common
 
 VERSION = "0.1.1"
 current_directory = os.path.dirname(__file__)
@@ -37,7 +38,7 @@ with st.sidebar:
 
     st.page_link("RAGENT.py", label="💭 Chat")
     st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("pages/1_🤖AgentChat.py", label="🤖 Agent Chat")
     st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
 
     "---"

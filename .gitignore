@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# secrets
+secrets/
+
 # Test notebook
 test*.ipynb
 *Chat history*.md

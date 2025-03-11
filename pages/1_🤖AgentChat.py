@@ -5,10 +5,11 @@ from uuid import uuid4
 from typing import List, Union, Coroutine, AsyncGenerator, Literal, Dict, Optional
 from loguru import logger
 
-from core.basic_config import (
-    I18nAuto,
-    set_pages_configs_in_common,
-)
+from core.basic_config import I18nAuto
+try:
+    from utils.st_utils import set_pages_configs_in_common
+except:
+    st.rerun()
 from config.constants import (
     VERSION,
     LOGO_DIR,
@@ -16,26 +17,38 @@ from config.constants import (
 )
 from core.processors.config.llm import OAILikeConfigProcessor
 from core.processors.dialog.dialog_processors import AgenChatDialogProcessor
+from core.llm._client_info import (
+    generate_client_config,
+    get_client_config_model,
+)
+from utils.basic_utils import model_selector
 from config.constants.i18n import I18N_DIR, SUPPORTED_LANGUAGES
-from core.storage.db.sqlite import SqlAssistantStorage
+from core.storage.db.sqlite.assistant import SqlAssistantStorage
 from core.models.app import AgentChatState
 from config.constants import CHAT_HISTORY_DIR, AGENT_CHAT_HISTORY_DB_TABLE, CHAT_HISTORY_DB_FILE
 from assets.styles.css.components_css import CUSTOM_RADIO_STYLE
 from ext.autogen.teams.factory import TeamBuilderFactory, TeamType
 from ext.autogen.manager.template import AgentTemplateFileManager
+from utils.user_login_utils import(
+    load_and_create_authenticator,
+)
+from utils.st_utils import (
+    keep_login_or_logout_and_redirect_to_login_page
+)
 
 from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import TextMessage, MultiModalMessage
 from autogen_agentchat.teams import BaseGroupChat
 
 
-async def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+def save_team_state(team: BaseGroupChat, run_id: str, user_id: str, dialog_processor: AgenChatDialogProcessor):
     """
     保存团队状态并更新对话处理器中的团队状态。
 
     Args:
     - team (BaseGroupChat): 团队聊天对象，表示一个基础群聊。
     - run_id (str): 运行标识符，用于跟踪对话处理的特定实例。
+    - user_id (str): 用户标识符，用于跟踪对话处理的特定实例。
     - dialog_processor (AgenChatDialogProcessor): 对话处理器对象，负责处理和更新对话数据。
     """
     # 异步保存当前团队的状态
@@ -47,20 +60,22 @@ async def save_team_state(team: BaseGroupChat, run_id: str, dialog_processor: Ag
     # 更新对话处理器中的团队状态
     dialog_processor.update_team_state(
         run_id=run_id,
+        user_id=user_id,
         team_state=current_team_state,
     )
 
 
-async def load_team_state(team: BaseGroupChat, run_id: str, dialog_processor: AgenChatDialogProcessor):
+async def load_team_state(team: BaseGroupChat, run_id: str, user_id: str, dialog_processor: AgenChatDialogProcessor):
     """
     异步加载团队状态。
     
     Args:
     - team (BaseGroupChat): 团队聊天对象，代表一个基础群聊。
     - run_id (str): 运行ID，用于标识特定的对话流程。
+    - user_id (str): 用户标识符，用于跟踪对话处理的特定实例。
     - dialog_processor (AgenChatDialogProcessor): 对话处理器对象，用于处理对话数据。
     """
-    asyncio.run(team.load_state(dialog_processor.get_dialog(run_id).assistant_data["team_state"]))
+    asyncio.run(team.load_state(dialog_processor.get_dialog(run_id, user_id).assistant_data["team_state"]))
 
 
 def write_task_result(
@@ -209,7 +224,7 @@ def get_group_chat_manager_key(agent_states: Dict) -> Optional[str]:
     return None
 
 
-def get_chat_history_from_team_state(dialog_processor: AgenChatDialogProcessor, run_id: str) -> List[TextMessage]:
+def get_chat_history_from_team_state(dialog_processor: AgenChatDialogProcessor, run_id: str, user_id: str) -> List[TextMessage]:
     """
     从team_state中获取聊天历史
     
@@ -222,7 +237,7 @@ def get_chat_history_from_team_state(dialog_processor: AgenChatDialogProcessor, 
     """
     try:
         # 获取agent_states
-        agent_states = (dialog_processor.get_dialog(run_id)
+        agent_states = (dialog_processor.get_dialog(run_id=run_id, user_id=user_id)
                        .assistant_data.get("team_state", {})
                        .get("agent_states", {}))
         
@@ -242,6 +257,7 @@ def get_chat_history_from_team_state(dialog_processor: AgenChatDialogProcessor, 
 def create_default_dialog(
         dialog_processor: AgenChatDialogProcessor,
         priority: Literal["high", "normal"] = "high",
+        user_id: str = st.session_state['email'],
     ) -> str:
     """
     创建默认对话
@@ -262,9 +278,27 @@ def create_default_dialog(
     try:
         default_template = list(team_template_manager.agent_templates.values())[0]
     except IndexError:
-        raise ValueError("No agent templates found")
+        logger.warning("No agent templates found in team_template_manager during initializing Agent Chat page.")
+        st.toast(i18n("No agent templates found! Please create one in Agent Setting page first."))
+        
+        default_template_dict = {
+            "id": str(uuid4()),
+            "name": "Default Template",
+            "description": "No description",
+            "llm": generate_client_config("openai").to_dict(),
+            "template_type": "reflection",
+            "primary_agent_system_message": "not set",
+            "critic_agent_system_message": "not set",
+            "max_messages": 10,
+            "termination_text": "not set",
+        }
+        logger.debug(default_template_dict)
+        default_template = team_template_manager.create_agent_template(default_template_dict)
+        team_template_manager.add_agent_template_to_file(default_template)
+        default_template = default_template.model_dump()
     dialog_processor.create_dialog(
         run_id=new_run_id,
+        user_id=user_id,
         run_name=DEFAULT_DIALOG_TITLE,
         template=default_template,
         team_state={},
@@ -273,6 +307,20 @@ def create_default_dialog(
     )
     return new_run_id
 
+
+# 在页面开始处添加登录检查
+if not st.session_state.get('authentication_status'):
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="agent_chat_logout",
+            login_page="RAGENT.py"
+        )
+        st.stop()  # 防止后续代码执行
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
 
 if not os.path.exists(CHAT_HISTORY_DIR):
     os.makedirs(CHAT_HISTORY_DIR)
@@ -284,7 +332,7 @@ if not chat_history_storage.table_exists():
     chat_history_storage.create()
 dialog_processor = AgenChatDialogProcessor(storage=chat_history_storage)
 oailike_config_processor = OAILikeConfigProcessor()
-team_template_manager = AgentTemplateFileManager()
+team_template_manager = AgentTemplateFileManager(user_id=st.session_state['email'])
 
 language = os.getenv("LANGUAGE", "简体中文")
 i18n = I18nAuto(
@@ -292,10 +340,10 @@ i18n = I18nAuto(
     language=SUPPORTED_LANGUAGES[language]
 )
 
-run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 if len(run_id_list) == 0:
-    create_default_dialog(dialog_processor, priority="normal")
-    run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs()]
+    create_default_dialog(dialog_processor, priority="normal", user_id=st.session_state['email'])
+    run_id_list = [run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])]
 
 if "agent_chat_current_run_id_index" not in st.session_state:
     st.session_state.agent_chat_current_run_id_index = 0
@@ -306,7 +354,8 @@ if "agent_chat_run_id" not in st.session_state:
 
 if "agent_chat_team_state" not in st.session_state:
     st.session_state.agent_chat_team_state = dialog_processor.get_dialog(
-        st.session_state.agent_chat_run_id
+        run_id=st.session_state.agent_chat_run_id,
+        user_id=st.session_state['email']
     ).assistant_data["team_state"]
 # if "agent_chat_history" not in st.session_state:
 #     st.session_state.agent_chat_history = dialog_processor.get_dialog(
@@ -316,22 +365,33 @@ if "agent_chat_team_state" not in st.session_state:
 
 logo_path = os.path.join(LOGO_DIR, "RAGENT_logo.png")
 logo_text = os.path.join(LOGO_DIR, "RAGENT_logo_with_text_horizon.png")
-set_pages_configs_in_common(
-    version=VERSION, title="RAGENT-AgentChat", page_icon_path=logo_path
-)
+try:
+    set_pages_configs_in_common(
+        version=VERSION, title="RAGENT-AgentChat", page_icon_path=logo_path
+    )
+except:
+    st.rerun()
 
 
 with st.sidebar:
     st.logo(logo_text, icon_image=logo_path)
 
-    st.page_link("RAGENT.py", label="💭 Chat")
-    st.page_link("pages/RAG_Chat.py", label="🧩 RAG Chat")
-    st.page_link("pages/1_🤖AgentChat.py", label="🤖 AgentChat")
+    st.page_link("RAGENT.py", label=i18n("💭 Classic Chat"))
+    st.page_link("pages/RAG_Chat.py", label=i18n("🧩 RAG Chat"))
+    st.page_link("pages/1_🤖AgentChat.py", label=i18n("🤖 Agent Chat"))
     # st.page_link("pages/3_🧷Coze_Agent.py", label="🧷 Coze Agent")
+    if os.getenv("LOGIN_ENABLED") == "True":
+        st.page_link("pages/user_setting.py", label=i18n("👤 User Setting"))
     st.write(i18n("Sub pages"))
     st.page_link(
         "pages/Agent_Setting.py", label=(i18n("⚙️ Agent Setting"))
     )
+
+    if os.getenv("LOGIN_ENABLED") == "True":
+        if st.session_state['authentication_status']:
+            with st.expander(label=i18n("User Info")):
+                st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
+                st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
     dialog_settings_tab, team_settings_tab, multimodal_settings_tab = st.tabs(
         [i18n("Dialog Settings"), i18n("Team Settings"), i18n("Multimodal Settings")],
@@ -351,6 +411,7 @@ with st.sidebar:
                     selected_run = st.session_state.agent_chat_saved_dialog
                     current_run_state = AgentChatState(
                         current_run_id=st.session_state.agent_chat_run_id,
+                        user_id=st.session_state['email'],
                         run_name=st.session_state.agent_chat_run_name,
                         template=st.session_state.agent_chat_team_template,
                         team_state=st.session_state.agent_chat_team_state,
@@ -364,6 +425,7 @@ with st.sidebar:
                     if current_run_state.current_run_id:
                         dialog_processor.update_template_and_team_state(
                             run_id=current_run_state.current_run_id,
+                            user_id=current_run_state.user_id,
                             template=current_run_state.template,
                             team_state=current_run_state.team_state
                         )
@@ -371,7 +433,7 @@ with st.sidebar:
                     # 加载新对话状态    
                     st.session_state.agent_chat_run_id = selected_run.run_id
                     st.session_state.agent_chat_current_run_id_index = [
-                        run.run_id for run in dialog_processor.get_all_dialogs()
+                        run.run_id for run in dialog_processor.get_all_dialogs(user_id=st.session_state['email'])
                     ].index(st.session_state.agent_chat_run_id)
                     st.session_state.agent_chat_team_template_index = get_team_template_index()
                     st.session_state.agent_chat_team_template = selected_run.assistant_data["template"]
@@ -386,7 +448,7 @@ with st.sidebar:
 
             saved_dialog = dialogs_container.radio(
                 label=i18n("Saved dialog"),
-                options=dialog_processor.get_all_dialogs(),
+                options=dialog_processor.get_all_dialogs(user_id=st.session_state['email']),
                 format_func=lambda x: (
                     x.run_name[:15] + "..." if len(x.run_name) > 15 else x.run_name
                 ),
@@ -403,7 +465,10 @@ with st.sidebar:
 
                 def add_dialog_button_callback():
                     new_run_id = create_default_dialog(dialog_processor, priority="normal")
-                    new_run = dialog_processor.get_dialog(new_run_id)
+                    new_run = dialog_processor.get_dialog(
+                        run_id=new_run_id,
+                        user_id=st.session_state['email']
+                    )
                     new_run_state = AgentChatState(
                         current_run_id=new_run_id,
                         run_name=new_run.run_name,
@@ -428,16 +493,22 @@ with st.sidebar:
             with delete_dialog_column:
 
                 def delete_dialog_callback():
-                    dialog_processor.delete_dialog(st.session_state.agent_chat_run_id)
-                    if len(dialog_processor.get_all_dialogs()) == 0:
-                        st.session_state.agent_chat_run_id = create_default_dialog(dialog_processor, priority="high")
+                    dialog_processor.delete_dialog(
+                        run_id=st.session_state.agent_chat_run_id,
+                        user_id=st.session_state['email']
+                    )
+                    if len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])) == 0:
+                        st.session_state.agent_chat_run_id = create_default_dialog(dialog_processor, priority="high", user_id=st.session_state['email'])
                     else:
-                        while st.session_state.agent_chat_current_run_id_index >= len(dialog_processor.get_all_dialogs()):
+                        while st.session_state.agent_chat_current_run_id_index >= len(dialog_processor.get_all_dialogs(user_id=st.session_state['email'])):
                             st.session_state.agent_chat_current_run_id_index -= 1
-                        st.session_state.agent_chat_run_id = dialog_processor.get_all_dialogs()[
+                        st.session_state.agent_chat_run_id = dialog_processor.get_all_dialogs(user_id=st.session_state['email'])[
                             st.session_state.agent_chat_current_run_id_index
                         ].run_id
-                    current_run = dialog_processor.get_dialog(st.session_state.agent_chat_run_id)
+                    current_run = dialog_processor.get_dialog(
+                        run_id=st.session_state.agent_chat_run_id,
+                        user_id=st.session_state['email']
+                    )
                     # st.session_state.agent_chat_history = current_run.memory["chat_history"]
                     logger.info(
                         f"Delete a chat dialog, deleted dialog name: {st.session_state.agent_chat_saved_dialog.run_name}, deleted dialog id: {st.session_state.agent_chat_run_id}"
@@ -457,12 +528,17 @@ with st.sidebar:
             def dialog_name_change_callback():
                 """对话名称更改回调"""
                 dialog_processor.update_dialog_name(
-                    run_id=st.session_state.agent_chat_run_id, new_name=st.session_state.agent_chat_run_name
+                    run_id=st.session_state.agent_chat_run_id, 
+                    user_id=st.session_state['email'],
+                    new_name=st.session_state.agent_chat_run_name
                 )
 
             dialog_name = dialog_details_settings_popover.text_input(
                 label=i18n("Dialog name"),
-                value=dialog_processor.get_dialog(st.session_state.agent_chat_run_id).run_name,
+                value=dialog_processor.get_dialog(
+                    run_id=st.session_state.agent_chat_run_id,
+                    user_id=st.session_state['email']
+                ).run_name,
                 key="agent_chat_run_name",
                 on_change=dialog_name_change_callback,
             )
@@ -477,6 +553,7 @@ with st.sidebar:
                 st.session_state.agent_chat_team_state = current_team_state
                 dialog_processor.update_team_state(
                     run_id=st.session_state.agent_chat_run_id,
+                    user_id=st.session_state['email'],
                     team_state=current_team_state,
                 )
                 st.session_state.agent_chat_current_run_id_index = run_id_list.index(
@@ -498,6 +575,7 @@ with st.sidebar:
                     st.session_state.agent_chat_history = st.session_state.agent_chat_history[:-1]
                 dialog_processor.update_chat_history(
                     run_id=st.session_state.agent_chat_run_id,
+                    user_id=st.session_state['email'],
                     chat_history=st.session_state.agent_chat_history,
                 )
 
@@ -520,6 +598,7 @@ with st.sidebar:
             selected_template = st.session_state.agent_chat_team_template
             dialog_processor.update_template(
                 run_id=st.session_state.agent_chat_run_id,
+                user_id=st.session_state['email'],
                 template=selected_template
             )
 
@@ -527,7 +606,10 @@ with st.sidebar:
         def get_team_template_index():
             team_template_dict = team_template_manager.agent_templates
             templates = [template for template in team_template_dict.values()]
-            current_dialog = dialog_processor.get_dialog(st.session_state.agent_chat_run_id)
+            current_dialog = dialog_processor.get_dialog(
+                run_id=st.session_state.agent_chat_run_id,
+                user_id=st.session_state['email']
+            )
             if not current_dialog or not current_dialog.assistant_data:
                 return 0
             current_template = current_dialog.assistant_data.get("template", {})
@@ -550,12 +632,24 @@ with st.sidebar:
             if team_template.get("team_type") == "reflection":
                 st.write(i18n("Primary Agent System Message") + ": " + "{primary_agent_system_message}".format(primary_agent_system_message=team_template.get("primary_agent_system_message")))
                 st.write(i18n("Critic Agent System Message") + ": " + "{critic_agent_system_message}".format(critic_agent_system_message=team_template.get("critic_agent_system_message")))
+    
+    if os.getenv("LOGIN_ENABLED") == "True":
+        authenticator = load_and_create_authenticator()
+        keep_login_or_logout_and_redirect_to_login_page(
+            authenticator=authenticator,
+            logout_key="rag_chat_logout",
+            login_page="RAGENT.py"
+        )
+    else:
+        st.session_state['email'] = "test@test.com"
+        st.session_state['name'] = "test"
 
 
 st.title(st.session_state.agent_chat_run_name)
 write_chat_history(get_chat_history_from_team_state(
     dialog_processor=dialog_processor,
-    run_id=st.session_state.agent_chat_run_id
+    run_id=st.session_state.agent_chat_run_id,
+    user_id=st.session_state['email']
 ))
 
 
@@ -565,6 +659,7 @@ def create_or_load_team(
     template: Dict,
     team_state: Optional[Dict] = None,
     run_id: Optional[str] = None,
+    user_id: Optional[str] = None,
     dialog_processor: Optional[AgenChatDialogProcessor] = None
 ) -> BaseGroupChat:
     """
@@ -590,7 +685,7 @@ def create_or_load_team(
     team = builder.build()
     
     if team_state:
-        load_team_state(team=team, run_id=run_id, dialog_processor=dialog_processor)
+        load_team_state(team=team, run_id=run_id, user_id=user_id, dialog_processor=dialog_processor)
         
     return team
 
@@ -600,6 +695,7 @@ team = create_or_load_team(
     template=st.session_state.agent_chat_team_template,
     team_state=st.session_state.agent_chat_team_state,
     run_id=st.session_state.agent_chat_run_id,
+    user_id=st.session_state['email'],
     dialog_processor=dialog_processor
 )
 
@@ -616,7 +712,7 @@ if prompt := st.chat_input(placeholder="Enter your message here"):
         # 输出
         try:
             result = asyncio.run(write_chunks_or_coroutine(response))
-            save_team_state(team=team, run_id=st.session_state.agent_chat_run_id, dialog_processor=dialog_processor)
+            save_team_state(team=team, run_id=st.session_state.agent_chat_run_id, user_id=st.session_state['email'], dialog_processor=dialog_processor)
         except Exception as e:
             st.error(f"Error writing response: {e}")
             result = response

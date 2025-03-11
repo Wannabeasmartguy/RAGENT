@@ -1,15 +1,21 @@
-from typing import List, Dict, Any, Literal, TypeVar
+from typing import List, Dict, Any, Literal, TypeVar, Union
 from uuid import uuid4
 from enum import Enum
 from abc import abstractmethod
-from core.models.llm import LLMBaseConfig, LLMConfigType
+from core.models.llm import (
+    OpenAIConfig,
+    AzureOpenAIConfig,
+    OllamaConfig,
+    OpenAILikeConfig,
+    GroqConfig,
+)
 
 from pydantic import BaseModel, Field
 
 
 class BaseAgentTemplate(BaseModel):
     """用于创建agent的template"""
-
+    user_id: str = Field(..., description="User who the template belongs to."),
     id: str = Field(
         default=str(uuid4()),
         description="Template id. It is used to identify the template for user, not used in generation.",
@@ -35,7 +41,7 @@ AgentTemplate = TypeVar("AgentTemplate", bound=BaseAgentTemplate)
 class ReflectionAgentTeamTemplate(BaseAgentTemplate):
     """用于创建reflection agent的team template"""
 
-    llm: LLMConfigType = Field(..., description="LLM config")
+    llm: Union[AzureOpenAIConfig, OpenAIConfig, OpenAILikeConfig, OllamaConfig, GroqConfig] = Field(..., description="LLM config")
     primary_agent_system_message: str = Field(
         ..., description="Primary agent system message"
     )
