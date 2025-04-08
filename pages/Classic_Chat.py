@@ -431,7 +431,9 @@ def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMe
         updated_at=datetime.now()
     )
     if images:
-        basic_user_message.content.append(ImageContent(type="image_url", image_url=images))
+        # 将BytesIO对象转换为base64编码的字符串
+        image_base64 = f"data:image/jpeg;base64,{base64.b64encode(images.getvalue()).decode('utf-8')}"
+        basic_user_message.content.append(ImageContent(type="image_url", image_url=image_base64))
     return basic_user_message
 
 # Add assistant message to chat history
