@@ -271,8 +271,8 @@ def write_chat_history(
                             st.markdown(content["text"])
                         elif content["type"] == "image_url":
                             # 如果开头为data:image/jpeg;base64，则解码为BytesIO对象
-                            if content["image_url"]["url"].startswith("data:image/jpeg;base64"):
-                                image_data = base64.b64decode(content["image_url"]["url"].split(",")[1])
+                            if content["image_url"].startswith("data:image/jpeg;base64"):
+                                image_data = base64.b64decode(content["image_url"].split(",")[1])
                                 st.image(image_data)
                             else:
                                 st.image(content["image_url"])
