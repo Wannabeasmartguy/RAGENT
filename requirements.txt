@@ -30,5 +30,5 @@ fake-useragent==1.5.1
 duckduckgo_search==6.3.5
 autogen-agentchat==0.4.6
 autogen-ext==0.4.6
-markitdown==0.0.1a3
+markitdown[all]==0.1.1
 streamlit-authenticator==0.4.1
