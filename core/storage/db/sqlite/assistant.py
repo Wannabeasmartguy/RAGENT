@@ -79,12 +79,22 @@ class SqlAssistantStorage(Sqlstorage):
         sanitized = {}
         for key, value in data.items():
             if isinstance(value, str):
-                sanitized[key] = value.replace(';', '').replace('--', '')
+                # 跳过base64图片数据的处理
+                if value.startswith('data:image/'):
+                    sanitized[key] = value
+                else:
+                    sanitized[key] = value.replace(';', '').replace('--', '')
             elif isinstance(value, dict):
-                sanitized[key] = self._sanitize_input(value)
+                # 检查是否为图片内容字典
+                if value.get('type') == 'image_url' and 'image_url' in value:
+                    sanitized[key] = value
+                else:
+                    sanitized[key] = self._sanitize_input(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    self._sanitize_input(item) if isinstance(item, dict) else item 
+                    # 如果是图片内容字典则跳过处理
+                    item if (isinstance(item, dict) and item.get('type') == 'image_url')
+                    else (self._sanitize_input(item) if isinstance(item, dict) else item)
                     for item in value
                 ]
             elif isinstance(value, datetime):
