@@ -3,7 +3,7 @@ import os
 import re
 import time
 import base64
-from typing import List, Dict, Optional, Literal, Tuple
+from typing import List, Dict, Optional, Literal, Tuple, Union
 
 import streamlit_authenticator as stauth
 
@@ -11,7 +11,8 @@ from config.constants import (
     I18N_DIR, 
     SUPPORTED_LANGUAGES,
     USER_AVATAR_SVG,
-    AI_AVATAR_SVG
+    AI_AVATAR_SVG,
+    prompts
 )
 from assets.styles.css.rag_chat_css import (
     RAG_CHAT_USER_STYLE_ST_V37,
@@ -651,12 +652,17 @@ def back_to_bottom(script_container = st.empty(), buttom_container = st.empty())
     bottom_container.float(bottom_css)
 
 
-def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disabled: bool = False) -> str:
+def float_chat_input_with_audio_recorder(if_tools_call: bool = False, is_file_upload: Union[bool, Literal["multiple"]] = True, prompt_disabled: bool = False) -> Optional[Union[Dict, str]]:
     """
     Create a container with a floating chat input and an audio recorder.
 
+    Args:
+        if_tools_call (bool, optional): Whether to show the tools call button. Defaults to False.
+        is_file_upload (Union[bool, Literal["multiple"]], optional): Whether to show the file upload button. Defaults to True.
+        prompt_disabled (bool, optional): Whether to disable the prompt input. Defaults to False.
+
     Returns:
-        str: The text input from the user.
+        Dict: The text input from the user, include text and files(optional).
     """        
     # Create a container with a floating chat input and an audio recorder
     chat_input_container = st.container()
@@ -695,7 +701,12 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
             unsafe_allow_html=True
         )
         character_input_placeholder = character_input_column.empty()
-        prompt = character_input_placeholder.chat_input("What is up?", disabled=prompt_disabled)
+        user_input_content = character_input_placeholder.chat_input(
+            "What is up?", 
+            accept_file=is_file_upload,
+            file_type=["jpg", "jpeg", "png"],   # 暂时只支持图片
+            disabled=prompt_disabled
+        )
 
         # the button (actually popover) on the right side of the chat input is to record audio
         voice_input_popover = voice_input_column.popover(
@@ -740,7 +751,7 @@ def float_chat_input_with_audio_recorder(if_tools_call: str = False, prompt_disa
 
     chat_input_css = float_css_helper(bottom="5rem", display="flex", justify_content="center", margin="0 auto")
     chat_input_container.float(chat_input_css)
-    return prompt
+    return user_input_content
 
 
 @st.fragment

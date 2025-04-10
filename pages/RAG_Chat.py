@@ -1576,7 +1576,9 @@ if (
 else:
     st.session_state.prompt_disabled = False
 prompt = float_chat_input_with_audio_recorder(
-    if_tools_call=False, prompt_disabled=st.session_state.prompt_disabled
+    if_tools_call=False, 
+    is_file_upload=False,
+    prompt_disabled=st.session_state.prompt_disabled
 )
 
 if prompt and st.session_state.model and collection_selectbox:

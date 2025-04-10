@@ -664,8 +664,8 @@ with st.sidebar:
                 st.write(f"{i18n('Hello')}, {st.session_state['name']}!")
                 st.write(f"{i18n('Your email is')} {st.session_state['email']}.")
 
-    dialog_settings_tab, model_settings_tab, multimodal_settings_tab = st.tabs(
-        [i18n("Dialog Settings"), i18n("Model Settings"), i18n("Multimodal Settings")],
+    dialog_settings_tab, model_settings_tab = st.tabs(
+        [i18n("Dialog Settings"), i18n("Model Settings")],
     )
 
     with model_settings_tab:
@@ -1251,14 +1251,6 @@ with st.sidebar:
                     model_name=st.session_state.model,
                 )
 
-        with multimodal_settings_tab:
-            image_uploader = st.file_uploader(
-                label=i18n("Upload images"),
-                type=["jpg", "jpeg", "png"],
-                accept_multiple_files=False,
-                key="image_uploader",
-            )
-
     if os.getenv("LOGIN_ENABLED") == "True":
         authenticator = load_and_create_authenticator()
         keep_login_or_logout_and_redirect_to_login_page(
@@ -1291,20 +1283,25 @@ if st.session_state.model == None:
     st.session_state.prompt_disabled = True
 else:
     st.session_state.prompt_disabled = False
-prompt = float_chat_input_with_audio_recorder(
-    if_tools_call=if_tools_call, prompt_disabled=st.session_state.prompt_disabled
+user_input_dict = float_chat_input_with_audio_recorder(
+    if_tools_call=if_tools_call,
+    is_file_upload=True,
+    prompt_disabled=st.session_state.prompt_disabled
 )
+user_prompt = user_input_dict.get("text") if user_input_dict and user_input_dict.get("text") else ''
+user_files = user_input_dict["files"] if user_input_dict and user_input_dict.get("files") else None
 # # st.write(filter_out_selected_tools_list(st.session_state.tools_popover))
 # st.write(filter_out_selected_tools_dict(st.session_state.tools_popover))
 
 # Accept user input
-if prompt and st.session_state.model:
+if user_prompt and st.session_state.model:
     create_and_display_chat_round(
-        prompt=prompt,
+        prompt=user_prompt,
         history_length=history_length,
-        image_uploader=image_uploader,
+        image_uploader=user_files[0] if user_files else None,  # 只允许上传一张图片
         if_tools_call=if_tools_call,
     )
-
 elif st.session_state.model == None:
     st.error(i18n("Please select a model"))
+elif not user_prompt and user_files:
+    st.toast(i18n("Please input a prompt"))
