@@ -691,9 +691,8 @@ def float_chat_input_with_audio_recorder(if_tools_call: bool = False, is_file_up
         st.markdown(
             """
             <style> 
-                .stChatInput > div {
-                    background-color: #FFFFFF;
-                    border-radius: 10px;
+                div[data-testid=stChatInput] {
+                    border-radius: 20px;
                     border: 1px solid #E0E0E0;
                 }
             </style>
