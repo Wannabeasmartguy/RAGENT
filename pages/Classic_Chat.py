@@ -424,7 +424,7 @@ def interrupt_reply_generating_callback():
 
 
 # Add user message to chat history
-def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMessage:
+def create_user_message(prompt: str, images: Optional[Union[List[BytesIO], BytesIO]] = None) -> UserMessage:
     basic_user_message = UserMessage(
         content=[TextContent(type="text", text=prompt)],
         created_at=datetime.now(),
@@ -432,8 +432,12 @@ def create_user_message(prompt: str, images: Optional[BytesIO] = None) -> UserMe
     )
     if images:
         # 将BytesIO对象转换为base64编码的字符串
-        image_base64 = f"data:image/jpeg;base64,{base64.b64encode(images.getvalue()).decode('utf-8')}"
-        basic_user_message.content.append(ImageContent(type="image_url", image_url=image_base64))
+        if isinstance(images, list):
+            image_base64_list = [f"data:image/jpeg;base64,{base64.b64encode(image.getvalue()).decode('utf-8')}" for image in images]
+            basic_user_message.content.extend([ImageContent(type="image_url", image_url=image_base64) for image_base64 in image_base64_list])
+        else:
+            image_base64 = f"data:image/jpeg;base64,{base64.b64encode(images.getvalue()).decode('utf-8')}"
+            basic_user_message.content.append(ImageContent(type="image_url", image_url=image_base64))
     return basic_user_message
 
 # Add assistant message to chat history
@@ -445,13 +449,17 @@ def create_assistant_message(content: str, reasoning_content: Optional[str] = No
         updated_at=datetime.now()
     )
 
-def display_user_message(prompt: str, image_uploader: Optional[BytesIO] = None):
+def display_user_message(prompt: str, image_uploader: Optional[Union[List[BytesIO], BytesIO]] = None):
     """显示用户消息"""
     with st.chat_message("user", avatar=user_avatar):
         st.html("<span class='chat-user'></span>")
         st.markdown(prompt)
         if image_uploader:
-            st.image(image_uploader)
+            if isinstance(image_uploader, List):
+                for image in image_uploader:
+                    st.image(image)
+            else:
+                st.image(image_uploader)
         st.html(get_style(style_type="USER_CHAT", st_version=st.__version__))
 
 def process_assistant_response(response: Dict, if_stream: bool = True) -> Tuple[str, str]:
@@ -539,7 +547,7 @@ def get_response_and_display_assistant_message(
 def create_and_display_chat_round(
     prompt: str,
     history_length: int = 16,
-    image_uploader: Optional[BytesIO] = None,
+    image_uploader: Optional[Union[List[BytesIO],BytesIO]] = None,
     if_tools_call: bool = False,
 ):
     """创建并显示一轮对话"""
@@ -1285,7 +1293,7 @@ else:
     st.session_state.prompt_disabled = False
 user_input_dict = float_chat_input_with_audio_recorder(
     if_tools_call=if_tools_call,
-    is_file_upload=True,
+    is_file_upload="multiple",
     prompt_disabled=st.session_state.prompt_disabled
 )
 user_prompt = user_input_dict.get("text") if user_input_dict and user_input_dict.get("text") else ''
@@ -1298,7 +1306,7 @@ if user_prompt and st.session_state.model:
     create_and_display_chat_round(
         prompt=user_prompt,
         history_length=history_length,
-        image_uploader=user_files[0] if user_files else None,  # 只允许上传一张图片
+        image_uploader=user_files,
         if_tools_call=if_tools_call,
     )
 elif st.session_state.model == None:
