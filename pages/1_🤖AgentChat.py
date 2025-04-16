@@ -706,7 +706,7 @@ if prompt := st.chat_input(placeholder="Enter your message here"):
         st.write(user_task.content)
     
     # 思考
-    with st.spinner(text="Thinking..."):
+    with st.spinner(text=i18n("Thinking..."), show_time=True):
         response = asyncio.run(team.run(task=user_task))
     
         # 输出

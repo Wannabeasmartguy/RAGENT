@@ -669,7 +669,7 @@ def create_and_display_rag_chat_round(
             st.stop()
 
         with response_placeholder.container():
-            with st.spinner("Thinking..."):
+            with st.spinner(text=i18n("Thinking..."), show_time=True):
                 refresh_retriever()
                 ragchat_processor = get_ragchat_processor()
                 try:

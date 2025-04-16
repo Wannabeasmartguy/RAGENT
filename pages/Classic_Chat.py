@@ -586,7 +586,7 @@ def create_and_display_chat_round(
                 st.stop()
             
             with response_placeholder.container():
-                with st.spinner("Thinking..."):
+                with st.spinner(text=i18n("Thinking..."), show_time=True):
                     # 准备消息
                     system_prompt = (
                         ANSWER_USER_WITH_TOOLS_SYSTEM_PROMPT.format(

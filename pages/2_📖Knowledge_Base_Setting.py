@@ -621,7 +621,7 @@ with st.container(border=True):
                 if not st.session_state.pages:
                     st.toast(i18n("Please upload and split files first"), icon="🚨")
                 else:
-                    with st.spinner():
+                    with st.spinner(text=i18n("Embedding files..."), show_time=True):
                         try:
                             # 始终使用当前知识库的处理器
                             chroma_collection_processor.add_documents(

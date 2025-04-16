@@ -219,5 +219,7 @@
     "🧩 RAG Chat": "🧩 RAG Chat",
     "🤖 Agent Chat": "🤖 Agent Chat",
     "👤 User Setting": "👤 User Setting",
-    "⚙️ Agent Setting": "⚙️ Agent Setting"
+    "⚙️ Agent Setting": "⚙️ Agent Setting",
+    "Thinking...": "Thinking...",
+    "Embedding files...": "Embedding files..."
 }
